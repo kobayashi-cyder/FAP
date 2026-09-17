@@ -19,6 +19,7 @@ __all__ = [
     "AutonomousCapabilityLoop",
 ]
 
+# V61 operational capability planning
 from .evidence_gate import EvidenceGate, EvidencePolicy, EvidenceDecision
 from .capability_spec import CapabilitySpec, CapabilitySpecBuilder
 from .operational_ledger import OperationalLedger
@@ -27,7 +28,15 @@ from .reuse_resolver import CapabilityReuseResolver, ReuseAssessment
 from .operational_matrix import OperationalCapabilityMatrix
 from .request_queue import SkillFactoryRequestQueue
 
+# V62 closed-loop candidate promotion
 from .promotion_ledger import PromotionLedger, PromotionState, digest_tree
 from .holdout_seal import HoldoutSeal
 from .verified_registry import VerifiedSkillRegistry
 from .candidate_pipeline import CandidatePromotionPipeline
+
+# V63 activation / rollback layer
+from .provenance import ProvenanceLedger
+from .activation_manager import ActivationManager
+from .skill_factory_adapter import SkillFactoryOutputAdapter
+from .post_activation_monitor import PostActivationMonitor
+from .v63_closed_loop import V63ClosedLoopCoordinator
