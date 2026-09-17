@@ -1,9 +1,9 @@
 # FAP latest development snapshot
 
-Current additive development release: **V61 — Operational Capability Discovery**.
+Current additive development release: **V62 — Verified Candidate Promotion Loop**.
 
-Source and tests are stored under [`releases/v61/`](releases/v61/).
+Source, tests and validation reports are stored under [`releases/v62/`](releases/v62/).
 
-V61 preserves the existing root mainline and adds a verified-outcome autonomy sidecar.
+V62 adds sealed holdout evaluation, replay-resistant evidence counting, measured subprocess peak RSS, lifecycle promotion, and verified registry manifests.
 
-Validation recorded by the V61 suite: 25/25 tests PASS and compileall PASS. This is not a claim of Sol parity.
+Validation: **42/42 tests PASS**, compileall PASS. The bundled five-shard demonstration is synthetic and is not a claim of Sol parity or a public benchmark score.
