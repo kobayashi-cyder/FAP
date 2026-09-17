@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout Android branch
@@ -40,17 +40,70 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 9.6.0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up Gradle 9.4.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.6.0'
+          gradle-version: '9.4.1'
+
+      - name: Sync latest FAP Python core and release sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          LATEST_RELEASE="$(find releases -mindepth 1 -maxdepth 1 -type d -name 'v[0-9]*' | sort -V | tail -n 1)"
+          if [[ -z "${LATEST_RELEASE}" ]]; then
+            echo "No releases/vNN directory found" >&2
+            exit 1
+          fi
+          LATEST_VER="$(basename "${LATEST_RELEASE}" | sed 's/^v//')"
+
+          CORE="$(find . -maxdepth 1 -type f -name 'fap_v*.py' | sort -V | tail -n 1)"
+          if [[ -z "${CORE}" ]]; then
+            CORE="$(find "${LATEST_RELEASE}" -type f -name 'fap_v*.py' | sort -V | tail -n 1)"
+          fi
+          if [[ -z "${CORE}" ]]; then
+            echo "No runnable fap_v*.py core found" >&2
+            exit 1
+          fi
+
+          PY_DST="android-v59/app/src/main/python"
+          mkdir -p "${PY_DST}"
+          cp "${CORE}" "${PY_DST}/fap_core.py"
+
+          rm -rf "${PY_DST}/fap_autonomy"
+          if [[ -d "${LATEST_RELEASE}/fap_autonomy" ]]; then
+            cp -R "${LATEST_RELEASE}/fap_autonomy" "${PY_DST}/fap_autonomy"
+          fi
+
+          MAIN_SHA="$(git rev-parse origin/main)"
+          cat > "${PY_DST}/build_meta.py" <<PY
+          RELEASE_VERSION = "${LATEST_VER}"
+          CORE_SOURCE = "${CORE}"
+          MAIN_SHA = "${MAIN_SHA}"
+          PY
+
+          python3.13 -m compileall -q "${PY_DST}"
+
+          echo "FAP_VERSION=${LATEST_VER}" >> "$GITHUB_ENV"
+          echo "FAP_RELEASE_DIR=${LATEST_RELEASE}" >> "$GITHUB_ENV"
+          echo "FAP_CORE_SOURCE=${CORE}" >> "$GITHUB_ENV"
+          echo "FAP_MAIN_SHA=${MAIN_SHA}" >> "$GITHUB_ENV"
+
+          echo "Packaging release V${LATEST_VER}"
+          echo "Runtime core: ${CORE}"
+          echo "Sidecar: ${LATEST_RELEASE}/fap_autonomy"
 
       - name: Build debug APK
         working-directory: android-v59
         shell: bash
         run: |
           set -euo pipefail
-          gradle --no-daemon clean assembleDebug
+          FAP_VERSION="${FAP_VERSION}" gradle --no-daemon clean assembleDebug
 
       - name: Stage latest APK
         shell: bash
@@ -58,24 +111,29 @@ jobs:
           set -euo pipefail
           mkdir -p apk
           cp android-v59/app/build/outputs/apk/debug/app-debug.apk apk/FAP-android-latest.apk
-          MAIN_SHA="$(git rev-parse origin/main)"
           ANDROID_SHA="$(git rev-parse HEAD)"
           BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          APK_SHA256="$(sha256sum apk/FAP-android-latest.apk | awk '{print $1}')"
           cat > apk/APK_INFO.md <<EOF
           # FAP Android APK
 
-          - Source main commit: \`${MAIN_SHA}\`
+          - FAP release packaged: \`V${FAP_VERSION}\`
+          - Runtime core source: \`${FAP_CORE_SOURCE}\`
+          - Source main commit: \`${FAP_MAIN_SHA}\`
           - Android branch commit before APK commit: \`${ANDROID_SHA}\`
           - Built at UTC: \`${BUILT_AT}\`
+          - Python runtime: \`CPython 3.13 / Chaquopy 17\`
+          - SHA-256: \`${APK_SHA256}\`
           - Build: debug APK
-          - Package source: \`android-v59/\`
           EOF
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FAP-android-${{ github.sha }}
-          path: apk/FAP-android-latest.apk
+          name: FAP-android-v${{ env.FAP_VERSION }}-${{ github.sha }}
+          path: |
+            apk/FAP-android-latest.apk
+            apk/APK_INFO.md
           if-no-files-found: error
           retention-days: 30
 
@@ -89,5 +147,5 @@ jobs:
             exit 0
           fi
           MAIN_SHORT="$(git rev-parse --short origin/main)"
-          git commit -m "Build Android APK from main ${MAIN_SHORT}"
+          git commit -m "Build Android V${FAP_VERSION} APK from main ${MAIN_SHORT}"
           git push origin HEAD:android-v59
