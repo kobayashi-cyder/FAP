@@ -1,9 +1,9 @@
 # FAP latest development snapshot
 
-Current additive development release: **V63 — Verified Activation + Post-Activation Rollback**.
+Current additive development release: **V64 — Verified Runtime Dispatch + Canary A/B**.
 
-Source, tests and validation reports are stored under [`releases/v63/`](releases/v63/).
+Source, cumulative tests and validation reports are stored under [`releases/v64/`](releases/v64/).
 
-V63 connects verified Skill Factory output to the V62 promotion pipeline, stages consolidated candidates as digest-addressed snapshots, switches an atomic active pointer, monitors verified production observations, and rolls back on sustained regression.
+V64 verifies active skill slot integrity at load time, supports deterministic canary routing through a trusted sandbox-runner bridge, compares verified baseline/active outcomes, rolls back regressions, feeds demoted candidates to Failure Memory, and exports a sanitized Android active-state manifest.
 
-Validation: **63/63 tests PASS**, compileall PASS, ResourceWarning-as-error PASS. The bundled activation/rollback demonstration is synthetic and is not a claim of Sol parity or a public benchmark score.
+Validation performed for this increment: **19/19 V64 delta tests PASS**, compileall PASS, warnings-as-errors PASS. V63 baseline remained recorded as 63/63 PASS. Synthetic demo results are mechanism validation only, not a public benchmark or Sol-parity claim.
