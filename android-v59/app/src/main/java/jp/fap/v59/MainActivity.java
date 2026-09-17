@@ -4,25 +4,26 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.*;
 
 public class MainActivity extends Activity {
-    private FapEngine engine;
+    private PythonFapEngine engine;
     private EditText input;
     private TextView output;
     private TextView status;
-    private FapEngine.Result last;
+    private Button run;
+    private PythonFapEngine.Result last;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        engine = new FapEngine(this);
+        engine = new PythonFapEngine(this);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(28, 28, 28, 28);
 
         TextView title = new TextView(this);
-        title.setText("FAP V59 · Android Local");
+        title.setText("FAP Android · Live Python Core");
         title.setTextSize(22f);
         root.addView(title);
 
@@ -37,7 +38,7 @@ public class MainActivity extends Activity {
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         root.addView(input, new LinearLayout.LayoutParams(-1, 0, 1f));
 
-        Button run = new Button(this);
+        run = new Button(this);
         run.setText("FAPで処理");
         run.setOnClickListener(v -> runFap());
         root.addView(run);
@@ -53,24 +54,39 @@ public class MainActivity extends Activity {
         Button clear = new Button(this); clear.setText("履歴消去");
         ok.setOnClickListener(v -> verify(true));
         ng.setOnClickListener(v -> verify(false));
-        clear.setOnClickListener(v -> { engine.clear(); output.setText(""); status.setText(engine.status()); });
-        feedback.addView(ok, new LinearLayout.LayoutParams(0,-2,1f));
-        feedback.addView(ng, new LinearLayout.LayoutParams(0,-2,1f));
-        feedback.addView(clear, new LinearLayout.LayoutParams(0,-2,1f));
+        clear.setOnClickListener(v -> {
+            engine.clear();
+            output.setText("");
+            status.setText(engine.status());
+        });
+        feedback.addView(ok, new LinearLayout.LayoutParams(0, -2, 1f));
+        feedback.addView(ng, new LinearLayout.LayoutParams(0, -2, 1f));
+        feedback.addView(clear, new LinearLayout.LayoutParams(0, -2, 1f));
         root.addView(feedback);
 
         TextView note = new TextView(this);
-        note.setText("通信権限なし。検証OK/失敗を押した結果だけSkill Graphへ学習します。");
+        note.setText("main更新時に最新Pythonコアとrelease sidecarをAPKへ封入。検証済み結果だけ永続学習へ昇格します。");
         root.addView(note);
+
         setContentView(root);
     }
 
     private void runFap() {
         String q = input.getText().toString().trim();
-        if (q.isEmpty()) return;
-        last = engine.process(q);
-        output.setText(last.answer + "\n\n[skill] " + last.skill + "\n[confidence] " + String.format("%.2f", last.confidence));
-        status.setText(engine.status());
+        if (q.isEmpty() || !run.isEnabled()) return;
+        run.setEnabled(false);
+        status.setText("THINKING · " + engine.status());
+
+        new Thread(() -> {
+            PythonFapEngine.Result result = engine.process(q);
+            runOnUiThread(() -> {
+                last = result;
+                output.setText(result.answer + "\n\n[core] " + result.skill +
+                        "\n[confidence] " + String.format("%.2f", result.confidence));
+                status.setText(engine.status());
+                run.setEnabled(true);
+            });
+        }, "fap-python").start();
     }
 
     private void verify(boolean success) {
