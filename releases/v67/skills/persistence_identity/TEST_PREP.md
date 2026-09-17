@@ -2,20 +2,27 @@
 
 Baseline: main `d6329968a579fa0d20dbdb115a6f7a060d13a68e`.
 
-## Independent observations from current main
+## Material update
+V67 now contains a shadow-table migration for `evidence`, `canary_obs`, and `failures`. The intended invariant is narrower than the original prototype: local `event_id` may repeat across capabilities, while `attestation_id` and holdout evidence SHA remain globally single-use.
 
-Current V66 `ProductionCapabilityMatrix` uses global `event_id PRIMARY KEY` and global `attestation_id UNIQUE`. Current `StagedCanaryController` also uses global `canary_obs.event_id PRIMARY KEY`. Therefore cross-capability reuse of otherwise valid external IDs can collide before capability identity is considered.
+## Required deterministic verification
+1. Run `test_persistence_identity.py` and `test_migration_v67.py` from a clean checkout; do not inherit the earlier unexecuted PASS claim.
+2. Build exact V66-shaped SQLite fixtures for production evidence, canary observations, quarantine failures, and quarantine releases. Record pre-migration schema SQL, row counts, and representative row hashes.
+3. Prove migration is atomic: inject failure after each shadow copy/rename boundary and verify transaction rollback leaves the V66 schema/data intact.
+4. Prove post-migration `(capability_id,event_id)` accepts the same local event/failure/observation ID across two capabilities but rejects a duplicate within one capability.
+5. Prove `attestation_id` remains globally UNIQUE across capabilities and reused holdout `evidence_sha256` still cannot release quarantine twice.
+6. Close/reopen after migration and after rollback; require identical row counts, preserved release cutoffs, quarantine status, canary stage/status, and EvidenceManifest/provenance references.
+7. Run migration twice and require idempotence with no second backup/shadow mutation.
+8. Run rollback after adding V67-only cross-capability duplicate local IDs. Rollback must fail safely or require an explicit preflight because V66 cannot represent those rows; never silently discard them.
+9. Verify no foreign-key/index/trigger objects attached to the legacy tables are lost. If production schemas have any, fixtures must include them before KEEP.
+10. Measure migration time and temporary disk amplification at representative DB sizes; record peak bytes and failure behavior under simulated disk-full/readonly conditions.
 
-## Required verification
+## Regression gates
+- Existing V66 tests must remain green when run against untouched V66 fixtures.
+- No evidence, quarantine, holdout, attestation, wrapper, or candidate digest may change value during migration.
+- Global anti-reuse semantics for attestation and holdout evidence are non-negotiable.
 
-1. Prototype unit tests: deterministic scoped identity, cross-capability same local event ID accepted, same-capability duplicate rejected, reopen persistence.
-2. Legacy guard: do not alter any V61-V66 table in place in V67. Existing DB files must remain readable by existing code.
-3. Migration experiment must be copy-on-write or shadow-table only until fixtures prove rollback.
-4. Canary test must cover same `event_id` under two capability IDs and prove the current global-key behavior before proposing a migration.
-5. Restart tests must close/reopen between canary stages and around quarantine release.
-6. Holdout-use evidence must remain single-use after reopen.
-7. Any DDL proposal needs a rollback anchor at main `d6329968...` and a byte-preserving backup/restore demonstration.
+## Acceptance
+`KEEP` only after clean-runtime execution plus atomic-failure, restart, rollback-preflight, schema-object, and resource evidence. `MODIFY` if any migration invariant is unproven. `KILL/REPLACE` if capability-scoped event identity weakens cryptographic/provenance binding or cannot be migrated without silent loss.
 
-## Acceptance gate
-
-KEEP the scoped-identity contract/prototype if its tests pass and the collision is reproducible against V66. MODIFY before integration because production tables cannot safely change until legacy migration/restart fixtures pass. KILL only if repository-wide evidence proves event/attestation IDs are intentionally globally unique and cryptographically bound to capability identity.
+Rollback anchor: main `d6329968a579fa0d20dbdb115a6f7a060d13a68e`.
