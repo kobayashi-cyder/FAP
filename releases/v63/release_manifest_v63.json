@@ -1,0 +1,7 @@
+{
+  "version": "63",
+  "name": "Activation, Monitoring and Automatic Rollback",
+  "validation": {"compileall": "PASS", "unittest": "57/57 PASS", "synthetic_activation_rollback_demo": "PASS"},
+  "new_modules": ["fap_autonomy/skill_factory_bridge.py", "fap_autonomy/activation.py", "fap_autonomy/post_activation_monitor.py", "fap_autonomy/provenance.py", "fap_autonomy/v63_orchestrator.py"],
+  "safety": {"activation_mode": "atomic_manifest_pointer", "generated_code_auto_import": false, "verified_runtime_outcomes_only": true, "rollback_digest_verification": true}
+}

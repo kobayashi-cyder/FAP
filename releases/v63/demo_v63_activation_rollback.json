@@ -1,0 +1,16 @@
+{
+  "decision": {
+    "status": "rollback_required",
+    "rollback": true,
+    "verified_cases": 6,
+    "success_rate": 0.3333333333333333,
+    "baseline_success_rate": 0.9,
+    "success_delta": -0.5666666666666667,
+    "mean_latency_ms": 22.5,
+    "baseline_latency_ms": 10.0,
+    "latency_ratio": 2.25,
+    "reasons": ["success_rate_regression", "latency_regression"]
+  },
+  "rollback_matches_old": true,
+  "note": "synthetic mechanism validation only"
+}

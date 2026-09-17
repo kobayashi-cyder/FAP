@@ -4,5 +4,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 
 - `v61/` — Operational Capability Discovery.
 - `v62/` — Verified Candidate Promotion Loop (sealed holdout, resource gate, evidence lifecycle, verified registry manifest).
+- `v63/` — Activation, verified runtime monitoring, provenance and automatic rollback.
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
