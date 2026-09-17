@@ -1,0 +1,10 @@
+{
+  "activated_digest": "f9af6bbab40c38d857af2ce6f147b96bb85412d1fe10a1de48730ee18f3ba015",
+  "baseline_digest": "edba945156ea0cd04f2cce8d1edb13c339c073ee5dc2c020ac819aa6beb9057d",
+  "post_activation_status": "rollback_triggered",
+  "promotion_states": ["ephemeral", "shadow", "shadow", "shadow", "consolidated"],
+  "promotion_status": "activated",
+  "provenance": {"entries": 5, "head_hash": "fcdbd67b3c3a84fe3126bc67246a314d0e4f8053a04ee5f784bc7502d79689e1", "valid": true},
+  "rollback_restored_baseline": true,
+  "synthetic_demo": true
+}
