@@ -24,9 +24,9 @@ def scoped_identity(capability_id: str, local_id: str, *, namespace: str = "even
 
 
 class ScopedEvidenceLedger:
-    """Prototype V67 ledger that proves IDs do not collide across capabilities."""
+    """V67 prototype: capability-scoped event IDs with globally single-use attestations."""
 
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(self, path: str):
         self.path = str(path)
@@ -42,10 +42,9 @@ class ScopedEvidenceLedger:
                     capability_id TEXT NOT NULL,
                     event_id TEXT NOT NULL,
                     candidate_digest TEXT NOT NULL,
-                    attestation_id TEXT NOT NULL,
+                    attestation_id TEXT NOT NULL UNIQUE,
                     payload_json TEXT NOT NULL,
-                    PRIMARY KEY(capability_id, event_id),
-                    UNIQUE(capability_id, attestation_id)
+                    PRIMARY KEY(capability_id, event_id)
                 );
                 """
             )
