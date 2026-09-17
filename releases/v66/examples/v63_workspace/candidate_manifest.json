@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "request_id": "synthetic-v63-math-repair",
+  "capability_id": "MATH_GAP:word_problem_quantity_relation_multi_step",
+  "candidate_relpath": "math_patch",
+  "evaluator_relpath": ".",
+  "unit_command": ["{python}", "-m", "unittest", "discover", "-s", "tests", "-v"],
+  "dev_command": ["{python}", "evaluator.py", "dev.jsonl"],
+  "production_baseline_latency_ms": 100.0,
+  "trials": [
+    {"trial_id":"v63-h1","holdout_paths":["holdout_1.jsonl"],"holdout_command":["{python}","evaluator.py","holdout_1.jsonl"]},
+    {"trial_id":"v63-h2","holdout_paths":["holdout_2.jsonl"],"holdout_command":["{python}","evaluator.py","holdout_2.jsonl"]},
+    {"trial_id":"v63-h3","holdout_paths":["holdout_3.jsonl"],"holdout_command":["{python}","evaluator.py","holdout_3.jsonl"]},
+    {"trial_id":"v63-h4","holdout_paths":["holdout_4.jsonl"],"holdout_command":["{python}","evaluator.py","holdout_4.jsonl"]},
+    {"trial_id":"v63-h5","holdout_paths":["holdout_5.jsonl"],"holdout_command":["{python}","evaluator.py","holdout_5.jsonl"]}
+  ],
+  "metadata": {"synthetic_demo": true}
+}
