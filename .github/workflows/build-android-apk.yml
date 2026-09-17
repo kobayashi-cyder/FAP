@@ -1,0 +1,93 @@
+name: Build Android APK from main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fap-android-main
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Android branch
+        uses: actions/checkout@v4
+        with:
+          ref: android-v59
+          fetch-depth: 0
+
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build debug APK
+        working-directory: android-v59
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon clean assembleDebug
+
+      - name: Stage latest APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apk
+          cp android-v59/app/build/outputs/apk/debug/app-debug.apk apk/FAP-android-latest.apk
+          MAIN_SHA="$(git rev-parse origin/main)"
+          ANDROID_SHA="$(git rev-parse HEAD)"
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          cat > apk/APK_INFO.md <<EOF
+          # FAP Android APK
+
+          - Source main commit: \`${MAIN_SHA}\`
+          - Android branch commit before APK commit: \`${ANDROID_SHA}\`
+          - Built at UTC: \`${BUILT_AT}\`
+          - Build: debug APK
+          - Package source: \`android-v59/\`
+          EOF
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FAP-android-${{ github.sha }}
+          path: apk/FAP-android-latest.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Push APK to android-v59 branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add apk/FAP-android-latest.apk apk/APK_INFO.md
+          if git diff --cached --quiet; then
+            echo "APK output is unchanged; nothing to commit."
+            exit 0
+          fi
+          MAIN_SHORT="$(git rev-parse --short origin/main)"
+          git commit -m "Build Android APK from main ${MAIN_SHORT}"
+          git push origin HEAD:android-v59
