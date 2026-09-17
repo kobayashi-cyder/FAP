@@ -1,0 +1,10 @@
+{
+  "synthetic_demo": true,
+  "trials": [
+    {"trial_id":"v62-demo-shard-1","status":"candidate_evaluated","success":true,"state":"ephemeral","verified_trials":1,"dev_score":1.0,"holdout_score":1.0,"peak_rss_mb":91.2109375,"ram_source":"measured_peak_rss","registered":false},
+    {"trial_id":"v62-demo-shard-2","status":"candidate_evaluated","success":true,"state":"shadow","verified_trials":2,"dev_score":1.0,"holdout_score":1.0,"peak_rss_mb":91.30078125,"ram_source":"measured_peak_rss","registered":false},
+    {"trial_id":"v62-demo-shard-3","status":"candidate_evaluated","success":true,"state":"shadow","verified_trials":3,"dev_score":1.0,"holdout_score":1.0,"peak_rss_mb":91.2265625,"ram_source":"measured_peak_rss","registered":false},
+    {"trial_id":"v62-demo-shard-4","status":"candidate_evaluated","success":true,"state":"shadow","verified_trials":4,"dev_score":1.0,"holdout_score":1.0,"peak_rss_mb":91.21484375,"ram_source":"measured_peak_rss","registered":false},
+    {"trial_id":"v62-demo-shard-5","status":"candidate_evaluated","success":true,"state":"consolidated","verified_trials":5,"dev_score":1.0,"holdout_score":1.0,"peak_rss_mb":91.234375,"ram_source":"measured_peak_rss","registered":true}
+  ]
+}
