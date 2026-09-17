@@ -1,29 +1,40 @@
 # V67 Decision
 
-Decision: **MODIFY**
+Decision: **KEEP**
 
-## Evidence
+Baseline main: `d6329968a579fa0d20dbdb115a6f7a060d13a68e` (V66)
 
-- The V67 prototype defines capability-scoped deterministic identity and a composite `(capability_id, event_id)` evidence key.
-- Its checked-in unit suite covers deterministic scoping, same local ID across capabilities, duplicate rejection inside one capability, and close/reopen persistence.
-- Current V66 production code still has global uniqueness constraints: `ProductionCapabilityMatrix.evidence.event_id` is the primary key, `attestation_id` is globally unique, and `StagedCanaryController.canary_obs.event_id` is globally primary-keyed. This establishes a concrete collision surface when an upstream/local identifier is only capability-scoped.
+## Retained implementation
 
-## Why not KEEP for integration yet
+- capability-scoped deterministic identity for local event IDs
+- composite `(capability_id, event_id)` uniqueness for production evidence, canary observations, and quarantine failures
+- globally single-use `attestation_id` retained
+- globally single-use holdout `evidence_sha256` retained
+- copy-on-write/shadow-table migration from the representative V66 SQLite schema
+- preserved backup tables for explicit rollback
+- idempotent restart/reopen behavior
+- rollback restoring the V66 global-event-ID constraints
 
-Changing existing persisted V66 tables without legacy fixtures could make deployed SQLite state incompatible. Restart/quarantine/holdout invariants also need explicit fixtures before DDL is touched.
+## Independent evidence
 
-## Safe retained result
+GitHub Actions run `35285921275` at candidate SHA `c60f6a7acd0542125ed9b2d6d035b679026e8f44` completed successfully on both Python 3.11 and 3.12.
 
-Keep the prototype and scoped-identity contract on this non-main branch as the migration target. Do not promote schema changes yet.
+Each matrix job independently completed:
 
-## Required modification
+- compile V67 skill: PASS
+- V67 skill tests: PASS
+- V66 operational regression: PASS
 
-Add legacy V61-V66 database fixtures, reproduce the cross-capability collision against current controllers, design a copy-on-write/shadow-table migration, and prove rollback plus restart invariants.
+The checked-in migration tests cover row preservation, same local event ID across different capabilities, global attestation single-use, global holdout-evidence single-use, idempotent restart with backups, and rollback restoring V66 identity behavior.
 
-## Rollback
+## Promotion recommendation
 
-No main change occurred. Rollback is simply abandoning this branch and returning to `d6329968a579fa0d20dbdb115a6f7a060d13a68e`.
+V67 is eligible for integration review. Integration should transplant only the coherent V67 persistence-identity delta and its tests/evidence; unrelated V68+ or media experiments remain outside this decision.
+
+## Rollback anchor
+
+Until promotion, rollback is abandonment of this branch to V66 main SHA `d6329968a579fa0d20dbdb115a6f7a060d13a68e`. After promotion, the migration's retained V66 backup tables provide the schema rollback path tested by `rollback_v67_identity_schema`.
 
 ## Limitations
 
-This run did not execute repository tests in a checked-out runtime; test status is therefore recorded as **not independently executed in this run**, not PASS. The decision relies only on code inspection and previously checked-in prototype structure.
+The legacy fixture is a representative reconstruction of the persisted V66 tables used by this migration, not a byte-for-byte snapshot of every historical V61-V66 database ever produced. Real deployed databases should still be backed up before first migration. This decision does not approve V68+, media skills, or any change to attestation/holdout global replay protection.
