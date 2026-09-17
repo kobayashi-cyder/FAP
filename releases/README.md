@@ -6,5 +6,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v62/` — Verified Candidate Promotion Loop (sealed holdout, resource gate, evidence lifecycle, verified registry manifest).
 - `v63/` — Verified Activation + Post-Activation Rollback (safe snapshot activation, verified runtime monitor, automatic rollback, provenance chain).
 - `v64/` — Verified Runtime Dispatch + Canary A/B (load-time digest gate, trusted sandbox bridge, A/B rollback, demotion feedback, Android state sync).
+- `v65/` — Operational Staged Canary + Quarantine (Skill Factory handoff, verified telemetry, 5/20/50/100 staged rollout, rollback quarantine, Android canary state).
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
