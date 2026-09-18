@@ -147,7 +147,7 @@ class GoalCompletionLoopTests(unittest.TestCase):
         self.assertEqual(state.reason, "repeated_action_limit_reached")
         self.assertEqual(state.steps, 2)
 
-    def test_approval_required_action_pauses_before_execution(self):
+    def test_approval_required_action_pauses_and_can_resume(self):
         calls = []
 
         class Planner:
@@ -163,13 +163,29 @@ class GoalCompletionLoopTests(unittest.TestCase):
             def evaluate(self, goal, state, action, result):
                 return Critique(True, 1.0, "done")
 
-        loop = GoalCompletionLoop(Planner(), Executor(), Critic())
-        state = loop.run(GoalSpec("g-approval", "external action"))
+        with tempfile.TemporaryDirectory() as td:
+            store = JSONGoalStateStore(td)
+            goal = GoalSpec("g-approval", "external action")
+            paused_loop = GoalCompletionLoop(Planner(), Executor(), Critic(), store=store)
+            paused = paused_loop.run(goal)
 
-        self.assertEqual(state.status, "blocked")
-        self.assertEqual(state.reason, "approval_required")
-        self.assertEqual(calls, [])
-        self.assertEqual(state.steps, 0)
+            self.assertEqual(paused.status, "paused")
+            self.assertEqual(paused.reason, "approval_required")
+            self.assertEqual(calls, [])
+            self.assertEqual(paused.steps, 0)
+
+            approved_loop = GoalCompletionLoop(
+                Planner(),
+                Executor(),
+                Critic(),
+                store=store,
+                approval=lambda action, state: True,
+            )
+            completed = approved_loop.run(goal)
+
+            self.assertEqual(completed.status, "completed")
+            self.assertEqual(calls, ["external"])
+            self.assertEqual(completed.steps, 1)
 
     def test_checkpoint_round_trip_and_terminal_resume(self):
         with tempfile.TemporaryDirectory() as td:
