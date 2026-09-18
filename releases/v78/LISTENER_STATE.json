@@ -1,0 +1,15 @@
+{
+  "source_branch": "main",
+  "source_sha": "de4ed52e1b5c7d5a505f5ee5ca8d88110fa6bf15",
+  "highest_completed_release": "v77",
+  "prepared_release": "v78",
+  "prepared_branch": "listener/v78",
+  "status": "processed",
+  "preparation_artifacts": [
+    "releases/v78/MAIN_UPDATE_TRIGGER.md",
+    "releases/v78/PREP_CONTEXT.md",
+    "releases/v78/NEXT_HINTS.md"
+  ],
+  "tests_run_by_listener": [],
+  "blockers": []
+}
