@@ -46,7 +46,7 @@ class ManagedChatSession:
         max_exchanges: int = 12,
         max_context_chars: int = 12000,
         max_input_chars: int = 4000,
-        max_stored_assistant_chars: int = 6000,
+        max_stored_assistant_chars: int | None = None,
     ):
         if mode not in MODES:
             raise ValueError("unsupported chat mode")
@@ -56,6 +56,8 @@ class ManagedChatSession:
             raise ValueError("max_context_chars must be >= 64")
         if not (1 <= max_input_chars <= max_context_chars):
             raise ValueError("max_input_chars must fit within context budget")
+        if max_stored_assistant_chars is None:
+            max_stored_assistant_chars = min(6000, max_context_chars)
         if not (1 <= max_stored_assistant_chars <= max_context_chars):
             raise ValueError("max_stored_assistant_chars must fit within context budget")
 
