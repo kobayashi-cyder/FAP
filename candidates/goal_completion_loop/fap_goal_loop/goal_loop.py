@@ -256,7 +256,10 @@ class GoalCompletionLoop:
         elif state.goal != goal:
             raise ValueError("stored goal does not match supplied goal")
 
-        if state.status in TERMINAL_STATES:
+        if state.status == "paused":
+            state.status = "running"
+            state.reason = ""
+        elif state.status in TERMINAL_STATES:
             return state
 
         hint = state.history[-1].critique.next_hint if state.history else ""
@@ -280,16 +283,17 @@ class GoalCompletionLoop:
                 self._checkpoint(state)
 
             action = state.pending.pop(0)
+
+            if action.requires_approval:
+                if self.approval is None or not bool(self.approval(action, state)):
+                    state.pending.insert(0, action)
+                    return self._finish(state, "paused", "approval_required")
+
             fingerprint = action.fingerprint()
             count = state.action_counts.get(fingerprint, 0) + 1
             state.action_counts[fingerprint] = count
             if count > goal.max_same_action:
                 return self._finish(state, "stalled", "repeated_action_limit_reached")
-
-            if action.requires_approval:
-                if self.approval is None or not bool(self.approval(action, state)):
-                    state.pending.insert(0, action)
-                    return self._finish(state, "blocked", "approval_required")
 
             try:
                 result = self.executor.execute(action, state)
@@ -303,7 +307,7 @@ class GoalCompletionLoop:
             state.steps += 1
             if result.status == "needs_approval":
                 state.pending.insert(0, action)
-                return self._finish(state, "blocked", "executor_requires_approval")
+                return self._finish(state, "paused", "executor_requires_approval")
             if result.status == "blocked":
                 return self._record_and_finish_blocked(state, action, result)
 
