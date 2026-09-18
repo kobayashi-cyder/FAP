@@ -1,13 +1,11 @@
 # FAP latest development snapshot
 
-Current additive development release: **V67 — Native Repository Code Factory Stage 1 + Scoped Persistence Identity**.
+Current additive development release: **V68 — TaskPlan AST Repair + Candidate Race Code Factory**.
 
-Source, cumulative release files and validation reports are stored under [`releases/v67/`](releases/v67/).
+Source, cumulative release files and validation reports are stored under [`releases/v68/`](releases/v68/).
 
-V67 adds the first native source-code generation path to FAP: read-only repository context and symbol indexing, restricted Code IR -> executable Python source generation, SHA-bound path-safe patching, deterministic missing-import repair from runtime diagnostics, bounded multi-round test/repair, and hash-chained generation lineage. Generated code remains in a quarantine candidate workspace and enters the existing V62-V66 verification/promotion path; it is never auto-activated.
+V68 extends the native coder with constrained natural-language/structured TaskPlan generation, safe expression-to-Code-IR translation, AST patch alternatives, diagnostic-specific repair for NameError, module AttributeError, ImportError, explicitly contracted unexpected-keyword TypeError, and narrowly safe `SyntaxError: expected ':'` cases. Alternative patches are tested on isolated copies; only passing candidates are eligible, with smaller changes and lower validation latency preferred. The winner is re-applied to the canonical quarantine candidate and re-tested before handoff to the existing V62-V66 verification/promotion stack.
 
-V67 also retains the independently CI-verified persistence-identity delta: capability-scoped event identity with copy-on-write migration/rollback while keeping attestation IDs and holdout evidence globally single-use.
-
-Code-factory validation for this increment: **28/28 V67 delta tests PASS**, compileall PASS, warnings-as-errors PASS, synthetic generation/repair demo PASS. The persistence-identity track separately passed its GitHub Actions Python 3.11/3.12 matrix and V66 regression checks before its KEEP decision. Stage 1 is deliberately constrained and is not yet an unrestricted natural-language repository coder. These mechanism tests are not a public coding benchmark or Sol-parity claim.
+Validation for this increment: **34/34 V68 delta tests PASS**, **62/62 V67+V68 local cumulative tests PASS**, compileall PASS, warnings-as-errors PASS, synthetic V68 integration demo PASS. V68 remains intentionally bounded: arbitrary free-form natural language is not treated as permission to synthesize arbitrary code. These mechanism tests are not a public coding benchmark or Sol-parity claim.
 
 Project continuation context from the ChatGPT development session is stored in [`FAP_DEVELOPMENT_CHAT_CONTEXT.md`](FAP_DEVELOPMENT_CHAT_CONTEXT.md).
