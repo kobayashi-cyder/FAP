@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/goal-completion-loop-20260919
+      - feature/autonomy-runtime-wiring-20260919
     paths:
       - "candidates/goal_completion_loop/**"
       - ".github/workflows/goal-completion-loop-verify.yml"
