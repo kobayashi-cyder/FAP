@@ -1,0 +1,9 @@
+{
+  "source_branch": "main",
+  "source_sha": "929c419b3fcff55720e159b8f7f7f1d602dec305",
+  "source_short_sha": "929c419",
+  "source_commit_date": "2026-09-18T09:29:37+09:00",
+  "latest_release_on_main": "v68",
+  "next_release": "v69",
+  "work_branch": "listener/v69"
+}
