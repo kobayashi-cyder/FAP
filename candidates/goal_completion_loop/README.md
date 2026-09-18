@@ -1,6 +1,6 @@
 # Goal Completion Loop candidate
 
-Status: candidate branch. Not merged to `main`.
+Status: goal-loop core is merged to `main`; this document also describes the structured runtime wiring.
 
 ## Purpose
 
@@ -68,3 +68,25 @@ That allows FAP to remain small while routing hard reasoning to stronger models 
 This candidate does not make FAP an AGI and does not prove model-level intelligence. It adds the missing long-horizon control loop needed for “keep thinking and acting until done.”
 
 It is synchronous. It does not run secretly or claim background execution.
+
+
+## Structured runtime wiring
+
+The main loop now has a concrete provider-neutral conversation entry point:
+
+```text
+one user instruction
+  -> StructuredPlannerAdapter
+  -> registered capability action(s)
+  -> CapabilityRouterExecutor
+  -> StructuredCriticAdapter
+  -> satisfied?
+       yes -> completed
+       no  -> replan and continue
+```
+
+`AutonomousConversationRuntime` wires these pieces together. Planner and critic callbacks can be backed by a local model, a stronger online model, or a FAP router that selects between them. The executor only accepts explicitly registered capability kinds.
+
+The planner receives bounded state summaries rather than an unrestricted execution surface. The critic receives the action result and explicit success criteria and must positively report satisfaction before the loop can claim `completed`.
+
+Capability kinds configured in `approval_kinds` are forced into a checkpointed `paused` state before execution. Supplying an approval callback later resumes the same goal from its saved pending action.
