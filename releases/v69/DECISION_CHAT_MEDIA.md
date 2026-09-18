@@ -1,26 +1,32 @@
 # Decision — V69 Chat + Media
 
-Current decision: MODIFY / pending clean same-HEAD CI.
+Decision: KEEP for main integration review.
 
-Focused Chat/Image/Audio tests pass independently on Python 3.11 and 3.12.
+Independent GitHub Actions on the same candidate lineage passed on Python 3.11 and 3.12:
+- focused V69 Chat/Image/Audio interaction tests: PASS;
+- compileall for V69 interaction: PASS;
+- V66 operational regression: 28/28 PASS;
+- V67 code-factory regression: 28/28 PASS;
+- V68 code-factory regression: 34/34 PASS.
 
-The first broad historical-suite run exposed one pre-existing/environment-sensitive V68
-baseline failure: `test_real_subprocess_fixture_one_trial` expected
-`ram_source=measured_peak_rss` but the CI environment reported `artifact_supplied`.
-This candidate does not modify `releases/v68/**`.
+The earlier broad historical-suite run exposed one pre-existing/environment-sensitive V68
+baseline issue in `test_real_subprocess_fixture_one_trial`: CI reported
+`ram_source=artifact_supplied` instead of `measured_peak_rss`. This candidate does not
+modify `releases/v68/**`; the issue remains separately visible rather than being hidden by
+weakened tests.
 
-Promotion gate therefore requires, on the same candidate HEAD:
-- all focused V69 interaction tests;
-- V66 operational 28/28;
-- V67 code-factory 28/28;
-- V68 code-factory 34/34;
-- compileall on V69 interaction.
+Included main-ready surface:
+- bounded chat session with brief/normal/rich/verbose modes;
+- provider-neutral image generation contract with artifact/MIME/digest verification;
+- PCM16 audio input + STT boundary;
+- TTS audio output boundary;
+- half-duplex STT -> responder -> TTS voice turn;
+- fail-closed missing-provider/timeout/error/empty/wrong-MIME paths.
 
-The historical RSS-source mismatch remains a separately recorded baseline issue and must
-not be misrepresented as a V69 regression.
-
-Real image generation, STT, and TTS remain DEFER until concrete provider adapters are
-independently exercised. Half-duplex voice is the only voice-session baseline in scope.
+Limitations:
+Real image generation, transcription and synthesis remain provider-dependent and are not
+claimed until concrete adapters are independently exercised. Full duplex, barge-in, echo
+cancellation, wake word and streaming remain DEFER.
 
 Rollback: return to main V68 `929c419b3fcff55720e159b8f7f7f1d602dec305`
 and remove/disable the additive V69 interaction package.
