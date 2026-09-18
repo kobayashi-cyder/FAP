@@ -1,0 +1,8 @@
+{
+  "source_branch": "main",
+  "source_sha": "64619fbfe3967868a88085c4c4084ddcce4759ac",
+  "completed_release": "v75",
+  "prepared_release": "v76",
+  "listener_branch": "listener/v76",
+  "status": "processed"
+}
