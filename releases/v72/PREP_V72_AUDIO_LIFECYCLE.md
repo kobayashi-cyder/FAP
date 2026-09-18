@@ -1,8 +1,8 @@
 # V72 candidate — Half-duplex audio session lifecycle
 
 Status: implementation candidate, non-main.
-Base: V71 candidate `381b06017b5669d3806b7e84a6bc4fb0c9b14370`.
-Promotion is contingent on V71 being integrated first.
+Base/rollback anchor: main V71 `5eaf8a7aa9ce30972ede0c025ee5e118132669b8`.
+V71 is already integrated; this branch is rebased/transplanted onto the official predecessor.
 
 ## Scope
 - explicit idle/listening/transcribing/thinking/speaking/cancelled/error states;
