@@ -1,0 +1,4 @@
+{"task":"percent 20 250","expected":"50"}
+{"task":"percent 5 80","expected":"4"}
+{"task":"ratio 12 3","expected":"4"}
+{"task":"ratio 9 3","expected":"3"}

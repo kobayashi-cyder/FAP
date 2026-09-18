@@ -1,0 +1,60 @@
+{
+  "candidate_race": {
+    "candidate_count": 2,
+    "reasons": [
+      "missing_import:normalize",
+      "qualified_symbol:normalize"
+    ],
+    "rounds": 2,
+    "status": "candidate_ready"
+  },
+  "compile_repair": {
+    "rounds": 2,
+    "status": "candidate_ready"
+  },
+  "mechanism_only": true,
+  "natural_language_generation": {
+    "rounds": 1,
+    "status": "candidate_ready",
+    "task_plan": {
+      "defaults": {},
+      "function_spec": {
+        "args": [
+          "x",
+          "y"
+        ],
+        "doc": "Generated from constrained V68 TaskPlan.",
+        "expression": {
+          "add": [
+            {
+              "mul": [
+                {
+                  "var": "x"
+                },
+                2
+              ]
+            },
+            {
+              "var": "y"
+            }
+          ]
+        },
+        "name": "score"
+      },
+      "keyword_aliases": {},
+      "mode": "create_function",
+      "objective": "function score(x,y) = x*2+y in calc.py",
+      "source": "natural_language",
+      "target_path": "calc.py"
+    }
+  },
+  "schema": 1,
+  "signature_race": {
+    "candidate_count": 2,
+    "reasons": [
+      "keyword_rename:amount",
+      "keyword_alias:amount"
+    ],
+    "status": "candidate_ready"
+  }
+}
