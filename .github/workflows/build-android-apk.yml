@@ -80,6 +80,14 @@ jobs:
             cp -R "${LATEST_RELEASE}/fap_autonomy" "${PY_DST}/fap_autonomy"
           fi
 
+          INTERACTION_REPORT="${PY_DST}/interaction_packages.json"
+          python3.13 android_packaging/sync_python_packages.py \
+            --repo-root . \
+            --dest "${PY_DST}" \
+            --manifest android_packaging/python_packages.json \
+            --report "${INTERACTION_REPORT}"
+          INTERACTION_SHA256="$(sha256sum "${INTERACTION_REPORT}" | awk '{print $1}')"
+
           MAIN_SHA="$(git rev-parse origin/main)"
           cat > "${PY_DST}/build_meta.py" <<PY
           RELEASE_VERSION = "${LATEST_VER}"
@@ -93,10 +101,12 @@ jobs:
           echo "FAP_RELEASE_DIR=${LATEST_RELEASE}" >> "$GITHUB_ENV"
           echo "FAP_CORE_SOURCE=${CORE}" >> "$GITHUB_ENV"
           echo "FAP_MAIN_SHA=${MAIN_SHA}" >> "$GITHUB_ENV"
+          echo "FAP_INTERACTION_MANIFEST_SHA=${INTERACTION_SHA256}" >> "$GITHUB_ENV"
 
           echo "Packaging release V${LATEST_VER}"
           echo "Runtime core: ${CORE}"
           echo "Sidecar: ${LATEST_RELEASE}/fap_autonomy"
+          echo "Interaction packages manifest SHA-256: ${INTERACTION_SHA256}"
 
       - name: Build debug APK
         working-directory: android-v59
