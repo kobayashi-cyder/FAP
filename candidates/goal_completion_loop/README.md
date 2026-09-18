@@ -49,7 +49,7 @@ The loop stops instead of pretending to be infinitely autonomous when:
 - progress stalls -> `stalled`;
 - the same action repeats too often -> `stalled`;
 - execution is blocked -> `blocked`;
-- an action requires approval and no approval is supplied -> `blocked`.
+- an action requires approval and no approval is supplied -> `paused` (checkpointed and resumable).
 
 These are deliberate safety and reliability boundaries, not intelligence claims.
 
