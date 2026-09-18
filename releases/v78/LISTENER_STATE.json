@@ -1,6 +1,6 @@
 {
   "source_branch": "main",
-  "source_sha": "de4ed52e1b5c7d5a505f5ee5ca8d88110fa6bf15",
+  "source_sha": "eb75aad4be2d35cb376fb6750f772c00727934e4",
   "highest_completed_release": "v77",
   "prepared_release": "v78",
   "prepared_branch": "listener/v78",
@@ -10,6 +10,10 @@
     "releases/v78/PREP_CONTEXT.md",
     "releases/v78/NEXT_HINTS.md"
   ],
+  "preserved_non_main_work": [
+    "v77 bounded HTTPS image-provider real-backend probe remains relevant but secondary"
+  ],
   "tests_run_by_listener": [],
+  "inherited_main_verification": ["Python 3.11", "Python 3.12"],
   "blockers": []
 }
