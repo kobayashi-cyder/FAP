@@ -1,11 +1,30 @@
 # FAP latest development snapshot
 
-Current additive development release: **V68 — TaskPlan AST Repair + Candidate Race Code Factory**.
+Current additive development release: **V69 — Chat, Image, and Audio Interaction Surface**.
 
-Source, cumulative release files and validation reports are stored under [`releases/v68/`](releases/v68/).
+Source, tests, preparation notes, and integration evidence are stored under
+[`releases/v69/`](releases/v69/).
 
-V68 extends the native coder with constrained natural-language/structured TaskPlan generation, safe expression-to-Code-IR translation, AST patch alternatives, diagnostic-specific repair for NameError, module AttributeError, ImportError, explicitly contracted unexpected-keyword TypeError, and narrowly safe `SyntaxError: expected ':'` cases. Alternative patches are tested on isolated copies; only passing candidates are eligible, with smaller changes and lower validation latency preferred. The winner is re-applied to the canonical quarantine candidate and re-tested before handoff to the existing V62-V66 verification/promotion stack.
+V69 adds an additive interaction layer on top of V68:
+- bounded chat sessions with `:brief`, `:normal`, `:rich`, and `:verbose` modes;
+- provider-neutral image-generation requests with non-empty/MIME/digest verification;
+- validated PCM16 audio input and a speech-to-text provider boundary;
+- validated text-to-speech output and audio artifact verification;
+- a half-duplex voice turn: STT -> responder -> TTS;
+- fail-closed handling for missing providers, timeouts, provider errors, wrong MIME, empty artifacts, and empty transcripts.
 
-Validation for this increment: **34/34 V68 delta tests PASS**, **62/62 V67+V68 local cumulative tests PASS**, compileall PASS, warnings-as-errors PASS, synthetic V68 integration demo PASS. V68 remains intentionally bounded: arbitrary free-form natural language is not treated as permission to synthesize arbitrary code. These mechanism tests are not a public coding benchmark or Sol-parity claim.
+Independent GitHub Actions for the V69 candidate passed on Python 3.11 and 3.12.
+The same verification run also passed the V66 operational 28/28, V67 code-factory
+28/28, and V68 code-factory 34/34 core regression suites.
 
-Project continuation context from the ChatGPT development session is stored in [`FAP_DEVELOPMENT_CHAT_CONTEXT.md`](FAP_DEVELOPMENT_CHAT_CONTEXT.md).
+Important limitation: V69 provides the verified interaction/provider boundary, not a bundled
+real image model, STT engine, or TTS engine. Real generation/transcription/synthesis must not
+be claimed until a concrete adapter is independently exercised. Full duplex, barge-in, echo
+cancellation, wake word, and streaming voice remain outside the V69 baseline.
+
+V68 TaskPlan/AST repair and candidate-race code-factory behavior remains available beneath
+this additive interaction layer. FAP remains an experimental compact cognitive architecture,
+not a GPT-class pretrained language model.
+
+Project continuation context from the ChatGPT development session is stored in
+[`FAP_DEVELOPMENT_CHAT_CONTEXT.md`](FAP_DEVELOPMENT_CHAT_CONTEXT.md).
