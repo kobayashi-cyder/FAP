@@ -3,16 +3,20 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `de4ed52e1b5c7d5a505f5ee5ca8d88110fa6bf15`
-- Commit date: `2026-09-18T16:33:01+09:00`
-- Commit message: V77: record independently verified adapter KEEP
+- Source commit: `8e81944c47a16796e77df6dd37c6107fee15e967`
+- Commit date: `2026-09-19T07:48:21+09:00`
+- Commit message: Add bounded goal-completion loop
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-M	releases/v77/DECISION_IMAGE_HTTP.md
+A	.github/workflows/goal-completion-loop-verify.yml
+A	candidates/goal_completion_loop/README.md
+A	candidates/goal_completion_loop/fap_goal_loop/__init__.py
+A	candidates/goal_completion_loop/fap_goal_loop/goal_loop.py
+A	candidates/goal_completion_loop/tests/test_goal_loop.py
 ```
 
 ## Next-update work contract
