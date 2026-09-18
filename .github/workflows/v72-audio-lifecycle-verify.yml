@@ -3,7 +3,7 @@ name: V72 Audio Lifecycle Verify
 on:
   push:
     branches:
-      - feature/v72-audio-session-lifecycle
+      - feature/v72-audio-session-lifecycle-main
   pull_request:
     paths:
       - "releases/v72/audio_lifecycle/**"
