@@ -1,0 +1,31 @@
+name: V70 Deterministic Replay CI
+on:
+  push:
+    branches: [work/v70-deterministic-replay-current]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11','3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q releases/v70
+      - name: Focused V70 tests
+        run: python -W error -m unittest -v releases/v70/test_deterministic_replay.py
+      - name: V69 interaction regression
+        run: python -m unittest discover -s releases/v69/interaction/tests -p 'test_*.py' -v
+      - name: Resource probe
+        run: |
+          /usr/bin/time -v python - <<'PY'
+          import sys
+          sys.path.insert(0,'releases/v70')
+          from deterministic_replay import canonicalize_replay
+          events=[{'id':str(i),'kind':'fixture','value':i} for i in range(10000)]
+          x=canonicalize_replay(events,{'mode':'strict','seed':7})
+          print('events',len(events),'digest',x.digest)
+          PY
