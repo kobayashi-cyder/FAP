@@ -34,6 +34,11 @@ class ImageTimeout:
         raise ProviderTimeoutError()
 
 
+class ImageError:
+    def generate_image(self, request):
+        raise ProviderExecutionError("fixture failure")
+
+
 class STTOK:
     def transcribe(self, pcm16, *, sample_rate_hz, channels):
         return "こんにちは"
@@ -49,6 +54,11 @@ class STTTimeout:
         raise ProviderTimeoutError()
 
 
+class STTError:
+    def transcribe(self, pcm16, *, sample_rate_hz, channels):
+        raise ProviderExecutionError("fixture failure")
+
+
 class TTSOK:
     def synthesize(self, text, *, sample_rate_hz, voice):
         return MediaArtifact("audio", "audio/wav", b"WAVDATA")
@@ -57,6 +67,11 @@ class TTSOK:
 class TTSWrongMime:
     def synthesize(self, text, *, sample_rate_hz, voice):
         return MediaArtifact("audio", "image/png", b"x")
+
+
+class TTSEmpty:
+    def synthesize(self, text, *, sample_rate_hz, voice):
+        return MediaArtifact("audio", "audio/wav", b"")
 
 
 class TTSError:
@@ -80,7 +95,9 @@ class InteractionTests(unittest.TestCase):
         self.assertEqual(seen[-1][2], "brief")
         self.assertIn("user: 二", seen[-1][1])
 
-    def test_chat_rejects_empty_response(self):
+    def test_chat_rejects_empty_input_and_response(self):
+        with self.assertRaises(ValueError):
+            ChatSession().submit("   ", lambda *_: "unused")
         with self.assertRaises(ValueError):
             ChatSession().submit("test", lambda *_: "")
 
@@ -98,8 +115,10 @@ class InteractionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ImageGenerationSkill(ImageEmpty()).run(ImageRequest("cat"))
 
-    def test_image_timeout_is_rejected(self):
+    def test_image_timeout_and_provider_error_are_rejected(self):
         self.assertEqual(ImageGenerationSkill(ImageTimeout()).run(ImageRequest("cat")).status,
+                         "rejected")
+        self.assertEqual(ImageGenerationSkill(ImageError()).run(ImageRequest("cat")).status,
                          "rejected")
 
     def test_pcm_validation_and_inspection(self):
@@ -115,6 +134,7 @@ class InteractionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             AudioInputSkill(STTEmpty()).transcribe(audio)
         self.assertEqual(AudioInputSkill(STTTimeout()).transcribe(audio).status, "rejected")
+        self.assertEqual(AudioInputSkill(STTError()).transcribe(audio).status, "rejected")
         self.assertEqual(AudioInputSkill(STTOK()).transcribe(audio).metadata["text"], "こんにちは")
 
     def test_tts_missing_wrong_mime_error_and_success(self):
@@ -122,6 +142,8 @@ class InteractionTests(unittest.TestCase):
         self.assertEqual(AudioOutputSkill().run(req).status, "needs_provider")
         with self.assertRaises(ValueError):
             AudioOutputSkill(TTSWrongMime()).run(req)
+        with self.assertRaises(ValueError):
+            AudioOutputSkill(TTSEmpty()).run(req)
         self.assertEqual(AudioOutputSkill(TTSError()).run(req).status, "rejected")
         self.assertEqual(AudioOutputSkill(TTSOK()).run(req).status, "ok")
 
