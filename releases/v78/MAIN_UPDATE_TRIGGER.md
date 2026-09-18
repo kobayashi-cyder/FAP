@@ -3,9 +3,9 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `eb75aad4be2d35cb376fb6750f772c00727934e4`
-- Commit date: `2026-09-19T07:52:05+09:00`
-- Commit message: Wire conversation instructions into autonomous goal loop
+- Source commit: `517486b63f92789856451e07f214b726274e4731`
+- Commit date: `2026-09-19T08:59:44+09:00`
+- Commit message: Cross-pollinate FCA sparse capability gating into goal runtime
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
@@ -13,12 +13,13 @@ This file is maintained automatically when `main` changes.
 
 ```
 M	.github/workflows/goal-completion-loop-verify.yml
-M	candidates/goal_completion_loop/README.md
-A	candidates/goal_completion_loop/RUNTIME_WIRING.md
+A	candidates/goal_completion_loop/FCA_CROSS_POLLINATION.md
+A	candidates/goal_completion_loop/exchange/fca_sparse_control.json
 M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
-M	candidates/goal_completion_loop/fap_goal_loop/goal_loop.py
-A	candidates/goal_completion_loop/fap_goal_loop/runtime.py
-A	candidates/goal_completion_loop/tests/test_runtime.py
+A	candidates/goal_completion_loop/fap_goal_loop/exchange.py
+M	candidates/goal_completion_loop/fap_goal_loop/runtime.py
+A	candidates/goal_completion_loop/fap_goal_loop/sparse_gate.py
+A	candidates/goal_completion_loop/tests/test_fca_cross_pollination.py
 ```
 
 ## Next-update work contract
