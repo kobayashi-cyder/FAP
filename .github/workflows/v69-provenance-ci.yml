@@ -1,0 +1,37 @@
+name: V69 Android provenance CI
+on:
+  push:
+    branches: [work/v69-android-provenance-current]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V69
+        run: python -m compileall -q releases/v69/android_provenance.py releases/v69/test_android_provenance.py
+      - name: Focused V69 tests
+        working-directory: releases/v69
+        run: python -W error -m unittest -v test_android_provenance.py
+      - name: Current V68 cumulative regression
+        run: |
+          python -m unittest discover -s releases/v67 -p 'test*.py'
+          python -m unittest discover -s releases/v68 -p 'test*.py'
+      - name: Resource probe
+        working-directory: releases/v69
+        run: |
+          python - <<'PY'
+          import tempfile,time,tracemalloc
+          from pathlib import Path
+          from android_provenance import PackageMetadata, build_provenance
+          p=Path(tempfile.gettempdir())/'fap-v69-16m.bin'; p.write_bytes(b'x'*(16*1024*1024))
+          tracemalloc.start(); t=time.perf_counter(); r=build_provenance(p,PackageMetadata('com.example.fap',69,'69.0'),'9'*40,'v69'); elapsed=time.perf_counter()-t; _,peak=tracemalloc.get_traced_memory()
+          print({'bytes':p.stat().st_size,'elapsed_s':elapsed,'peak_bytes':peak,'record_bytes':len(r.canonical_bytes())})
+          assert peak < 4*1024*1024
+          p.unlink()
+          PY
