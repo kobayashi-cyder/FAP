@@ -25,6 +25,9 @@ jobs:
         run: python -m compileall -q releases/v69/interaction
       - name: Focused V69 tests
         run: python -m unittest discover -s releases/v69/interaction/tests -p "test_*.py" -v
-      - name: V68 regression
+      - name: V66-V68 core cumulative regression
         working-directory: releases/v68
-        run: python -m unittest discover -s tests -p "test_*.py" -v
+        run: |
+          python -m unittest discover -s tests -p "test_v66_operational.py" -v
+          python -m unittest discover -s tests -p "test_v67_code_factory.py" -v
+          python -m unittest discover -s tests -p "test_v68_code_factory.py" -v
