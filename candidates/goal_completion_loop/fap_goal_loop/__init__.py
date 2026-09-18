@@ -43,3 +43,12 @@ __all__ += [
     "StructuredCriticAdapter",
     "StructuredPlannerAdapter",
 ]
+
+from .exchange import ExchangeCapsule
+from .sparse_gate import CapabilityBid, SparseCapabilityGate
+
+__all__ += [
+    "ExchangeCapsule",
+    "CapabilityBid",
+    "SparseCapabilityGate",
+]

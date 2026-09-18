@@ -44,12 +44,16 @@ class StructuredPlannerAdapter:
         approval_kinds: Iterable[str] = (),
         max_actions_per_plan: int = 6,
         max_instruction_chars: int = 4000,
+        capability_selector: Optional[
+            Callable[[GoalSpec, GoalState, frozenset[str]], Iterable[str]]
+        ] = None,
     ):
         self.model = model
         self.capabilities = frozenset(str(x).strip() for x in capabilities if str(x).strip())
         self.approval_kinds = frozenset(str(x).strip() for x in approval_kinds if str(x).strip())
         self.max_actions_per_plan = max(1, int(max_actions_per_plan))
         self.max_instruction_chars = max(64, int(max_instruction_chars))
+        self.capability_selector = capability_selector
         if not self.capabilities:
             raise ValueError("at least one capability is required")
         if not self.approval_kinds.issubset(self.capabilities):
@@ -73,6 +77,19 @@ class StructuredPlannerAdapter:
         return rows
 
     def plan(self, goal: GoalSpec, state: GoalState, hint: str = "") -> Sequence[PlannedAction]:
+        active_capabilities = self.capabilities
+        if self.capability_selector is not None:
+            selected = frozenset(
+                str(x).strip()
+                for x in self.capability_selector(goal, state, self.capabilities)
+                if str(x).strip()
+            )
+            if not selected:
+                raise ValueError("capability selector returned no capabilities")
+            if not selected.issubset(self.capabilities):
+                raise ValueError("capability selector returned unregistered capability")
+            active_capabilities = selected
+
         payload = {
             "task": "plan_next_actions",
             "goal": {
@@ -89,7 +106,7 @@ class StructuredPlannerAdapter:
                 "replans": state.replans,
             },
             "hint": hint,
-            "capabilities": sorted(self.capabilities),
+            "capabilities": sorted(active_capabilities),
             "recent_history": self._history_summary(state),
             "rules": {
                 "return_only_registered_capabilities": True,
@@ -112,8 +129,8 @@ class StructuredPlannerAdapter:
                 raise ValueError("each action must be an object")
             kind = str(item.get("kind", "")).strip()
             instruction = str(item.get("instruction", "")).strip()
-            if kind not in self.capabilities:
-                raise ValueError(f"unsupported capability: {kind}")
+            if kind not in active_capabilities:
+                raise ValueError(f"unsupported or inactive capability: {kind}")
             if not instruction:
                 raise ValueError("action instruction is required")
             if len(instruction) > self.max_instruction_chars:
@@ -280,11 +297,15 @@ class AutonomousConversationRuntime:
         approval_kinds: Iterable[str] = (),
         approval: Optional[Callable[[PlannedAction, GoalState], bool]] = None,
         state_dir: Optional[str | Path] = None,
+        capability_selector: Optional[
+            Callable[[GoalSpec, GoalState, frozenset[str]], Iterable[str]]
+        ] = None,
     ):
         planner = StructuredPlannerAdapter(
             planner_model,
             capabilities=handlers.keys(),
             approval_kinds=approval_kinds,
+            capability_selector=capability_selector,
         )
         executor = CapabilityRouterExecutor(handlers)
         critic = StructuredCriticAdapter(critic_model)
