@@ -275,7 +275,14 @@ class GoalCompletionLoop:
             if not state.pending:
                 if state.replans >= goal.max_replans:
                     return self._finish(state, "exhausted", "max_replans_reached")
-                planned = list(self.planner.plan(goal, state, hint))
+                try:
+                    planned = list(self.planner.plan(goal, state, hint))
+                except Exception as exc:
+                    return self._finish(
+                        state,
+                        "blocked",
+                        f"planner_exception:{type(exc).__name__}",
+                    )
                 state.replans += 1
                 if not planned:
                     return self._finish(state, "blocked", "planner_returned_no_actions")
@@ -321,6 +328,8 @@ class GoalCompletionLoop:
                     retryable=False,
                     replan=False,
                 )
+                state.history.append(StepRecord(state.steps, action, result, critique))
+                return self._finish(state, "blocked", critique.reason)
 
             record = StepRecord(state.steps, action, result, critique)
             state.history.append(record)
@@ -392,6 +401,7 @@ class ConversationGoalRunner:
         *,
         success_criteria: Iterable[str] = (),
         goal_id: Optional[str] = None,
+        resume: bool = True,
         **limits: Any,
     ) -> GoalState:
         text = str(instruction).strip()
@@ -403,4 +413,4 @@ class ConversationGoalRunner:
             success_criteria=tuple(str(x).strip() for x in success_criteria if str(x).strip()),
             **limits,
         )
-        return self.loop.run(goal)
+        return self.loop.run(goal, resume=resume)
