@@ -44,7 +44,7 @@ class ResilientRuntimeTests(unittest.TestCase):
             },
         )
         result = runtime.submit("fetch data", success_criteria=["completed"], max_steps=2)
-        self.assertEqual("succeeded", result.status)
+        self.assertEqual("completed", result.status)
         self.assertEqual(2, calls["n"])
         self.assertEqual(2, result.state.history[-1].result.metadata["attempts"])
 
