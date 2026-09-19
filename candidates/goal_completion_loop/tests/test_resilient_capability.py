@@ -1,6 +1,6 @@
 import pytest
 
-from fap_goal_loop.goal_loop import ExecutionResult, GoalState, PlannedAction
+from fap_goal_loop.goal_loop import ExecutionResult, GoalSpec, GoalState, PlannedAction
 from fap_goal_loop.resilient_capability import CapabilityRetryPolicy, ResilientCapabilityExecutor
 
 
@@ -9,7 +9,7 @@ def action(kind="read"):
 
 
 def state():
-    return GoalState(goal_id="g1")
+    return GoalState(goal=GoalSpec(goal_id="g1", objective="test", success_criteria=("done",)))
 
 
 def test_retry_policy_is_fail_closed():
@@ -92,9 +92,7 @@ def test_non_transient_failure_is_terminal():
 
     executor = ResilientCapabilityExecutor(
         {"read": handler},
-        retry_policies={
-            "read": CapabilityRetryPolicy(2, True, "read only"),
-        },
+        retry_policies={"read": CapabilityRetryPolicy(2, True, "read only")},
     )
     result = executor.execute(action(), state())
     assert result.metadata["attempts"] == 1
