@@ -14,8 +14,8 @@ class CapabilityRetryPolicy:
     Retries are allowed only when the capability is explicitly declared
     idempotent and a non-empty justification is recorded. Handler exceptions
     remain terminal unless their concrete exception type is explicitly listed.
-    Optional retry delay is bounded so provider recovery cannot create an
-    unbounded wait inside the goal loop.
+    Optional retry delay and backoff are bounded so provider recovery cannot
+    create an unbounded wait inside the goal loop.
     """
 
     max_attempts: int = 1
@@ -23,6 +23,7 @@ class CapabilityRetryPolicy:
     justification: str = ""
     retryable_exceptions: tuple[type[Exception], ...] = ()
     retry_delay_seconds: float = 0.0
+    retry_backoff_multiplier: float = 1.0
 
     def __post_init__(self) -> None:
         if not 1 <= int(self.max_attempts) <= 5:
@@ -40,6 +41,19 @@ class CapabilityRetryPolicy:
             raise ValueError("retry_delay_seconds must be between 0 and 60")
         if self.retry_delay_seconds and self.max_attempts <= 1:
             raise ValueError("retry delay requires max_attempts > 1")
+        if not 1.0 <= float(self.retry_backoff_multiplier) <= 4.0:
+            raise ValueError("retry_backoff_multiplier must be between 1 and 4")
+        if self.retry_backoff_multiplier != 1.0 and not self.retry_delay_seconds:
+            raise ValueError("retry backoff requires retry_delay_seconds > 0")
+
+    def delay_before_attempt(self, attempt: int) -> float:
+        """Return bounded delay before the next attempt after ``attempt`` failed."""
+        if not self.retry_delay_seconds:
+            return 0.0
+        delay = float(self.retry_delay_seconds) * (
+            float(self.retry_backoff_multiplier) ** max(0, int(attempt) - 1)
+        )
+        return min(60.0, delay)
 
 
 class ResilientCapabilityExecutor:
@@ -117,8 +131,9 @@ class ResilientCapabilityExecutor:
                 break
             if attempt >= policy.max_attempts:
                 break
-            if policy.retry_delay_seconds:
-                self._sleeper(float(policy.retry_delay_seconds))
+            delay = policy.delay_before_attempt(attempt)
+            if delay:
+                self._sleeper(delay)
 
         metadata = dict(last.metadata)
         metadata["attempts"] = attempt
