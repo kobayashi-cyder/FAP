@@ -3,16 +3,18 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `e414ca2cf0909bd17f477b36d5149f227f9ab725`
-- Commit date: `2026-09-19T09:04:33+09:00`
-- Commit message: Fix reward-modulation test to use positive activation score
+- Source commit: `1a8e00d58f8adb5320737e8a20bb9cc4c8917624`
+- Commit date: `2026-09-19T09:05:48+09:00`
+- Commit message: Gate FCA cross-pollination through shadow and acceptance states
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-
+M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
+A	candidates/goal_completion_loop/fap_goal_loop/exchange_registry.py
+A	candidates/goal_completion_loop/tests/test_exchange_registry.py
 ```
 
 ## Next-update work contract
