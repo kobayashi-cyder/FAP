@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import sleep
 from typing import Any, Callable, Dict, Mapping
 
 from .goal_loop import ExecutionResult, GoalState, PlannedAction
@@ -13,12 +14,15 @@ class CapabilityRetryPolicy:
     Retries are allowed only when the capability is explicitly declared
     idempotent and a non-empty justification is recorded. Handler exceptions
     remain terminal unless their concrete exception type is explicitly listed.
+    Optional retry delay is bounded so provider recovery cannot create an
+    unbounded wait inside the goal loop.
     """
 
     max_attempts: int = 1
     idempotent: bool = False
     justification: str = ""
     retryable_exceptions: tuple[type[Exception], ...] = ()
+    retry_delay_seconds: float = 0.0
 
     def __post_init__(self) -> None:
         if not 1 <= int(self.max_attempts) <= 5:
@@ -32,6 +36,10 @@ class CapabilityRetryPolicy:
                 raise ValueError("retryable_exceptions must contain Exception types")
         if self.retryable_exceptions and self.max_attempts <= 1:
             raise ValueError("retryable_exceptions require max_attempts > 1")
+        if not 0.0 <= float(self.retry_delay_seconds) <= 60.0:
+            raise ValueError("retry_delay_seconds must be between 0 and 60")
+        if self.retry_delay_seconds and self.max_attempts <= 1:
+            raise ValueError("retry delay requires max_attempts > 1")
 
 
 class ResilientCapabilityExecutor:
@@ -42,6 +50,7 @@ class ResilientCapabilityExecutor:
         handlers: Mapping[str, Callable[[str, Dict[str, Any], GoalState], Any]],
         *,
         retry_policies: Mapping[str, CapabilityRetryPolicy] | None = None,
+        sleeper: Callable[[float], None] = sleep,
     ) -> None:
         self.handlers = {str(k): v for k, v in handlers.items()}
         if not self.handlers:
@@ -50,6 +59,7 @@ class ResilientCapabilityExecutor:
         unknown = set(self.retry_policies) - set(self.handlers)
         if unknown:
             raise ValueError(f"retry policy for unregistered capability: {sorted(unknown)}")
+        self._sleeper = sleeper
 
     @staticmethod
     def _coerce(raw: Any) -> ExecutionResult:
@@ -107,6 +117,8 @@ class ResilientCapabilityExecutor:
                 break
             if attempt >= policy.max_attempts:
                 break
+            if policy.retry_delay_seconds:
+                self._sleeper(float(policy.retry_delay_seconds))
 
         metadata = dict(last.metadata)
         metadata["attempts"] = attempt
