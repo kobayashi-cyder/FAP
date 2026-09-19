@@ -3,16 +3,17 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `a4a0a8449b1d91a3debebb33d33a6e3e5765084b`
-- Commit date: `2026-09-19T09:51:17+09:00`
-- Commit message: Expose bounded hot-cold memory in FAP goal loop
+- Source commit: `0c212f10dbf8d20297f71a04bb1aa926f9e141ef`
+- Commit date: `2026-09-19T10:37:40+09:00`
+- Commit message: Test bounded hypothesis competition
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
+A	candidates/goal_completion_loop/fap_goal_loop/hypothesis_competition.py
+A	candidates/goal_completion_loop/tests/test_hypothesis_competition.py
 ```
 
 ## Next-update work contract
