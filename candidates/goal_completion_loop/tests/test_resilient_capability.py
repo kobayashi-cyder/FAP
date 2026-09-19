@@ -20,6 +20,10 @@ class ResilientCapabilityTests(unittest.TestCase):
             CapabilityRetryPolicy(max_attempts=2, idempotent=True)
         with self.assertRaises(ValueError):
             CapabilityRetryPolicy(max_attempts=6, idempotent=True, justification="read only")
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(retryable_exceptions=(TimeoutError,))
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(2, True, "read only", retryable_exceptions=(str,))
 
     def test_transient_failure_retries_only_when_explicitly_safe(self):
         calls = []
@@ -93,6 +97,56 @@ class ResilientCapabilityTests(unittest.TestCase):
         )
         result = executor.execute(action(), state())
         self.assertEqual(result.metadata["attempts"], 1)
+        self.assertEqual(len(calls), 1)
+
+    def test_declared_retryable_exception_can_recover(self):
+        calls = []
+
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
+            if len(calls) == 1:
+                raise TimeoutError("temporary provider timeout")
+            return "recovered"
+
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={
+                "read": CapabilityRetryPolicy(
+                    2,
+                    True,
+                    "read-only provider call",
+                    retryable_exceptions=(TimeoutError,),
+                )
+            },
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output, "recovered")
+        self.assertEqual(result.metadata["attempts"], 2)
+        self.assertEqual(len(calls), 2)
+
+    def test_undeclared_exception_remains_terminal(self):
+        calls = []
+
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
+            raise ConnectionError("not declared retryable")
+
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={
+                "read": CapabilityRetryPolicy(
+                    3,
+                    True,
+                    "read-only provider call",
+                    retryable_exceptions=(TimeoutError,),
+                )
+            },
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.metadata["attempts"], 1)
+        self.assertFalse(result.metadata["transient"])
         self.assertEqual(len(calls), 1)
 
 
