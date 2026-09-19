@@ -14,18 +14,9 @@ from .goal_loop import (
 )
 
 __all__ = [
-    "ConversationGoalRunner",
-    "Critic",
-    "Critique",
-    "ExecutionResult",
-    "Executor",
-    "GoalCompletionLoop",
-    "GoalSpec",
-    "GoalState",
-    "JSONGoalStateStore",
-    "PlannedAction",
-    "Planner",
-    "StepRecord",
+    "ConversationGoalRunner", "Critic", "Critique", "ExecutionResult", "Executor",
+    "GoalCompletionLoop", "GoalSpec", "GoalState", "JSONGoalStateStore",
+    "PlannedAction", "Planner", "StepRecord",
 ]
 
 from .runtime import (
@@ -37,11 +28,8 @@ from .runtime import (
 )
 
 __all__ += [
-    "AutonomousConversationRuntime",
-    "AutonomousRunResult",
-    "CapabilityRouterExecutor",
-    "StructuredCriticAdapter",
-    "StructuredPlannerAdapter",
+    "AutonomousConversationRuntime", "AutonomousRunResult", "CapabilityRouterExecutor",
+    "StructuredCriticAdapter", "StructuredPlannerAdapter",
 ]
 
 from .exchange import ExchangeCapsule
@@ -53,17 +41,14 @@ from .sparse_gate import (
 )
 
 __all__ += [
-    "ExchangeCapsule",
-    "CapabilityBid",
-    "SparseCapabilityGate",
-    "RewardModulatedCapabilityGate",
-    "TemporalSparseCapabilityGate",
+    "ExchangeCapsule", "CapabilityBid", "SparseCapabilityGate",
+    "RewardModulatedCapabilityGate", "TemporalSparseCapabilityGate",
 ]
 
 from .exchange_registry import ExchangeEvidence, ExchangeRegistry, ExchangeState
+from .resilient import ResilientCapabilityHandler, RetryPolicy
 
 __all__ += [
-    "ExchangeEvidence",
-    "ExchangeRegistry",
-    "ExchangeState",
+    "ExchangeEvidence", "ExchangeRegistry", "ExchangeState",
+    "ResilientCapabilityHandler", "RetryPolicy",
 ]
