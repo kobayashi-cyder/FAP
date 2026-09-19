@@ -3,17 +3,16 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `bbba914a66dd05b643e1276709206ca82db9542d`
-- Commit date: `2026-09-19T09:50:48+09:00`
-- Commit message: Test FCA-derived bounded memory in FAP
+- Source commit: `1d056029908f1012015d16af7d85a384d1d72420`
+- Commit date: `2026-09-19T09:50:56+09:00`
+- Commit message: Record FCA bounded-memory exchange provenance
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/fap_goal_loop/bounded_memory.py
-A	candidates/goal_completion_loop/tests/test_bounded_memory.py
+A	candidates/goal_completion_loop/exchange/fca_bounded_hot_cold_memory.json
 ```
 
 ## Next-update work contract
