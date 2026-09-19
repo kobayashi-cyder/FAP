@@ -47,8 +47,10 @@ __all__ += [
 
 from .exchange_registry import ExchangeEvidence, ExchangeRegistry, ExchangeState
 from .resilient import ResilientCapabilityHandler, RetryPolicy
+from .capability_policy import CapabilityRegistration, build_capability_handlers
 
 __all__ += [
     "ExchangeEvidence", "ExchangeRegistry", "ExchangeState",
     "ResilientCapabilityHandler", "RetryPolicy",
+    "CapabilityRegistration", "build_capability_handlers",
 ]
