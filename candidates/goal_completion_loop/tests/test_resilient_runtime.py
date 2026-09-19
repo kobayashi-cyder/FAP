@@ -48,6 +48,36 @@ class ResilientRuntimeTests(unittest.TestCase):
         self.assertEqual(2, calls["n"])
         self.assertEqual(2, result.state.history[-1].result.metadata["attempts"])
 
+    def test_runtime_injects_retry_sleeper_without_real_wait(self):
+        calls = {"n": 0}
+        delays = []
+
+        def read(_instruction, _metadata, _state):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return ExecutionResult("failed", error="busy", metadata={"transient": True})
+            return "payload"
+
+        runtime = ResilientAutonomousConversationRuntime(
+            planner_model=self.planner,
+            critic_model=self.critic,
+            handlers={"read": read},
+            retry_policies={
+                "read": CapabilityRetryPolicy(
+                    max_attempts=2,
+                    idempotent=True,
+                    justification="read-only operation",
+                    retry_delay_seconds=0.5,
+                )
+            },
+            retry_sleeper=delays.append,
+        )
+        result = runtime.submit("fetch data", success_criteria=["completed"], max_steps=2)
+        self.assertEqual("completed", result.status)
+        self.assertEqual([0.5], delays)
+        self.assertEqual(2, calls["n"])
+        self.assertEqual(2, result.state.history[-1].result.metadata["attempts"])
+
     def test_default_runtime_policy_does_not_replay(self):
         calls = {"n": 0}
 
