@@ -12,7 +12,7 @@ This file is maintained automatically when `main` changes.
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/exchange/fca_bounded_hot_cold_memory.json
+
 ```
 
 ## Next-update work contract
