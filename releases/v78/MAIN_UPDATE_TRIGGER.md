@@ -3,17 +3,17 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `be71d02ec8635ea624f1a3577429650d0b84b195`
-- Commit date: `2026-09-19T12:52:25+09:00`
-- Commit message: Add fail-closed resilient capability retry policy
+- Source commit: `2ea57d863aba2e62358ce74951fb98a4fc74af32`
+- Commit date: `2026-09-19T13:44:56+09:00`
+- Commit message: Test FCA-derived staged canary boundary
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/fap_goal_loop/resilient_capability.py
-A	candidates/goal_completion_loop/tests/test_resilient_capability.py
+A	candidates/goal_completion_loop/fap_goal_loop/staged_canary.py
+A	candidates/goal_completion_loop/tests/test_staged_canary.py
 ```
 
 ## Next-update work contract
