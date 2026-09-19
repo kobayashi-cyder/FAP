@@ -3,16 +3,17 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `fa95e02f650836591e677c833edadc45f98d07f3`
-- Commit date: `2026-09-19T10:38:03+09:00`
-- Commit message: Expose bounded hypothesis competition
+- Source commit: `be71d02ec8635ea624f1a3577429650d0b84b195`
+- Commit date: `2026-09-19T12:52:25+09:00`
+- Commit message: Add fail-closed resilient capability retry policy
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-
+A	candidates/goal_completion_loop/fap_goal_loop/resilient_capability.py
+A	candidates/goal_completion_loop/tests/test_resilient_capability.py
 ```
 
 ## Next-update work contract
