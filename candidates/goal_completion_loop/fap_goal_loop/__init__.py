@@ -44,6 +44,15 @@ __all__ += [
     "StructuredPlannerAdapter",
 ]
 
+from .resilient_capability import CapabilityRetryPolicy, ResilientCapabilityExecutor
+from .resilient_runtime import ResilientAutonomousConversationRuntime
+
+__all__ += [
+    "CapabilityRetryPolicy",
+    "ResilientCapabilityExecutor",
+    "ResilientAutonomousConversationRuntime",
+]
+
 from .exchange import ExchangeCapsule
 from .sparse_gate import (
     CapabilityBid,
