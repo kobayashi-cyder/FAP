@@ -3,17 +3,16 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `2ea57d863aba2e62358ce74951fb98a4fc74af32`
-- Commit date: `2026-09-19T13:44:56+09:00`
-- Commit message: Test FCA-derived staged canary boundary
+- Source commit: `512bfb4a46640911805e2f38888fb88c3a04fa19`
+- Commit date: `2026-09-19T13:45:02+09:00`
+- Commit message: Record FCA staged canary exchange provenance
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/fap_goal_loop/staged_canary.py
-A	candidates/goal_completion_loop/tests/test_staged_canary.py
+A	candidates/goal_completion_loop/exchange/fca_staged_canary.json
 ```
 
 ## Next-update work contract
