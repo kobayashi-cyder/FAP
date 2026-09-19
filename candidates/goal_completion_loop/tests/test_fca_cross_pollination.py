@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 from fap_goal_loop import (
     CapabilityBid,
     SparseCapabilityGate,
+    RewardModulatedCapabilityGate,
     StructuredPlannerAdapter,
     GoalSpec,
     GoalState,
@@ -52,6 +53,20 @@ class FCACrossPollinationTests(unittest.TestCase):
         actions = planner.plan(goal, GoalState(goal))
         self.assertEqual(seen["capabilities"], ["verify"])
         self.assertEqual(actions[0].kind, "verify")
+
+    def test_reward_modulation_changes_future_selection(self):
+        gate = RewardModulatedCapabilityGate(budget=0.6, max_active=1, learning_rate=1.0)
+        bids = [
+            CapabilityBid("a", 1.0, 0.5, 0.0, 0.5),
+            CapabilityBid("b", 1.0, 0.4, 0.0, 0.5),
+        ]
+        self.assertEqual(gate.select(bids, {"a", "b"}), ("a",))
+        gate.observe("b", 1.0)
+        self.assertEqual(gate.select(bids, {"a", "b"}), ("b",))
+        snap = gate.snapshot()
+        restored = RewardModulatedCapabilityGate(budget=0.6, max_active=1)
+        restored.restore(snap)
+        self.assertEqual(restored.preferences, snap)
 
     def test_filtered_capability_is_rejected(self):
         def model(_payload):
