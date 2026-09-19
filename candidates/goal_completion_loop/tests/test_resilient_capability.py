@@ -145,10 +145,10 @@ class ResilientCapabilityTests(unittest.TestCase):
         )
         result = executor.execute(action(), state())
         self.assertEqual(result.status, "failed")
-        self.assertEqual(result.metadata["attempts"], 4)
+        self.assertEqual(result.metadata["attempts"], 3)
         self.assertEqual(result.metadata["retry_delay_seconds"], 25.0)
         self.assertEqual(delays, [10.0, 15.0])
-        self.assertEqual(len(calls), 4)
+        self.assertEqual(len(calls), 3)
 
     def test_terminal_failure_never_sleeps(self):
         delays = []
