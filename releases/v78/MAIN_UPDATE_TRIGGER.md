@@ -3,18 +3,17 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `1a8e00d58f8adb5320737e8a20bb9cc4c8917624`
-- Commit date: `2026-09-19T09:05:48+09:00`
-- Commit message: Gate FCA cross-pollination through shadow and acceptance states
+- Source commit: `bbba914a66dd05b643e1276709206ca82db9542d`
+- Commit date: `2026-09-19T09:50:48+09:00`
+- Commit message: Test FCA-derived bounded memory in FAP
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
-A	candidates/goal_completion_loop/fap_goal_loop/exchange_registry.py
-A	candidates/goal_completion_loop/tests/test_exchange_registry.py
+A	candidates/goal_completion_loop/fap_goal_loop/bounded_memory.py
+A	candidates/goal_completion_loop/tests/test_bounded_memory.py
 ```
 
 ## Next-update work contract
