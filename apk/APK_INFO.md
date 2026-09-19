@@ -2,9 +2,9 @@
 
 - FAP release packaged: `V77`
 - Runtime core source: `./fap_v54.py`
-- Source main commit: `517486b63f92789856451e07f214b726274e4731`
-- Android branch commit before APK commit: `2cbb48e2f91b0ec31dd3d73767921914b6439383`
-- Built at UTC: `2026-09-19T00:00:35Z`
+- Source main commit: `1b3e7815d4c2d795835bc614aea28f79be3f15dd`
+- Android branch commit before APK commit: `b170bcc46ec20485834c2e5c72a2e87cd531b5e9`
+- Built at UTC: `2026-09-19T00:03:38Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `fe66574ca08070299c1797afc5a8ea7b31945d101855367f7d798d0c56d87e7d`
+- SHA-256: `bf4f10adbd97868baccbd08572ca836950fabac01692a3fbac7561db2280aec1`
 - Build: debug APK
