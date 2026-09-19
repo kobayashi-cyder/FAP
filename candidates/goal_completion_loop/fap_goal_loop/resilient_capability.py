@@ -14,8 +14,8 @@ class CapabilityRetryPolicy:
     Retries are allowed only when the capability is explicitly declared
     idempotent and a non-empty justification is recorded. Handler exceptions
     remain terminal unless their concrete exception type is explicitly listed.
-    Optional retry delay and backoff are bounded so provider recovery cannot
-    create an unbounded wait inside the goal loop.
+    Optional retry delay, backoff, and total delay budget are bounded so
+    provider recovery cannot create an unbounded wait inside the goal loop.
     """
 
     max_attempts: int = 1
@@ -24,6 +24,7 @@ class CapabilityRetryPolicy:
     retryable_exceptions: tuple[type[Exception], ...] = ()
     retry_delay_seconds: float = 0.0
     retry_backoff_multiplier: float = 1.0
+    max_total_delay_seconds: float = 240.0
 
     def __post_init__(self) -> None:
         if not 1 <= int(self.max_attempts) <= 5:
@@ -45,15 +46,20 @@ class CapabilityRetryPolicy:
             raise ValueError("retry_backoff_multiplier must be between 1 and 4")
         if self.retry_backoff_multiplier != 1.0 and not self.retry_delay_seconds:
             raise ValueError("retry backoff requires retry_delay_seconds > 0")
+        if not 0.0 <= float(self.max_total_delay_seconds) <= 240.0:
+            raise ValueError("max_total_delay_seconds must be between 0 and 240")
+        if self.retry_delay_seconds and not self.max_total_delay_seconds:
+            raise ValueError("retry delay requires a positive total delay budget")
 
-    def delay_before_attempt(self, attempt: int) -> float:
-        """Return bounded delay before the next attempt after ``attempt`` failed."""
+    def delay_before_attempt(self, attempt: int, *, elapsed_delay: float = 0.0) -> float:
+        """Return the bounded delay after ``attempt`` failed within the total budget."""
         if not self.retry_delay_seconds:
             return 0.0
+        remaining = max(0.0, float(self.max_total_delay_seconds) - float(elapsed_delay))
         delay = float(self.retry_delay_seconds) * (
             float(self.retry_backoff_multiplier) ** max(0, int(attempt) - 1)
         )
-        return min(60.0, delay)
+        return min(60.0, delay, remaining)
 
 
 class ResilientCapabilityExecutor:
@@ -107,6 +113,7 @@ class ResilientCapabilityExecutor:
 
         policy = self.retry_policies.get(action.kind, CapabilityRetryPolicy())
         last = ExecutionResult("failed", error="capability_not_executed")
+        elapsed_delay = 0.0
         for attempt in range(1, policy.max_attempts + 1):
             try:
                 last = self._coerce(handler(action.instruction, dict(action.metadata), state))
@@ -131,13 +138,17 @@ class ResilientCapabilityExecutor:
                 break
             if attempt >= policy.max_attempts:
                 break
-            delay = policy.delay_before_attempt(attempt)
+            delay = policy.delay_before_attempt(attempt, elapsed_delay=elapsed_delay)
+            if policy.retry_delay_seconds and delay <= 0:
+                break
             if delay:
                 self._sleeper(delay)
+                elapsed_delay += delay
 
         metadata = dict(last.metadata)
         metadata["attempts"] = attempt
         metadata["retry_safe"] = bool(policy.max_attempts > 1)
+        metadata["retry_delay_seconds"] = elapsed_delay
         return ExecutionResult(
             status=last.status,
             output=last.output,
