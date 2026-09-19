@@ -12,10 +12,7 @@ This file is maintained automatically when `main` changes.
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/exchange/fca_temporal_trace.json
-M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
-M	candidates/goal_completion_loop/fap_goal_loop/sparse_gate.py
-M	candidates/goal_completion_loop/tests/test_fca_cross_pollination.py
+
 ```
 
 ## Next-update work contract
