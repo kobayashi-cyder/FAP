@@ -74,3 +74,10 @@ __all__ += [
     "BoundedHotColdMemory",
     "MemoryItem",
 ]
+
+from .hypothesis_competition import BoundedHypothesisCompetition, Hypothesis
+
+__all__ += [
+    "BoundedHypothesisCompetition",
+    "Hypothesis",
+]
