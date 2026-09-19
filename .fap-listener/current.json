@@ -1,8 +1,8 @@
 {
   "source_branch": "main",
-  "source_sha": "1b3e7815d4c2d795835bc614aea28f79be3f15dd",
-  "source_short_sha": "1b3e781",
-  "source_commit_date": "2026-09-19T09:02:34+09:00",
+  "source_sha": "e414ca2cf0909bd17f477b36d5149f227f9ab725",
+  "source_short_sha": "e414ca2",
+  "source_commit_date": "2026-09-19T09:04:33+09:00",
   "latest_release_on_main": "v77",
   "next_release": "v78",
   "work_branch": "listener/v78"
