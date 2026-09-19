@@ -45,11 +45,25 @@ __all__ += [
 ]
 
 from .exchange import ExchangeCapsule
-from .sparse_gate import CapabilityBid, SparseCapabilityGate, RewardModulatedCapabilityGate
+from .sparse_gate import (
+    CapabilityBid,
+    SparseCapabilityGate,
+    RewardModulatedCapabilityGate,
+    TemporalSparseCapabilityGate,
+)
 
 __all__ += [
     "ExchangeCapsule",
     "CapabilityBid",
     "SparseCapabilityGate",
     "RewardModulatedCapabilityGate",
+    "TemporalSparseCapabilityGate",
+]
+
+from .exchange_registry import ExchangeEvidence, ExchangeRegistry, ExchangeState
+
+__all__ += [
+    "ExchangeEvidence",
+    "ExchangeRegistry",
+    "ExchangeState",
 ]
