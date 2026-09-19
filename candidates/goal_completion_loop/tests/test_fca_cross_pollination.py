@@ -11,6 +11,7 @@ from fap_goal_loop import (
     CapabilityBid,
     SparseCapabilityGate,
     RewardModulatedCapabilityGate,
+    TemporalSparseCapabilityGate,
     StructuredPlannerAdapter,
     GoalSpec,
     GoalState,
@@ -67,6 +68,30 @@ class FCACrossPollinationTests(unittest.TestCase):
         restored = RewardModulatedCapabilityGate(budget=0.6, max_active=1)
         restored.restore(snap)
         self.assertEqual(restored.preferences, snap)
+
+    def test_temporal_trace_reduces_capability_thrashing(self):
+        gate = TemporalSparseCapabilityGate(
+            budget=0.6,
+            max_active=1,
+            trace_decay=0.8,
+            trace_gain=0.2,
+        )
+        first = gate.select(
+            [
+                CapabilityBid("a", 1.0, 1.0, 0.0, 0.5),
+                CapabilityBid("b", 1.0, 1.1, 0.0, 0.5),
+            ],
+            {"a", "b"},
+        )
+        self.assertEqual(first, ("b",))
+        second = gate.select(
+            [
+                CapabilityBid("a", 1.0, 1.12, 0.0, 0.5),
+                CapabilityBid("b", 1.0, 1.0, 0.0, 0.5),
+            ],
+            {"a", "b"},
+        )
+        self.assertEqual(second, ("b",))
 
     def test_filtered_capability_is_rejected(self):
         def model(_payload):

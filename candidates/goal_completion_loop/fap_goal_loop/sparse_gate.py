@@ -126,3 +126,68 @@ class RewardModulatedCapabilityGate(SparseCapabilityGate):
                 raise ValueError("invalid preference snapshot")
             restored[key] = val
         self.preferences = restored
+
+
+class TemporalSparseCapabilityGate(SparseCapabilityGate):
+    """FCA temporal-trace idea applied to FAP capability routing.
+
+    Recently selected capabilities receive a small decaying persistence bias.
+    This reduces unnecessary capability thrashing without bypassing the critic.
+    """
+
+    def __init__(
+        self,
+        *,
+        budget: float = 1.0,
+        max_active: int = 3,
+        trace_decay: float = 0.82,
+        trace_gain: float = 0.20,
+    ) -> None:
+        super().__init__(budget=budget, max_active=max_active)
+        if not 0.0 < trace_decay < 1.0:
+            raise ValueError("trace_decay must be in (0,1)")
+        if trace_gain < 0.0:
+            raise ValueError("trace_gain must be non-negative")
+        self.trace_decay = float(trace_decay)
+        self.trace_gain = float(trace_gain)
+        self.trace: dict[str, float] = {}
+
+    def select(
+        self,
+        bids: Iterable[CapabilityBid],
+        available: Iterable[str],
+    ) -> tuple[str, ...]:
+        self.trace = {
+            name: value * self.trace_decay
+            for name, value in self.trace.items()
+            if abs(value * self.trace_decay) >= 1e-6
+        }
+        adjusted = [
+            CapabilityBid(
+                name=bid.name,
+                relevance=bid.relevance,
+                expected_value=bid.expected_value + self.trace_gain * self.trace.get(bid.name, 0.0),
+                information_gain=bid.information_gain,
+                cost=bid.cost,
+            )
+            for bid in bids
+        ]
+        selected = super().select(adjusted, available)
+        for name in selected:
+            self.trace[name] = 1.0
+        return selected
+
+    def snapshot(self) -> dict[str, float]:
+        return dict(self.trace)
+
+    def restore(self, snapshot: dict[str, float]) -> None:
+        if not isinstance(snapshot, dict):
+            raise ValueError("trace snapshot must be an object")
+        restored: dict[str, float] = {}
+        for name, value in snapshot.items():
+            key = str(name).strip()
+            val = float(value)
+            if not key or not 0.0 <= val <= 1.0:
+                raise ValueError("invalid trace snapshot")
+            restored[key] = val
+        self.trace = restored
