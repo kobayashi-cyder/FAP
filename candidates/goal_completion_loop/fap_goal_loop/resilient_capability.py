@@ -11,13 +11,14 @@ class CapabilityRetryPolicy:
     """Fail-closed retry contract for a capability handler.
 
     Retries are allowed only when the capability is explicitly declared
-    idempotent and a non-empty justification is recorded. This prevents
-    accidental replay of irreversible/external side effects.
+    idempotent and a non-empty justification is recorded. Handler exceptions
+    remain terminal unless their concrete exception type is explicitly listed.
     """
 
     max_attempts: int = 1
     idempotent: bool = False
     justification: str = ""
+    retryable_exceptions: tuple[type[Exception], ...] = ()
 
     def __post_init__(self) -> None:
         if not 1 <= int(self.max_attempts) <= 5:
@@ -26,6 +27,11 @@ class CapabilityRetryPolicy:
             raise ValueError("retry requires an idempotent capability")
         if self.max_attempts > 1 and not self.justification.strip():
             raise ValueError("retry requires an idempotency justification")
+        for exc_type in self.retryable_exceptions:
+            if not isinstance(exc_type, type) or not issubclass(exc_type, Exception):
+                raise ValueError("retryable_exceptions must contain Exception types")
+        if self.retryable_exceptions and self.max_attempts <= 1:
+            raise ValueError("retryable_exceptions require max_attempts > 1")
 
 
 class ResilientCapabilityExecutor:
@@ -81,10 +87,17 @@ class ResilientCapabilityExecutor:
             try:
                 last = self._coerce(handler(action.instruction, dict(action.metadata), state))
             except Exception as exc:
+                retryable_exception = bool(policy.retryable_exceptions) and isinstance(
+                    exc, policy.retryable_exceptions
+                )
                 last = ExecutionResult(
                     "failed",
                     error=f"{type(exc).__name__}: {exc}",
-                    metadata={"handler_exception": True, "kind": action.kind},
+                    metadata={
+                        "handler_exception": True,
+                        "kind": action.kind,
+                        "transient": retryable_exception,
+                    },
                 )
 
             # Approval and blocking are terminal. Never replay them.
