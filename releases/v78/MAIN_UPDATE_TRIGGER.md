@@ -12,8 +12,7 @@ This file is maintained automatically when `main` changes.
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/fap_goal_loop/hypothesis_competition.py
-A	candidates/goal_completion_loop/tests/test_hypothesis_competition.py
+
 ```
 
 ## Next-update work contract
