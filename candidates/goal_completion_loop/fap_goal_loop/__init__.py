@@ -67,3 +67,10 @@ __all__ += [
     "ExchangeRegistry",
     "ExchangeState",
 ]
+
+from .bounded_memory import BoundedHotColdMemory, MemoryItem
+
+__all__ += [
+    "BoundedHotColdMemory",
+    "MemoryItem",
+]
