@@ -3,16 +3,18 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `f3bb5c305f302b5e401f8ff0701c60b18e91b81a`
-- Commit date: `2026-09-19T16:40:36+09:00`
-- Commit message: Make staged canary verification CI-compatible
+- Source commit: `e1b9a3218a2223c78c5a5ed6a418fd23fbe81af3`
+- Commit date: `2026-09-19T17:15:17+09:00`
+- Commit message: Wire fail-closed capability retries into autonomous runtime
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-M	candidates/goal_completion_loop/tests/test_staged_canary.py
+M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
+A	candidates/goal_completion_loop/fap_goal_loop/resilient_runtime.py
+A	candidates/goal_completion_loop/tests/test_resilient_runtime.py
 ```
 
 ## Next-update work contract
