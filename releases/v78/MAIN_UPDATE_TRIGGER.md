@@ -3,16 +3,16 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `512bfb4a46640911805e2f38888fb88c3a04fa19`
-- Commit date: `2026-09-19T13:45:02+09:00`
-- Commit message: Record FCA staged canary exchange provenance
+- Source commit: `f3bb5c305f302b5e401f8ff0701c60b18e91b81a`
+- Commit date: `2026-09-19T16:40:36+09:00`
+- Commit message: Make staged canary verification CI-compatible
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-
+M	candidates/goal_completion_loop/tests/test_staged_canary.py
 ```
 
 ## Next-update work contract
