@@ -36,6 +36,12 @@ class ResilientCapabilityTests(unittest.TestCase):
             CapabilityRetryPolicy(2, True, "read only", retry_backoff_multiplier=4.1)
         with self.assertRaises(ValueError):
             CapabilityRetryPolicy(2, True, "read only", retry_backoff_multiplier=2)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(2, True, "read only", max_total_delay_seconds=-0.1)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(2, True, "read only", max_total_delay_seconds=240.1)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(2, True, "read only", retry_delay_seconds=1, max_total_delay_seconds=0)
 
     def test_transient_failure_retries_only_when_explicitly_safe(self):
         calls = []
@@ -60,6 +66,7 @@ class ResilientCapabilityTests(unittest.TestCase):
         self.assertEqual(result.status, "ok")
         self.assertEqual(result.output, "recovered")
         self.assertEqual(result.metadata["attempts"], 2)
+        self.assertEqual(result.metadata["retry_delay_seconds"], 0.0)
         self.assertEqual(len(calls), 2)
 
     def test_retry_delay_runs_only_between_retryable_attempts(self):
@@ -82,6 +89,7 @@ class ResilientCapabilityTests(unittest.TestCase):
         result = executor.execute(action(), state())
         self.assertEqual(result.status, "ok")
         self.assertEqual(result.metadata["attempts"], 3)
+        self.assertEqual(result.metadata["retry_delay_seconds"], 0.5)
         self.assertEqual(delays, [0.25, 0.25])
 
     def test_retry_backoff_progresses_and_caps_each_wait(self):
@@ -110,7 +118,37 @@ class ResilientCapabilityTests(unittest.TestCase):
         result = executor.execute(action(), state())
         self.assertEqual(result.status, "ok")
         self.assertEqual(result.metadata["attempts"], 5)
+        self.assertEqual(result.metadata["retry_delay_seconds"], 130.0)
         self.assertEqual(delays, [10.0, 20.0, 40.0, 60.0])
+
+    def test_total_retry_delay_budget_stops_before_unbounded_wait(self):
+        calls = []
+        delays = []
+
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
+            return ExecutionResult("failed", error="busy", metadata={"transient": True})
+
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={
+                "read": CapabilityRetryPolicy(
+                    5,
+                    True,
+                    "read only",
+                    retry_delay_seconds=10,
+                    retry_backoff_multiplier=2,
+                    max_total_delay_seconds=25,
+                )
+            },
+            sleeper=delays.append,
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.metadata["attempts"], 3)
+        self.assertEqual(result.metadata["retry_delay_seconds"], 25.0)
+        self.assertEqual(delays, [10.0, 15.0])
+        self.assertEqual(len(calls), 3)
 
     def test_terminal_failure_never_sleeps(self):
         delays = []
