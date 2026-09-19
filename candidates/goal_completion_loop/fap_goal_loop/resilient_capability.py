@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from random import random
 from time import sleep
 from typing import Any, Callable, Dict, Mapping
 
@@ -14,8 +15,8 @@ class CapabilityRetryPolicy:
     Retries are allowed only when the capability is explicitly declared
     idempotent and a non-empty justification is recorded. Handler exceptions
     remain terminal unless their concrete exception type is explicitly listed.
-    Optional retry delay, backoff, and total delay budget are bounded so
-    provider recovery cannot create an unbounded wait inside the goal loop.
+    Optional retry delay, backoff, jitter, and total delay budget are bounded so
+    provider recovery cannot create an unbounded wait or synchronized retry wave.
     """
 
     max_attempts: int = 1
@@ -25,6 +26,7 @@ class CapabilityRetryPolicy:
     retry_delay_seconds: float = 0.0
     retry_backoff_multiplier: float = 1.0
     max_total_delay_seconds: float = 240.0
+    retry_jitter_ratio: float = 0.0
 
     def __post_init__(self) -> None:
         if not 1 <= int(self.max_attempts) <= 5:
@@ -50,16 +52,31 @@ class CapabilityRetryPolicy:
             raise ValueError("max_total_delay_seconds must be between 0 and 240")
         if self.retry_delay_seconds and not self.max_total_delay_seconds:
             raise ValueError("retry delay requires a positive total delay budget")
+        if not 0.0 <= float(self.retry_jitter_ratio) <= 0.5:
+            raise ValueError("retry_jitter_ratio must be between 0 and 0.5")
+        if self.retry_jitter_ratio and not self.retry_delay_seconds:
+            raise ValueError("retry jitter requires retry_delay_seconds > 0")
 
-    def delay_before_attempt(self, attempt: int, *, elapsed_delay: float = 0.0) -> float:
-        """Return the bounded delay after ``attempt`` failed within the total budget."""
+    def delay_before_attempt(
+        self,
+        attempt: int,
+        *,
+        elapsed_delay: float = 0.0,
+        jitter_unit: float = 0.5,
+    ) -> float:
+        """Return bounded delay after ``attempt`` failed within the total budget."""
         if not self.retry_delay_seconds:
             return 0.0
+        if not 0.0 <= float(jitter_unit) <= 1.0:
+            raise ValueError("jitter_unit must be between 0 and 1")
         remaining = max(0.0, float(self.max_total_delay_seconds) - float(elapsed_delay))
         delay = float(self.retry_delay_seconds) * (
             float(self.retry_backoff_multiplier) ** max(0, int(attempt) - 1)
         )
-        return min(60.0, delay, remaining)
+        if self.retry_jitter_ratio:
+            centered = (2.0 * float(jitter_unit)) - 1.0
+            delay *= 1.0 + (float(self.retry_jitter_ratio) * centered)
+        return min(60.0, max(0.0, delay), remaining)
 
 
 class ResilientCapabilityExecutor:
@@ -71,6 +88,7 @@ class ResilientCapabilityExecutor:
         *,
         retry_policies: Mapping[str, CapabilityRetryPolicy] | None = None,
         sleeper: Callable[[float], None] = sleep,
+        jitter_source: Callable[[], float] = random,
     ) -> None:
         self.handlers = {str(k): v for k, v in handlers.items()}
         if not self.handlers:
@@ -80,6 +98,7 @@ class ResilientCapabilityExecutor:
         if unknown:
             raise ValueError(f"retry policy for unregistered capability: {sorted(unknown)}")
         self._sleeper = sleeper
+        self._jitter_source = jitter_source
 
     @staticmethod
     def _coerce(raw: Any) -> ExecutionResult:
@@ -138,7 +157,12 @@ class ResilientCapabilityExecutor:
                 break
             if attempt >= policy.max_attempts:
                 break
-            delay = policy.delay_before_attempt(attempt, elapsed_delay=elapsed_delay)
+            jitter_unit = self._jitter_source() if policy.retry_jitter_ratio else 0.5
+            delay = policy.delay_before_attempt(
+                attempt,
+                elapsed_delay=elapsed_delay,
+                jitter_unit=jitter_unit,
+            )
             if policy.retry_delay_seconds and delay <= 0:
                 break
             if delay:
