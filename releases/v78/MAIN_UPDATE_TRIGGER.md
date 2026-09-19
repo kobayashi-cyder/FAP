@@ -12,8 +12,7 @@ This file is maintained automatically when `main` changes.
 ## Changes since the previous processed main state
 
 ```
-A	candidates/goal_completion_loop/exchange/fca_hypothesis_competition.json
-M	candidates/goal_completion_loop/fap_goal_loop/__init__.py
+
 ```
 
 ## Next-update work contract
