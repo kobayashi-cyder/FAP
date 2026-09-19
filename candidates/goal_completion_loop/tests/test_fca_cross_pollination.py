@@ -58,8 +58,8 @@ class FCACrossPollinationTests(unittest.TestCase):
     def test_reward_modulation_changes_future_selection(self):
         gate = RewardModulatedCapabilityGate(budget=0.6, max_active=1, learning_rate=1.0)
         bids = [
-            CapabilityBid("a", 1.0, 0.5, 0.0, 0.5),
-            CapabilityBid("b", 1.0, 0.4, 0.0, 0.5),
+            CapabilityBid("a", 1.0, 0.6, 0.0, 0.5),
+            CapabilityBid("b", 1.0, 0.5, 0.0, 0.5),
         ]
         self.assertEqual(gate.select(bids, {"a", "b"}), ("a",))
         gate.observe("b", 1.0)
