@@ -3,9 +3,9 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `58a23aeed59a42f28a8812d8f69a95de0133ff09`
-- Commit date: `2026-09-19T19:40:31+09:00`
-- Commit message: Add explicit retryable exception contract
+- Source commit: `f0120980fbac875dfc7206b000c55c601598c41d`
+- Commit date: `2026-09-19T21:33:54+09:00`
+- Commit message: Add bounded retry delay hook
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
