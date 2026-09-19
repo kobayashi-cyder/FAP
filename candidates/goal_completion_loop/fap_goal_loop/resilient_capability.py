@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from random import random
 from time import sleep
 from typing import Any, Callable, Dict, Mapping
@@ -15,8 +16,9 @@ class CapabilityRetryPolicy:
     Retries are allowed only when the capability is explicitly declared
     idempotent and a non-empty justification is recorded. Handler exceptions
     remain terminal unless their concrete exception type is explicitly listed.
-    Optional retry delay, backoff, jitter, and total delay budget are bounded so
-    provider recovery cannot create an unbounded wait or synchronized retry wave.
+    Optional retry delay, backoff, jitter, provider hints, and total delay budget
+    are bounded so provider recovery cannot create an unbounded wait or
+    synchronized retry wave.
     """
 
     max_attempts: int = 1
@@ -63,6 +65,7 @@ class CapabilityRetryPolicy:
         *,
         elapsed_delay: float = 0.0,
         jitter_unit: float = 0.5,
+        retry_after_seconds: Any = None,
     ) -> float:
         """Return bounded delay after ``attempt`` failed within the total budget."""
         if not self.retry_delay_seconds:
@@ -76,6 +79,13 @@ class CapabilityRetryPolicy:
         if self.retry_jitter_ratio:
             centered = (2.0 * float(jitter_unit)) - 1.0
             delay *= 1.0 + (float(self.retry_jitter_ratio) * centered)
+        try:
+            hinted_delay = float(retry_after_seconds)
+        except (TypeError, ValueError):
+            hinted_delay = 0.0
+        if not isfinite(hinted_delay) or hinted_delay < 0:
+            hinted_delay = 0.0
+        delay = max(delay, hinted_delay)
         return min(60.0, max(0.0, delay), remaining)
 
 
@@ -162,6 +172,7 @@ class ResilientCapabilityExecutor:
                 attempt,
                 elapsed_delay=elapsed_delay,
                 jitter_unit=jitter_unit,
+                retry_after_seconds=last.metadata.get("retry_after_seconds"),
             )
             if policy.retry_delay_seconds and delay <= 0:
                 break
