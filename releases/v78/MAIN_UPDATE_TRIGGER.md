@@ -3,17 +3,17 @@
 This file is maintained automatically when `main` changes.
 
 - Source branch: `main`
-- Source commit: `0b50288cb1fcac5f410552ec04bb7d94d9ba09e5`
-- Commit date: `2026-09-19T23:49:25+09:00`
-- Commit message: Expose retry delay injection through autonomous runtime
+- Source commit: `77edd4dac8a688de1612d812aa54a0a81d80186e`
+- Commit date: `2026-09-20T01:10:46+09:00`
+- Commit message: Add bounded retry backoff multiplier
 - Latest completed release detected on main: `v77`
 - Prepared work branch: `listener/v78`
 
 ## Changes since the previous processed main state
 
 ```
-M	candidates/goal_completion_loop/fap_goal_loop/resilient_runtime.py
-M	candidates/goal_completion_loop/tests/test_resilient_runtime.py
+M	candidates/goal_completion_loop/fap_goal_loop/resilient_capability.py
+M	candidates/goal_completion_loop/tests/test_resilient_capability.py
 ```
 
 ## Next-update work contract
