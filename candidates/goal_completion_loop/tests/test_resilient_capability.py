@@ -1,4 +1,4 @@
-import pytest
+import unittest
 
 from fap_goal_loop.goal_loop import ExecutionResult, GoalSpec, GoalState, PlannedAction
 from fap_goal_loop.resilient_capability import CapabilityRetryPolicy, ResilientCapabilityExecutor
@@ -12,88 +12,89 @@ def state():
     return GoalState(goal=GoalSpec(goal_id="g1", objective="test", success_criteria=("done",)))
 
 
-def test_retry_policy_is_fail_closed():
-    with pytest.raises(ValueError):
-        CapabilityRetryPolicy(max_attempts=2)
-    with pytest.raises(ValueError):
-        CapabilityRetryPolicy(max_attempts=2, idempotent=True)
-    with pytest.raises(ValueError):
-        CapabilityRetryPolicy(max_attempts=6, idempotent=True, justification="read only")
+class ResilientCapabilityTests(unittest.TestCase):
+    def test_retry_policy_is_fail_closed(self):
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(max_attempts=2)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(max_attempts=2, idempotent=True)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(max_attempts=6, idempotent=True, justification="read only")
 
+    def test_transient_failure_retries_only_when_explicitly_safe(self):
+        calls = []
 
-def test_transient_failure_retries_only_when_explicitly_safe():
-    calls = []
+        def handler(instruction, metadata, goal_state):
+            calls.append(instruction)
+            if len(calls) == 1:
+                return ExecutionResult("failed", error="timeout", metadata={"transient": True})
+            return ExecutionResult("ok", output="recovered")
 
-    def handler(instruction, metadata, goal_state):
-        calls.append(instruction)
-        if len(calls) == 1:
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={
+                "read": CapabilityRetryPolicy(
+                    max_attempts=2,
+                    idempotent=True,
+                    justification="read-only lookup has no external side effects",
+                )
+            },
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.output, "recovered")
+        self.assertEqual(result.metadata["attempts"], 2)
+        self.assertEqual(len(calls), 2)
+
+    def test_unconfigured_capability_never_retries(self):
+        calls = []
+
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
             return ExecutionResult("failed", error="timeout", metadata={"transient": True})
-        return ExecutionResult("ok", output="recovered")
 
-    executor = ResilientCapabilityExecutor(
-        {"read": handler},
-        retry_policies={
-            "read": CapabilityRetryPolicy(
-                max_attempts=2,
-                idempotent=True,
-                justification="read-only lookup has no external side effects",
-            )
-        },
-    )
-    result = executor.execute(action(), state())
-    assert result.status == "ok"
-    assert result.output == "recovered"
-    assert result.metadata["attempts"] == 2
-    assert len(calls) == 2
+        result = ResilientCapabilityExecutor({"read": handler}).execute(action(), state())
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.metadata["attempts"], 1)
+        self.assertEqual(len(calls), 1)
 
+    def test_needs_approval_is_never_retried(self):
+        calls = []
 
-def test_unconfigured_capability_never_retries():
-    calls = []
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
+            return ExecutionResult("needs_approval", metadata={"transient": True})
 
-    def handler(instruction, metadata, goal_state):
-        calls.append(1)
-        return ExecutionResult("failed", error="timeout", metadata={"transient": True})
+        executor = ResilientCapabilityExecutor(
+            {"write": handler},
+            retry_policies={
+                "write": CapabilityRetryPolicy(
+                    max_attempts=3,
+                    idempotent=True,
+                    justification="test fixture",
+                )
+            },
+        )
+        result = executor.execute(action("write"), state())
+        self.assertEqual(result.status, "needs_approval")
+        self.assertEqual(result.metadata["attempts"], 1)
+        self.assertEqual(len(calls), 1)
 
-    result = ResilientCapabilityExecutor({"read": handler}).execute(action(), state())
-    assert result.status == "failed"
-    assert result.metadata["attempts"] == 1
-    assert len(calls) == 1
+    def test_non_transient_failure_is_terminal(self):
+        calls = []
 
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
+            return ExecutionResult("failed", error="invalid input", metadata={"transient": False})
 
-def test_needs_approval_is_never_retried():
-    calls = []
-
-    def handler(instruction, metadata, goal_state):
-        calls.append(1)
-        return ExecutionResult("needs_approval", metadata={"transient": True})
-
-    executor = ResilientCapabilityExecutor(
-        {"write": handler},
-        retry_policies={
-            "write": CapabilityRetryPolicy(
-                max_attempts=3,
-                idempotent=True,
-                justification="test fixture",
-            )
-        },
-    )
-    result = executor.execute(action("write"), state())
-    assert result.status == "needs_approval"
-    assert result.metadata["attempts"] == 1
-    assert len(calls) == 1
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={"read": CapabilityRetryPolicy(2, True, "read only")},
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.metadata["attempts"], 1)
+        self.assertEqual(len(calls), 1)
 
 
-def test_non_transient_failure_is_terminal():
-    calls = []
-
-    def handler(instruction, metadata, goal_state):
-        calls.append(1)
-        return ExecutionResult("failed", error="invalid input", metadata={"transient": False})
-
-    executor = ResilientCapabilityExecutor(
-        {"read": handler},
-        retry_policies={"read": CapabilityRetryPolicy(2, True, "read only")},
-    )
-    result = executor.execute(action(), state())
-    assert result.metadata["attempts"] == 1
-    assert len(calls) == 1
+if __name__ == "__main__":
+    unittest.main()
