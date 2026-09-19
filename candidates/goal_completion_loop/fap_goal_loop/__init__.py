@@ -59,3 +59,11 @@ __all__ += [
     "RewardModulatedCapabilityGate",
     "TemporalSparseCapabilityGate",
 ]
+
+from .exchange_registry import ExchangeEvidence, ExchangeRegistry, ExchangeState
+
+__all__ += [
+    "ExchangeEvidence",
+    "ExchangeRegistry",
+    "ExchangeState",
+]
