@@ -24,6 +24,12 @@ class ResilientCapabilityTests(unittest.TestCase):
             CapabilityRetryPolicy(retryable_exceptions=(TimeoutError,))
         with self.assertRaises(ValueError):
             CapabilityRetryPolicy(2, True, "read only", retryable_exceptions=(str,))
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(2, True, "read only", retry_delay_seconds=-0.1)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(2, True, "read only", retry_delay_seconds=60.1)
+        with self.assertRaises(ValueError):
+            CapabilityRetryPolicy(retry_delay_seconds=1)
 
     def test_transient_failure_retries_only_when_explicitly_safe(self):
         calls = []
@@ -49,6 +55,45 @@ class ResilientCapabilityTests(unittest.TestCase):
         self.assertEqual(result.output, "recovered")
         self.assertEqual(result.metadata["attempts"], 2)
         self.assertEqual(len(calls), 2)
+
+    def test_retry_delay_runs_only_between_retryable_attempts(self):
+        calls = []
+        delays = []
+
+        def handler(instruction, metadata, goal_state):
+            calls.append(1)
+            if len(calls) < 3:
+                return ExecutionResult("failed", error="busy", metadata={"transient": True})
+            return "recovered"
+
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={
+                "read": CapabilityRetryPolicy(3, True, "read only", retry_delay_seconds=0.25)
+            },
+            sleeper=delays.append,
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(result.metadata["attempts"], 3)
+        self.assertEqual(delays, [0.25, 0.25])
+
+    def test_terminal_failure_never_sleeps(self):
+        delays = []
+
+        def handler(instruction, metadata, goal_state):
+            return ExecutionResult("failed", error="bad input", metadata={"transient": False})
+
+        executor = ResilientCapabilityExecutor(
+            {"read": handler},
+            retry_policies={
+                "read": CapabilityRetryPolicy(3, True, "read only", retry_delay_seconds=1)
+            },
+            sleeper=delays.append,
+        )
+        result = executor.execute(action(), state())
+        self.assertEqual(result.metadata["attempts"], 1)
+        self.assertEqual(delays, [])
 
     def test_unconfigured_capability_never_retries(self):
         calls = []
