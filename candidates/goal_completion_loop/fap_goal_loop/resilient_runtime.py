@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import sleep
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 from .goal_loop import ConversationGoalRunner, GoalCompletionLoop, GoalSpec, GoalState, JSONGoalStateStore, PlannedAction
@@ -14,7 +15,8 @@ class ResilientAutonomousConversationRuntime:
     Retry behavior is disabled by default. A capability may be retried only when
     its CapabilityRetryPolicy explicitly declares idempotency and records a
     justification. Approval and blocked results are never replayed by the
-    executor.
+    executor. The retry sleeper is injectable so hosts can provide an appropriate
+    wait primitive without changing retry safety semantics.
     """
 
     def __init__(
@@ -24,6 +26,7 @@ class ResilientAutonomousConversationRuntime:
         critic_model: Callable[[Dict[str, Any]], Mapping[str, Any]],
         handlers: Mapping[str, Callable[[str, Dict[str, Any], GoalState], Any]],
         retry_policies: Mapping[str, CapabilityRetryPolicy] | None = None,
+        retry_sleeper: Callable[[float], None] = sleep,
         approval_kinds: Iterable[str] = (),
         approval: Optional[Callable[[PlannedAction, GoalState], bool]] = None,
         state_dir: Optional[str | Path] = None,
@@ -35,7 +38,11 @@ class ResilientAutonomousConversationRuntime:
             approval_kinds=approval_kinds,
             capability_selector=capability_selector,
         )
-        executor = ResilientCapabilityExecutor(handlers, retry_policies=retry_policies)
+        executor = ResilientCapabilityExecutor(
+            handlers,
+            retry_policies=retry_policies,
+            sleeper=retry_sleeper,
+        )
         critic = StructuredCriticAdapter(critic_model)
         store = JSONGoalStateStore(state_dir) if state_dir is not None else None
         self.loop = GoalCompletionLoop(planner, executor, critic, store=store, approval=approval)
