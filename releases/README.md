@@ -27,4 +27,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 
 - `v83/` — Bidirectional Visual IR Cognition (shared VisualIR, mandatory Vision feedback, structured local diffs/repair, Motion Primitive timeline, optional renderer replacement, Visual Skill Graph, V82 sparse-specialist bridge).
 
+- `v84/` — Persistent Self-Generated Curriculum (AbilityMap, weak-area targeting, frontier-stretching challenges, independent verification, success-only compression, restart-safe evidence binding, bounded primitive curriculum).
+
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
