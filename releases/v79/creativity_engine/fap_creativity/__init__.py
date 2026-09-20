@@ -18,6 +18,7 @@ from .primitive_invention import (
     SandboxResult,
     SkillRegistry,
 )
+from .primitive_registry_validation import validate_primitive_registry_payload
 
 __all__ = [
     "CreativeCandidate",
@@ -36,4 +37,5 @@ __all__ = [
     "PromotionDecision",
     "SandboxResult",
     "SkillRegistry",
+    "validate_primitive_registry_payload",
 ]
