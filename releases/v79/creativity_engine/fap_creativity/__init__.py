@@ -6,6 +6,7 @@ from .engine import (
     CreativityEngine,
     OPERATORS,
 )
+from .integration import build_v79_responder
 
 __all__ = [
     "CreativeCandidate",
@@ -14,4 +15,5 @@ __all__ = [
     "CreativityAugmentedResponder",
     "CreativityEngine",
     "OPERATORS",
+    "build_v79_responder",
 ]
