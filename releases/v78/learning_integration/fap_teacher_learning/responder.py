@@ -55,6 +55,20 @@ def _unique(items: Iterable[str], limit: int) -> list[str]:
     return out
 
 
+def _canonical_json_digest(path: Path) -> str:
+    try:
+        obj = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise LearningArtifactError(f"learning artifact unreadable: {path.name}") from exc
+    payload = json.dumps(
+        obj,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha256(payload).hexdigest()
+
+
 class TeacherLearningState:
     """Verified loader for the Gemma 4 distilled FAP state.
 
@@ -87,8 +101,8 @@ class TeacherLearningState:
             path = self.data_dir / name
             if not path.is_file():
                 raise LearningArtifactError(f"learning artifact missing: {name}")
-            digest = sha256(path.read_bytes()).hexdigest()
-            if digest != expected.get("sha256"):
+            digest = _canonical_json_digest(path)
+            if digest != expected.get("canonical_sha256"):
                 raise LearningArtifactError(f"learning artifact digest mismatch: {name}")
 
     def _validate(self) -> None:
