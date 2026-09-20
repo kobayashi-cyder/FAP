@@ -1,0 +1,40 @@
+name: V80 Adaptive Circuits Verify
+
+on:
+  push:
+    branches: ["feature/v80-adaptive-circuits"]
+  pull_request:
+    paths:
+      - "releases/v80/**"
+      - "releases/v79/**"
+      - "releases/v78/**"
+      - "FAP_LATEST.md"
+      - ".github/workflows/v80-adaptive-circuits-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V78-V80
+        run: >-
+          python -m compileall -q
+          releases/v80/adaptive_circuits
+          releases/v79/creativity_engine
+          releases/v78/learning_integration
+      - name: V80 adaptive circuit tests
+        run: python -m unittest discover -s releases/v80/adaptive_circuits/tests -p "test_*.py" -v
+      - name: V79 creativity regressions
+        run: python -m unittest discover -s releases/v79/creativity_engine/tests -p "test_*.py" -v
+      - name: V78 learning regressions
+        run: python -m unittest discover -s releases/v78/learning_integration/tests -p "test_*.py" -v
+      - name: V75 and V71 regressions
+        run: |
+          python -m unittest discover -s releases/v75/managed_chat/tests -p "test_*.py" -v
+          python -m unittest discover -s releases/v71/runtime/tests -p "test_*.py" -v
