@@ -75,7 +75,7 @@ class PrimitiveCircuitBridge:
                 self.controller.add_circuit(
                     pid,
                     tags=self._tags(record),
-                    base_priority=0.28,
+                    base_priority=0.18,
                     parameters={"primitive": 1.0, "sandboxed": 1.0},
                 )
             spec = self.controller.registry.get(pid)
