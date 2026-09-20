@@ -222,11 +222,13 @@ class SparseRouter:
         memory: ActiveMemory,
         *,
         top_k: int = 2,
+        activation_threshold: float = 0.31,
     ):
         self.registry = registry
         self.verifier = verifier
         self.memory = memory
         self.top_k = max(1, int(top_k))
+        self.activation_threshold = max(0.0, float(activation_threshold))
 
     def route(self, task: str, *, top_k: Optional[int] = None) -> RouteDecision:
         task_tokens = _tokens(task)
@@ -244,6 +246,8 @@ class SparseRouter:
                 + self.STAGE_BONUS.get(spec.stage, 0.0)
                 + min(0.05, 0.01 * spec.generation)
             )
+            if score < self.activation_threshold:
+                continue
             choices.append(RouteChoice(spec.circuit_id, round(score, 6), round(similarity, 6), round(mem, 6)))
         choices.sort(key=lambda x: (-x.score, x.circuit_id))
         limit = max(1, int(top_k or self.top_k))
@@ -294,11 +298,23 @@ class CircuitEvolver:
 
 
 class AdaptiveCircuitController:
-    def __init__(self, *, top_k: int = 2, memory_capacity: int = 32):
+    def __init__(
+        self,
+        *,
+        top_k: int = 2,
+        memory_capacity: int = 32,
+        activation_threshold: float = 0.31,
+    ):
         self.registry = CircuitRegistry()
         self.verifier = VerifierFirstGate()
         self.memory = ActiveMemory(capacity=memory_capacity)
-        self.router = SparseRouter(self.registry, self.verifier, self.memory, top_k=top_k)
+        self.router = SparseRouter(
+            self.registry,
+            self.verifier,
+            self.memory,
+            top_k=top_k,
+            activation_threshold=activation_threshold,
+        )
         self.evolver = CircuitEvolver(self.registry, self.verifier)
 
     def add_circuit(
