@@ -29,5 +29,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v84/` — Persistent Self-Generated Curriculum (AbilityMap, weak-area selection, slightly harder challenges, independent-verifier frontier gate, challenge-bound evidence, success-only compression, bounded Mini-IR practice bridge).
 - `v85/` — Production Vision Host Wiring (explicit production backend contract, fail-closed host, existing-Vision object mapper, strict VisualIR normalization, bootstrap isolation).
 - `v86/` — Generic Skill Inventor + Generic Skill Graph (verified binding DAGs, bounded sandbox, evidence-gated registry, V84 capability bridge, V82 sparse-routing bridge).
+- `v90/` — Rebased Autonomous Improvement Core (source-artifact audit, FAP-Eval, failure clustering, staged global deployment gate, rollback, replay-protected cycles, bounded declarative Skill Evolution). V87-V89 were historical internal prototype stage labels, not separate current-main release directories.
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
