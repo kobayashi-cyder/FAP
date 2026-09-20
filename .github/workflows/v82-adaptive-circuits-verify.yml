@@ -26,10 +26,13 @@ jobs:
         run: >-
           python -m compileall -q
           releases/v82/adaptive_circuits
+          releases/v81/local_adaptation
           releases/v79/creativity_engine
           releases/v78/learning_integration
       - name: V82 adaptive circuit tests
         run: python -m unittest discover -s releases/v82/adaptive_circuits/tests -p "test_*.py" -v
+      - name: V81 local adaptation regressions
+        run: python -m unittest discover -s releases/v81/local_adaptation/tests -p "test_*.py" -v
       - name: V79 creativity regressions
         run: python -m unittest discover -s releases/v79/creativity_engine/tests -p "test_*.py" -v
       - name: V78 learning regressions
