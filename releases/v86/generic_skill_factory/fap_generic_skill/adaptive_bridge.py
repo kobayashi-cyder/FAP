@@ -20,7 +20,7 @@ class RoutedSkillExecution:
 
 
 class AdaptiveSkillGraphBridge:
-    """Register only active V86 generic skills into the V82 sparse router."""
+    """Register active, non-blocked V86 generic skills into the V82 sparse router."""
 
     def __init__(
         self,
@@ -38,11 +38,26 @@ class AdaptiveSkillGraphBridge:
         self.controller = controller
         self.top_k = max(1, int(top_k))
         self.skill_ids: set[str] = set()
+        # Runtime acceptance can be stricter than registry promotion.  Keep that
+        # distinction explicit so a promoted-but-regressive skill cannot leak
+        # back into routing on a later sync_active() call.
+        self.blocked_skill_ids: set[str] = set()
+
+    def block_skill(self, skill_id: str) -> None:
+        skill_id = str(skill_id)
+        self.blocked_skill_ids.add(skill_id)
+        self.skill_ids.discard(skill_id)
+
+    def unblock_skill(self, skill_id: str) -> None:
+        self.blocked_skill_ids.discard(str(skill_id))
 
     def sync_active(self) -> list[str]:
         adopted = []
         for record in self.graph.registry.active():
             spec = SkillSpec.from_dict(record["skill"])
+            if spec.skill_id in self.blocked_skill_ids:
+                self.skill_ids.discard(spec.skill_id)
+                continue
             self.skill_ids.add(spec.skill_id)
             if spec.skill_id not in self.controller.registry.specs:
                 self.controller.add_circuit(
@@ -100,6 +115,7 @@ class AdaptiveSkillGraphBridge:
             choice
             for choice in full.selected
             if choice.circuit_id in self.skill_ids
+            and choice.circuit_id not in self.blocked_skill_ids
         )[:limit]
         from fap_adaptive_circuits import RouteDecision
         return RouteDecision(full.task, selected)
