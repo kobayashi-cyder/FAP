@@ -4,8 +4,8 @@ from fap_goal_loop.goal_loop import ExecutionResult, GoalSpec, GoalState, Planne
 from fap_goal_loop.resilient_capability import CapabilityRetryPolicy, ResilientCapabilityExecutor
 
 
-def action():
-    return PlannedAction(action_id="rt1", kind="read", instruction="read")
+def action(kind="read"):
+    return PlannedAction(action_id="rt1", kind=kind, instruction="read")
 
 
 def state():
@@ -61,6 +61,15 @@ class RetryTerminationEvidenceTests(unittest.TestCase):
         result = executor.execute(action(), state())
         self.assertEqual(result.status, "ok")
         self.assertEqual(result.metadata["retry_termination"], "completed")
+
+    def test_unregistered_capability_has_uniform_terminal_evidence(self):
+        executor = ResilientCapabilityExecutor({"read": lambda instruction, metadata, goal_state: "ok"})
+        result = executor.execute(action("missing"), state())
+        self.assertEqual(result.status, "blocked")
+        self.assertEqual(result.metadata["attempts"], 0)
+        self.assertFalse(result.metadata["retry_safe"])
+        self.assertEqual(result.metadata["retry_delay_seconds"], 0.0)
+        self.assertEqual(result.metadata["retry_termination"], "blocked")
 
 
 if __name__ == "__main__":
