@@ -296,6 +296,7 @@ class LocalAdaptiveCore:
         )
         self.hebb = LocalHebbianOverlay()
         self.counterexamples = CounterexampleMemory(input_dim=self.input_dim)
+        self.seen_learning_evidence: set[str] = set()
         self.last_prediction: Optional[list[float]] = None
         self.last_prediction_error: Optional[float] = None
 
@@ -341,6 +342,12 @@ class LocalAdaptiveCore:
         if not verified:
             return LearningResult(False, before, before, 0, False)
 
+        evidence_id = str(evidence_id).strip()
+        if not evidence_id:
+            raise ValueError("evidence_id is required for verified learning")
+        if evidence_id in self.seen_learning_evidence:
+            raise ValueError("duplicate verified learning evidence")
+
         self.readout.learn(state, target, verified=True)
         after = self.readout.error(state, target)
         hebbian = self.hebb.update(
@@ -359,6 +366,7 @@ class LocalAdaptiveCore:
                 severity=failure_severity,
                 verified=True,
             )
+        self.seen_learning_evidence.add(evidence_id)
         return LearningResult(True, before, after, hebbian, counterexample_added)
 
     def guidance(self, text: str, *, action_tag: str = "generic") -> str:
@@ -385,6 +393,7 @@ class LocalAdaptiveCore:
             "fixed_digest": self.reservoir.fixed_digest(),
             "readout": self.readout.weights,
             "plastic_overlay": self.reservoir.plastic_overlay,
+            "seen_learning_evidence": sorted(self.seen_learning_evidence),
             "counterexamples": [asdict(x) for x in self.counterexamples.records],
         }
 
@@ -442,6 +451,11 @@ class LocalAdaptiveCore:
                 raise ValueError("plastic edge out of range")
             restored_overlay[str(key)] = _clamp(float(value), -self.hebb.max_weight, self.hebb.max_weight)
         self.reservoir.plastic_overlay = restored_overlay
+
+        seen_learning = payload.get("seen_learning_evidence", [])
+        if not isinstance(seen_learning, list):
+            raise ValueError("invalid verified learning evidence state")
+        self.seen_learning_evidence = {str(x) for x in seen_learning if str(x).strip()}
 
         self.counterexamples.records = []
         self.counterexamples.seen_evidence = set()
