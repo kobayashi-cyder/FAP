@@ -8,6 +8,7 @@ on:
       - "releases/v82/**"
       - "releases/v81/**"
       - "releases/v79/**"
+      - "releases/v78/**"
       - "FAP_LATEST.md"
       - "releases/README.md"
       - ".github/workflows/v82-visual-cognition-verify.yml"
@@ -23,11 +24,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Compile V82
-        run: python -m compileall -q releases/v82/visual_cognition
+      - name: Compile V82-V78
+        run: >-
+          python -m compileall -q
+          releases/v82/visual_cognition
+          releases/v81/local_adaptation
+          releases/v79/creativity_engine
+          releases/v78/learning_integration
       - name: V82 visual cognition tests
         run: python -m unittest discover -s releases/v82/visual_cognition/tests -p "test_*.py" -v
-      - name: V81 regressions
-        run: python -m unittest discover -s releases/v81 -p "test_*.py" -v
-      - name: V80/V79 creativity and primitive-invention regressions
+      - name: V81 local adaptation regressions
+        run: python -m unittest discover -s releases/v81/local_adaptation/tests -p "test_*.py" -v
+      - name: V79 creativity regressions
         run: python -m unittest discover -s releases/v79/creativity_engine/tests -p "test_*.py" -v
+      - name: V78 learning regressions
+        run: python -m unittest discover -s releases/v78/learning_integration/tests -p "test_*.py" -v
