@@ -7,6 +7,8 @@ from .host import (
     build_bootstrap_visual_loop,
     build_production_visual_loop,
 )
+from .integration import build_bounded_raster_backend
+from .raster_backend import BoundedRasterVision
 
 __all__ = [
     "ObjectListVisionMapper",
@@ -16,4 +18,6 @@ __all__ = [
     "VisionBackendUnavailable",
     "build_bootstrap_visual_loop",
     "build_production_visual_loop",
+    "build_bounded_raster_backend",
+    "BoundedRasterVision",
 ]
