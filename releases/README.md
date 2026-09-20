@@ -21,7 +21,8 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v77/` — HTTPS image provider adapter with credential isolation, response-size bounds and schema/MIME/base64 validation.
 - `v78/` — Gemma 4 Direct-Learning Integration (verified learned-state hashes, consolidated behaviour circuits, shadow memory, concept graph, V75/V71 chat/runtime integration).
 - `v79/` — Creativity Success Learning (divergent operators, verified creative-experience lifecycle, replay protection, task-conditioned reuse, V78 composition).
-- `V80 mainline addition` — Primitive Inventor + bounded Mini-IR sandbox + persistent Skill Registry + evidence-gated candidate/testing/shadow/active promotion loop (implemented in the V79 creativity package rather than a separate `v80/` snapshot).
-- `v81/` — Local Adaptive Predictive Core (fixed reservoir, next-input predictive coding, bounded Hebbian overlay, verified counterexamples, replay-protected local learning, V79/V78 responder composition).
+- `V80 mainline addition` — Primitive Inventor + bounded Mini-IR sandbox + persistent Skill Registry + evidence-gated candidate/testing/shadow/active promotion loop.
+- `v81/` — Local Adaptive Predictive Core (fixed reservoir, next-input predictive coding, bounded Hebbian overlay, verified counterexamples, replay-protected local learning).
+- `v82/` — Sparse Adaptive Circuit Orchestrator (Verifier First, relevance-threshold top-k routing, success-only Active Memory, bounded circuit evolution, V79/V81 sparsification, V80 active-Primitive bridge).
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
