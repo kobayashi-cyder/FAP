@@ -1,23 +1,23 @@
 # FAP latest development snapshot
 
-Current additive development release: **V81 — Local Adaptive Predictive Core**.
+Current additive development release: **V82 — Bidirectional Visual IR Cognition**.
 
-Source, tests and integration notes are stored under [`releases/v81/`](releases/v81/).
+Source, tests and integration notes are stored under [`releases/v82/`](releases/v82/).
 
-V81 is additive on top of the current mainline, including the V80 Primitive Inventor / Mini-IR sandbox / Skill Registry promotion loop and the V79 creativity-success learning stack. It adds a verifier-gated local adaptation layer without replacing those systems.
+V82 is additive on top of V81 Local Adaptive Predictive Core and the current V80/V79 creativity + Primitive Inventor stack. It adds a shared visual intermediate representation and a bounded feedback loop so image generation is always reviewed by Vision before acceptance.
 
-V81 adds:
-- deterministic compact text encoding;
-- a sparse mostly-fixed recurrent reservoir;
-- next-input predictive coding that learns prediction error at the readout;
-- a small bounded Hebbian plastic overlay applied only after verified success;
-- verified counterexample memory for failure-pattern avoidance;
-- action-sensitive counterexample penalties;
-- replay protection for all verified learning evidence;
-- passive runtime observation that never silently changes learning weights;
-- SHA-256 protected JSON persistence with fail-closed restoration;
-- V81 -> V79 responder composition while preserving current V80 primitive-invention capability and V78 teacher-learning guidance.
+V82 adds:
+- natural language -> `VisualIR` planning;
+- Visual Primitives for circle/rectangle, RGB color, size and position;
+- a dependency-free small raster renderer;
+- `VisionPort` plus `CallableVisionAdapter` for injecting the existing Vision implementation;
+- mandatory render -> Vision -> structured diff feedback;
+- field-level VisualDiff for shape, color, position, radius and size;
+- local primitive-only repair and bounded rerender/review;
+- `MotionPrimitive` and time-sampled `VisualIR` state transitions for video;
+- renderer abstraction so external diffusion remains optional and replaceable;
+- Skill Graph integration with active `imagine -> draw -> see -> review -> repair -> draw` and `motion -> draw` paths.
 
-The fixed reservoir is not globally retrained. Learning is restricted to the predictive readout, a bounded sparse local overlay, and verified negative-experience memory.
+Bootstrap verification covers shape/color/position generation, Vision round-trip, local self-repair, motion transitions and Skill Graph execution.
 
-**Important limitation:** V81 verifies a cheap local-learning mechanism. It does not by itself create LLM-level language ability. Weight-changing updates remain verifier-gated, and counterexamples remain negative experience rather than successful skill memory.
+**Important limitation:** the bundled `PrimitiveVision` is a deterministic bootstrap verifier, not a claim of general visual understanding. Production use should inject the existing Vision through `CallableVisionAdapter`; external diffusion is not required.
