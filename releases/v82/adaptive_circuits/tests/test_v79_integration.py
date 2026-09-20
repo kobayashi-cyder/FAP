@@ -6,9 +6,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASES = ROOT.parents[1]
+V81 = RELEASES / "v81" / "local_adaptation"
 V79 = RELEASES / "v79" / "creativity_engine"
 V78 = RELEASES / "v78" / "learning_integration"
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(V81))
 sys.path.insert(0, str(V79))
 sys.path.insert(0, str(V78))
 
@@ -49,7 +51,7 @@ class V79IntegrationTests(unittest.TestCase):
         self.assertIn(candidate.operator, sparse.controller.memory.entries)
         self.assertTrue(any(r.get("evidence_id") == "v79:integration-evidence-1" for r in base.experience_store.records))
 
-    def test_v82_composes_with_v78_teacher_learning(self):
+    def test_v82_composes_with_sparse_v81_local_and_v78_teacher_learning(self):
         seen = {}
 
         def base(user_text, context, mode):
@@ -60,6 +62,12 @@ class V79IntegrationTests(unittest.TestCase):
         result = responder("エラーを省メモリで直して", "prior", "rich")
         self.assertEqual(result, "V82-COMPOSED")
         self.assertIn("[FAP V82 sparse creativity guidance]", seen["context"])
+        self.assertIn("[FAP teacher-learning guidance]", seen["context"])
+
+        seen.clear()
+        result = responder("次入力を予測して失敗パターンを回避する", "prior", "rich")
+        self.assertEqual(result, "V82-COMPOSED")
+        self.assertIn("[FAP local-adaptation guidance]", seen["context"])
         self.assertIn("[FAP teacher-learning guidance]", seen["context"])
 
 
