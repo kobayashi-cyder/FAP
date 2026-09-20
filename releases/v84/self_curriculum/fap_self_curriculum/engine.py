@@ -176,7 +176,12 @@ class AbilityMap:
         state = self.states.setdefault(ability, AbilityState(ability))
         old_frontier = state.frontier
         state.attempts += 1
-        reward = (\n            max(0.0, min(1.0, float(verification.reward)))\n            if verification.independent\n            else 0.0\n        )\n        state.ema_reward = 0.72 * state.ema_reward + 0.28 * reward
+        reward = (
+            max(0.0, min(1.0, float(verification.reward)))
+            if verification.independent
+            else 0.0
+        )
+        state.ema_reward = 0.72 * state.ema_reward + 0.28 * reward
         if verification.passed and verification.independent:
             state.successes += 1
             state.frontier = max(
