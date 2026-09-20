@@ -21,5 +21,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v77/` — HTTPS image provider adapter with credential isolation, response-size bounds and schema/MIME/base64 validation.
 - `v78/` — Gemma 4 Direct-Learning Integration (verified learned-state hashes, consolidated behaviour circuits, shadow memory, concept graph, V75/V71 chat/runtime integration).
 - `v79/` — Creativity Success Learning (divergent operators, verified creative-experience lifecycle, replay protection, task-conditioned reuse, V78 composition).
+- `v80/` — Sparse Adaptive Circuits (verifier-first routing rights, top-k specialist activation, success-only Active Memory, bounded circuit mutation, quarantine and V79/V78 composition).
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
