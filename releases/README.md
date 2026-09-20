@@ -11,5 +11,14 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v67/` — Native Repository Code Factory Stage 1 + Scoped Persistence Identity (safe Code IR source generation, repository context/symbol index, SHA-bound patching, diagnostic multi-round repair, hash-chained lineage, capability-scoped persistence migration/rollback).
 - `v68/` — TaskPlan AST Repair + Candidate Race Code Factory (constrained NL/structured plans, AST alternatives, diagnostic repair families, isolated patch racing, non-executable verified handoff).
 - `v69/` — Chat + Image + Audio Interaction Surface (bounded chat modes, provider-neutral image/STT/TTS boundaries, artifact validation/digests, half-duplex voice baseline; real providers remain separately evidenced).
+- `v70/` — Concrete media provider adapters with bounded external command execution and validated artifacts.
+- `v71/` — Interaction runtime routing chat, image, STT, TTS and half-duplex voice through the V69/V70 contracts.
+- `v72/` — Audio lifecycle controls and bounded operational handling around the interaction stack.
+- `v73/` — Provider capability probing and explicit readiness evidence.
+- `v74/` — Health-gated interaction runtime that refuses media calls until provider probes allow them.
+- `v75/` — Managed bounded chat with clear/undo/status controls, context budgets and response-storage clipping.
+- `v76/` — Android Python packaging and verification for the current interaction stack.
+- `v77/` — HTTPS image provider adapter with credential isolation, response-size bounds and schema/MIME/base64 validation.
+- `v78/` — Gemma 4 Direct-Learning Integration (verified learned-state hashes, consolidated behaviour circuits, shadow memory, concept graph, V75/V71 chat/runtime integration).
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
