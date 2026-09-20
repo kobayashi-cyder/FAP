@@ -1,19 +1,21 @@
 # FAP latest development snapshot
 
-Current additive development release: **V69 — Chat + Image + Audio Interaction Surface**.
+Current additive development release: **V78 — Gemma 4 Direct-Learning Integration**.
 
-Source, tests, preparation notes and decision records are stored under [`releases/v69/`](releases/v69/).
+Source, verified learning-state data, tests and integration notes are stored under [`releases/v78/`](releases/v78/).
 
-V69 adds an additive interaction layer on top of V68:
-- bounded chat sessions with `:brief`, `:normal`, `:rich`, and `:verbose` modes;
-- a provider-neutral image-generation boundary with request, MIME, non-empty artifact and SHA-256 validation;
-- validated PCM16 audio input with an STT provider boundary;
-- validated TTS output with audio artifact verification;
-- a half-duplex voice turn: STT -> responder -> TTS;
-- fail-closed behavior for missing providers, timeouts, provider errors, wrong MIME types, empty artifacts, and empty transcripts.
+V78 is built on the current `main` baseline `3dc56198ed2c1a5fa59b4a8e3a93c0594a0d37be`, which already contains additive releases through V77. It moves the completed Gemma 4 direct-learning result out of the historical V54 overlay and into the current FAP stack.
 
-Independent GitHub Actions verification on the candidate HEAD passed on Python 3.11 and 3.12. The gate included the focused V69 interaction suite, compileall, V66 operational 28/28, V67 code-factory 28/28, and V68 code-factory 34/34.
+V78 adds:
+- SHA-256-verified loading of the compact Gemma 4 learned state;
+- 10 consolidated behaviour circuits;
+- 22 teacher-derived memory items retained as `teacher_shadow`, not silently promoted to factual Knowledge;
+- 28 concept nodes and 27 concept edges;
+- deterministic circuit activation, shadow-memory retrieval and context augmentation;
+- `LearnedManagedChat` integration with V75 bounded chat;
+- V71 `InteractionRuntime` integration through `build_interaction_runtime()`;
+- fail-closed digest validation and tamper tests.
 
-**Important limitation:** V69 supplies the mainline interaction contracts and verified provider boundaries. It does not bundle or claim a concrete production image model, STT engine, or TTS engine. Real provider-backed generation/transcription/synthesis requires a separately verified adapter. Full-duplex voice, barge-in, echo cancellation, wake word, and streaming remain deferred.
+The V69–V77 interaction, lifecycle, provider-probe, health-gating, managed-chat, Android packaging and image-HTTP layers remain additive and unchanged underneath/alongside V78.
 
-V68 TaskPlan AST Repair + Candidate Race Code Factory remains intact underneath this additive interaction surface.
+**Important limitation:** V78 integrates distilled state and procedural circuits. It does not copy Gemma 4 neural weights into FAP and does not claim Gemma 4 or GPT-class general capability. Teacher-derived factual-looking memory remains explicitly shadow-labelled until independently verified.
