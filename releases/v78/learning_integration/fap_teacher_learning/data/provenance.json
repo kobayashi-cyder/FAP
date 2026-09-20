@@ -19,16 +19,13 @@
   },
   "files": {
     "teacher_consolidated_circuits.json": {
-      "bytes": 9888,
-      "sha256": "5644066747f8b32597cb9635913369d751e4eee7c6b6ae20391593d65c129168"
+      "canonical_sha256": "3498628eee1bae90b1c3e5cbffa1b4250c5d66a895ba568df856a8b8e3dc0696"
     },
     "fap_memory.json": {
-      "bytes": 3156,
-      "sha256": "806dab33161df5fd945792d9396bd180adcffd84c22b4c97bee6aaefba097830"
+      "canonical_sha256": "231e0ee807e8ea49abf669235e307f6e8be45e4b46483a0f80c1848e905d7b39"
     },
     "fap_concepts.json": {
-      "bytes": 6704,
-      "sha256": "fb07b5b84468bc7c06c7e2c9fc9e56de464e78a406f1970a5ec402b0619b0551"
+      "canonical_sha256": "c7af249403bee91fa691e2063c2a108998487a4b89966bc0b9c200ba9cadf7b6"
     }
   }
 }
