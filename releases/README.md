@@ -23,5 +23,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v79/` — Creativity Success Learning (divergent operators, verified creative-experience lifecycle, replay protection, task-conditioned reuse, V78 composition).
 - `V80 mainline addition` — Primitive Inventor + bounded Mini-IR sandbox + persistent Skill Registry + evidence-gated candidate/testing/shadow/active promotion loop (implemented in the V79 creativity package rather than a separate `v80/` snapshot).
 - `v81/` — Local Adaptive Predictive Core (fixed reservoir, next-input predictive coding, bounded Hebbian overlay, verified counterexamples, replay-protected local learning, V79/V78 responder composition).
+- `v82/` — Persistent Self-Generated Curriculum (capability map, weak-area selection, frontier-stretching tasks, independent sandbox verification, success-only structural compression, V80 primitive-loop bridge).
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
