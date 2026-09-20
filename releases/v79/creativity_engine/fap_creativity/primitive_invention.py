@@ -5,6 +5,8 @@ import json, math, time
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
+from .primitive_registry_validation import validate_primitive_registry_payload
+
 KINDS={"string","number","list"}
 OPS={
  "string":{"strip","lower","upper","prefix","suffix","replace"},
@@ -194,7 +196,9 @@ class SkillRegistry:
     def __init__(self,path:Optional[str|Path]=None):
         self.path=Path(path) if path else None; self.records={}
         if self.path and self.path.is_file():
-            for r in json.loads(self.path.read_text(encoding="utf-8")).get("records",[]): self.records[r["primitive_id"]]=r
+            payload=json.loads(self.path.read_text(encoding="utf-8"))
+            for r in validate_primitive_registry_payload(payload):
+                self.records[r["primitive_id"]]=r
     def register(self,c):
         if c.primitive_id not in self.records:
             self.records[c.primitive_id]={"primitive_id":c.primitive_id,"name":c.name,"stage":"candidate","candidate":self._dump(c),"evidence":{"transitions":["candidate"],"shadow_successes":0}}; self._save()
