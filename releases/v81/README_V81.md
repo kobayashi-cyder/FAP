@@ -1,32 +1,43 @@
 # FAP V81 — Sparse Adaptive Circuits
 
-V81 is an additive layer on top of V79 Creativity Success Learning. It does not replace the existing creativity or teacher-learning mechanisms.
+V81 is additive on top of the V80 Primitive Inventor loop and the V79/V78 creativity + teacher-learning stack.
 
 ## Added
 
-- **Verifier First execution rights**: an uncertified or quarantined circuit cannot enter the runtime route.
-- **Sparse routing**: by default only the top 2 verified specialist circuits are activated per task.
-- **Active success memory**: only verified successful traces are retained as short-lived routing priors; failed/unverified traces are excluded from active memory.
-- **Bounded circuit evolution**: consolidated circuits can emit deterministic mutated children. Children start as `candidate` and cannot run until separately benchmark-certified.
-- **Promotion**: verified successes move `candidate -> ephemeral -> shadow -> consolidated`.
-- **Failure quarantine**: repeated verified failures revoke execution eligibility.
-- **V79 creativity binding**: the five V79 operators become specialist circuits and only routed operators render at runtime.
-- **V78 composition**: `build_v81_responder()` preserves teacher-learning guidance before the base responder.
+- **Verifier First execution rights**: uncertified or quarantined circuits cannot enter runtime routing.
+- **Sparse routing**: default top-2 specialist activation per task.
+- **Active success memory**: only verified successful traces become short-lived routing priors.
+- **Bounded circuit evolution**: consolidated circuits emit deterministic parameter mutations; children remain unroutable candidates until separately certified.
+- **Promotion / quarantine**: verified success promotes `candidate -> ephemeral -> shadow -> consolidated`; repeated failure revokes execution rights.
+- **V79 creativity binding**: only routed creativity operators are rendered instead of running all five operators every turn.
+- **V80 Primitive bridge**: only SkillRegistry entries already promoted to `active` after Sandbox, automatic tests, boundary checks, determinism checks and Shadow successes are adopted as executable specialist circuits.
+- **V78 composition**: `build_v81_responder()` preserves teacher-learning guidance.
 
-## Runtime loop
+## Combined loop
 
 ```text
-Task
-  -> Verifier-approved circuit pool
-  -> Sparse Router (top-k)
-  -> Execute selected circuits only
-  -> Verify outcome
-  -> Success-only Active Memory
-  -> Promotion / quarantine
-  -> optional circuit mutation
-  -> candidate child
-  -> sandbox/benchmark certification
-  -> eligible routing pool
+Self-generated task / external task
+    ↓
+Primitive Inventor (V80)
+    ↓
+Mini-IR Sandbox
+    ↓
+candidate → testing → shadow → active
+    ↓
+PrimitiveCircuitBridge (V81)
+    ↓
+Verifier First eligibility
+    ↓
+Sparse Router (top-k only)
+    ↓
+selected small circuits execute
+    ↓
+outcome verification
+    ↓
+success-only Active Memory
+    ↓
+promotion / quarantine / bounded evolution
+    └──────────────→ next candidate circuit
 ```
 
-The important constraint is that evolution never grants itself execution rights. Mutation proposes structure; verification grants execution.
+Evolution never grants itself execution rights. Mutation/invention proposes; independent evidence gates execution.
