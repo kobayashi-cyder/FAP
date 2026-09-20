@@ -1,28 +1,31 @@
 # FAP latest development snapshot
 
-Current additive development release: **V85 — Production Vision Host Wiring**.
+Current additive development release: **V86 — Generic Skill Inventor + Generic Skill Graph**.
 
-Source, tests and integration notes are stored under [`releases/v85/`](releases/v85/).
+Source, tests and integration notes are stored under [`releases/v86/`](releases/v86/).
 
-V85 makes the V83 bidirectional visual loop operationally safe for production hosting:
-- production Vision must be explicitly configured;
-- `PrimitiveVision` is rejected as a production backend;
-- existing Vision callbacks are wrapped through `CallableVisionAdapter`;
-- bounded detector/object output can be normalized through `ObjectListVisionMapper` into shared `VisualIR`;
-- output dimensions and geometry are checked fail-closed;
-- bootstrap Vision remains available only through an explicitly named bootstrap builder.
+V86 adds a generic Skill Factory above the current FAP stack:
+- V84 AbilityMap can identify a weak capability;
+- `SkillInventor` composes verified capability bindings into a declarative DAG;
+- `SkillSandbox` executes only verified, deterministic, side-effect-free bindings;
+- unit, boundary, deterministic replay and shadow holdouts gate promotion;
+- `SkillRegistry` persists only structurally valid evidence-gated state;
+- `GenericSkillGraph` executes active skills only;
+- `AdaptiveSkillGraphBridge` makes active generic skills available to V82 sparse routing.
 
-Production route:
+Core path:
 
 ```text
-existing Vision backend
-  -> VisionBackend
-  -> ProductionVisionHost
-  -> CallableVisionAdapter
-  -> VisualIR
-  -> V83 review / local repair loop
+capability gap
+  -> verified binding search
+  -> SkillSpec DAG
+  -> sandbox
+  -> verifier
+  -> candidate/testing/shadow/active
+  -> Generic Skill Graph
+  -> sparse routing
 ```
 
-V84 Persistent Self-Generated Curriculum remains the upper-level learning policy underneath this release.
+V85 remains the production Vision host layer, and V84 remains the autonomous curriculum policy.
 
-**Execution boundary:** V85 completes the host and adapter path. It does not claim that a separate high-capability Vision model is bundled in this repository; the host application must supply the real Vision callback.
+**Execution boundary:** invented skills contain binding references and graph structure, not generated source code. V86 cannot grant execution rights to an unverified binding.
