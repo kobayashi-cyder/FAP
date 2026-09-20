@@ -2,26 +2,27 @@
 
 ## Scope
 
-Implemented the first FAP adaptive-circuit loop combining sparse specialist routing, verifier-first gating, bounded circuit evolution and active success memory.
+Implemented a FAP adaptive-circuit layer combining sparse specialist routing, verifier-first gating, bounded neuroevolution-style mutation and success-only active memory. V81 also connects the V80 Primitive Inventor/Sandbox/SkillRegistry loop to sparse runtime routing.
 
-## Verification
+## Verification targets
 
-Local Python 3.11 checks before push:
+- adaptive-circuit unit suite: 10 tests
+- V80 Primitive bridge suite: 4 tests
+- V79/V78 integration suite: 3 tests
+- Python 3.11 and 3.12 in repository CI
+- V79, V78, V75 and V71 regression suites
 
-- compile: PASS
-- adaptive-circuit unit tests: **10/10 PASS**
-
-Repository CI additionally runs the V81 integration tests against the real V79/V78 code and regressions for V79, V78, V75 and V71.
-
-## Safety / correctness properties
+## Correctness properties
 
 - Unverified circuits are unroutable.
 - Duplicate verifier evidence is rejected.
-- Failed/unverified outcomes are not stored in Active Memory.
-- Mutated children are unroutable until benchmark-certified.
+- Failed/unverified outcomes do not enter Active Memory.
+- Mutated children are unroutable until independently certified.
 - Repeated failures quarantine and revoke circuits.
 - Routing is deterministic for equal state and input.
+- V80 primitives below `active` are not adopted.
+- V80 `active` primitives are rechecked from recorded unit/boundary/determinism/timeout/shadow evidence before V81 certification.
 
-## Limitation
+## Remaining boundary
 
-V81 evolves routing/circuit parameters and specialist selection. It does not yet synthesize arbitrary executable circuit code. That remains behind the existing Primitive Inventor/Sandbox/Registry path and should be connected only after sandbox verification evidence can certify the generated implementation.
+V81 mutates circuit routing parameters and can execute V80's bounded Mini-IR primitives. It does not yet evolve arbitrary unrestricted Python or native code; executable invention remains deliberately constrained by the V80 Mini-IR sandbox.
