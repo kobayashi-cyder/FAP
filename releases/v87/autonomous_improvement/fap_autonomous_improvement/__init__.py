@@ -23,3 +23,17 @@ __all__ = [
     "SOURCE_V90_SHA256",
     "SkillEvolution",
 ]
+
+from .unified_loop import (
+    CycleEvidenceStore,
+    RepairRecipe,
+    UnifiedCycleResult,
+    UnifiedSelfImprovementLoop,
+)
+
+__all__ += [
+    "CycleEvidenceStore",
+    "RepairRecipe",
+    "UnifiedCycleResult",
+    "UnifiedSelfImprovementLoop",
+]
