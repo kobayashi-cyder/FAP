@@ -1,42 +1,34 @@
 # FAP latest development snapshot
 
-Current additive development release: **V83 — Bidirectional Visual IR Cognition**.
+Current additive development release: **V84 — Persistent Self-Generated Curriculum**.
 
-Source, tests and integration notes are stored under [`releases/v83/`](releases/v83/).
+Source, tests and integration notes are stored under [`releases/v84/`](releases/v84/).
 
-V83 builds on V82 Sparse Adaptive Circuit Orchestrator and adds a shared visual state space instead of making FAP draw directly from natural language.
+V84 builds on V83 Bidirectional Visual IR Cognition and the existing V82/V81/V80/V79/V78 learning stack. It adds a verifier-gated learning policy that decides what FAP should practice next rather than only accumulating whatever experience arrives.
 
-V83 adds:
-- natural language -> `VisualIR` planning for bounded shape/color/position/size facts;
-- `RendererPort` with a dependency-free small raster renderer;
-- `VisionPort` and `CallableVisionAdapter` so existing Vision output is normalized back into `VisualIR`;
-- mandatory render -> Vision -> structured diff verification for every initial and repaired candidate;
-- field-level differences for shape, color, position, radius and size;
-- local primitive-only repair, preserving unaffected primitives;
-- `MotionPrimitive` plus `VisualIR.sample(t)` for video/state transitions;
-- optional replaceable renderer/diffusion boundary rather than a diffusion dependency;
-- Visual Skill Graph: `imagine -> draw -> see -> review -> repair -> draw`, plus `motion -> draw`;
-- verifier-first registration of the verified Visual Skill Graph as the V82 `visual_cognition` sparse specialist.
+V84 adds:
+- persistent `AbilityMap` state for attempts, independently verified successes, frontier, uncertainty and stagnation;
+- weak/uncertain/underexplored capability selection with anti-starvation exploration;
+- frontier-stretching challenge generation;
+- independent solver/verifier separation;
+- success-only structural compression with no persisted raw reasoning trace;
+- replay-resistant evidence bound to the full generated challenge, attempt evidence and verifier evidence;
+- `ephemeral -> shadow -> consolidated` reusable success-pattern promotion;
+- concrete self-generated string/number/list tasks through the bounded Primitive Inventor / Mini-IR Sandbox / Skill Registry loop;
+- fail-closed behavior where non-independent verifier success cannot advance the ability success count or frontier;
+- regression verification across V83, V82, V81, V79/V80 and V78 on Python 3.11 and 3.12.
 
-Combined visual direction:
+Core loop:
 
 ```text
-natural language
-      ↓
-    VisualIR
-      ↓
-small/replaceable renderer
-      ↓
- existing Vision
-      ↓
-  VisualIR observation
-      ↓
-structured local diff
-      ↓
-local repair only
-      └──────────────→ rerender → Vision
-
-MotionPrimitive + time → VisualIR state → same loop
+AbilityMap
+  -> choose weak / uncertain capability
+  -> generate a slightly harder challenge
+  -> solve with current FAP mechanisms
+  -> independent verification
+  -> success only: compress reusable structure
+  -> update verified frontier
+  -> choose next learning target
 ```
 
-**Execution boundary:** `PrimitiveVision` is only the deterministic bootstrap verifier. Production Vision is injected through `CallableVisionAdapter`; external diffusion remains optional.
+**Execution boundary:** V84 does not fabricate competence. Capability growth is recorded only from independent verifier success. The concrete primitive curriculum remains inside the bounded, allow-listed, non-Turing-complete Mini-IR environment.
