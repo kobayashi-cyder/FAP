@@ -1,22 +1,23 @@
 # FAP latest development snapshot
 
-Current additive development release: **V79 — Creativity Success Learning**.
+Current additive development release: **V80 — Local Adaptive Predictive Core**.
 
-Source, tests and integration notes are stored under [`releases/v79/`](releases/v79/).
+Source, tests and integration notes are stored under [`releases/v80/`](releases/v80/).
 
-V79 is additive on top of V78 Gemma 4 Direct-Learning Integration. It preserves the V78 distilled circuits, teacher-shadow memory, concept graph and existing interaction stack while adding a bounded creative-search layer.
+V80 is additive on top of V79 Creativity Success Learning. It preserves the V79 creative-experience layer and V78 teacher-learning stack while adding a verifier-gated local adaptation layer designed for cheap incremental learning.
 
-V79 adds:
-- five creative operators: reframe, analogy, inversion, combination and constraint shift;
-- multi-candidate divergence and recombination;
-- novelty, utility, consistency and diversity scoring;
-- verified creative-experience tracking with replay protection;
-- `ephemeral -> shadow -> consolidated` promotion;
-- 15 bundled mechanism-verified success observations, three per operator;
-- task-similarity-conditioned reuse of successful operator experience;
-- clean evaluation with bundled experience disabled;
-- V79 -> V78 -> base-responder composition so V78 distillation remains active.
+V80 adds:
+- deterministic compact input encoding;
+- a sparse mostly-fixed recurrent reservoir;
+- next-input predictive coding that learns prediction error at the readout;
+- a small bounded Hebbian plastic overlay applied only after verified success;
+- verified counterexample memory for failure-pattern avoidance;
+- action-sensitive counterexample penalties;
+- replay protection for verified learning evidence;
+- passive runtime observation that never silently trains;
+- SHA-256 protected JSON persistence with fail-closed restoration;
+- V80 -> V79 -> V78 -> base-responder composition.
 
-Verification passed on Python 3.11 and 3.12 for V79, with V78, V75 and V71 regression suites also passing.
+The fixed reservoir weights are not globally retrained. Learning is restricted to the predictive readout, a bounded sparse local overlay, and verified failure memory.
 
-**Important limitation:** V79 validates the mechanism for generating, testing, storing and reusing creative search experience. It does not by itself establish human-level creativity or GPT-class general capability. Creative candidates remain ideas/hypotheses and are not automatically promoted into factual Knowledge.
+**Important limitation:** V80 verifies a local-learning mechanism; it does not establish LLM-level language ability by itself. The verifier remains the gate for weight-changing learning, and counterexamples remain negative experience rather than successful skill memory.
