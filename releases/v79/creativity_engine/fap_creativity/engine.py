@@ -40,6 +40,7 @@ class CreativeCandidate:
 @dataclass(frozen=True)
 class CreativeExperience:
     task_id: str
+    task_text: str
     operator: str
     candidate_digest: str
     evidence_id: str
@@ -49,22 +50,39 @@ class CreativeExperience:
 
 
 class CreativeExperienceStore:
-    """Small verified experience ledger with promotion and replay protection."""
+    """Verified creativity ledger with replay protection and persisted success priors."""
 
-    def __init__(self, path: Optional[str | Path] = None):
+    def __init__(
+        self,
+        path: Optional[str | Path] = None,
+        *,
+        seed_path: Optional[str | Path] = None,
+    ):
         self.path = Path(path) if path else None
+        self.seed_path = Path(seed_path) if seed_path else None
         self.records: list[dict] = []
         self.seen_evidence: set[str] = set()
+        if self.seed_path and self.seed_path.is_file():
+            self._merge_payload(self.seed_path)
         if self.path and self.path.is_file():
-            self._load()
+            self._merge_payload(self.path)
 
-    def _load(self) -> None:
-        payload = json.loads(self.path.read_text(encoding="utf-8"))
+    def _merge_payload(self, path: Path) -> None:
+        payload = json.loads(path.read_text(encoding="utf-8"))
         records = payload.get("records", [])
         if not isinstance(records, list):
             raise ValueError("invalid creativity experience store")
-        self.records = [dict(x) for x in records]
-        self.seen_evidence = {str(x["evidence_id"]) for x in self.records}
+        for raw in records:
+            record = dict(raw)
+            evidence_id = str(record.get("evidence_id", "")).strip()
+            if not evidence_id:
+                raise ValueError("creativity experience missing evidence_id")
+            if evidence_id in self.seen_evidence:
+                continue
+            if record.get("operator") not in OPERATORS:
+                raise ValueError("unknown creativity operator in experience store")
+            self.records.append(record)
+            self.seen_evidence.add(evidence_id)
 
     def _save(self) -> None:
         if not self.path:
@@ -81,6 +99,7 @@ class CreativeExperienceStore:
         self,
         *,
         task_id: str,
+        task_text: str,
         candidate: CreativeCandidate,
         evidence_id: str,
         reward: float,
@@ -113,6 +132,7 @@ class CreativeExperienceStore:
             stage = "ephemeral"
         record = CreativeExperience(
             task_id=str(task_id),
+            task_text=str(task_text),
             operator=candidate.operator,
             candidate_digest=digest,
             evidence_id=evidence_id,
@@ -125,18 +145,23 @@ class CreativeExperienceStore:
         self._save()
         return record
 
-    def operator_weights(self) -> dict[str, float]:
+    def operator_weights(self, task_text: str = "") -> dict[str, float]:
         weights = {name: 1.0 for name in OPERATORS}
+        query = _tokens(task_text)
         for record in self.records:
             if record.get("verified") is not True:
                 continue
             reward = _clamp(record.get("reward", 0.0))
             stage = record.get("stage")
             gain = {"ephemeral": 0.05, "shadow": 0.12, "consolidated": 0.25}.get(stage, 0.0)
-            if gain:
-                op = str(record.get("operator"))
-                if op in weights:
-                    weights[op] += gain * reward
+            if not gain:
+                continue
+            prior_task = _tokens(str(record.get("task_text", "")))
+            similarity = _jaccard(query, prior_task) if query and prior_task else 0.0
+            relevance = 0.10 + 0.90 * similarity
+            op = str(record.get("operator"))
+            if op in weights:
+                weights[op] += gain * reward * relevance
         return weights
 
     def consolidated_operators(self) -> list[str]:
@@ -148,10 +173,21 @@ class CreativeExperienceStore:
 
 
 class CreativityEngine:
-    """Deterministic divergent-search engine whose operator priors can be learned."""
+    """Divergent search that reuses only verified, deduplicated creative experience."""
 
-    def __init__(self, experience_store: Optional[CreativeExperienceStore] = None):
-        self.experience_store = experience_store or CreativeExperienceStore()
+    def __init__(
+        self,
+        experience_store: Optional[CreativeExperienceStore] = None,
+        *,
+        use_bundled_experience: bool = True,
+    ):
+        if experience_store is not None:
+            self.experience_store = experience_store
+        else:
+            seed = None
+            if use_bundled_experience:
+                seed = Path(__file__).with_name("data") / "verified_creative_experiences.json"
+            self.experience_store = CreativeExperienceStore(seed_path=seed)
 
     def _anchors(self, task: str, context: str) -> tuple[str, str, str]:
         toks = []
@@ -182,8 +218,9 @@ class CreativityEngine:
         task = str(task or "").strip()
         if not task:
             return []
-        weights = self.experience_store.operator_weights()
-        task_tokens = _tokens(task + " " + context)
+        full_task = (task + " " + context).strip()
+        weights = self.experience_store.operator_weights(full_task)
+        task_tokens = _tokens(full_task)
         raw: list[CreativeCandidate] = []
         prior_texts: list[str] = []
         for operator in OPERATORS:
@@ -224,12 +261,14 @@ class CreativityEngine:
         self,
         *,
         task_id: str,
+        task_text: str,
         candidate: CreativeCandidate,
         evidence_id: str,
         reward: float,
     ) -> CreativeExperience:
         return self.experience_store.observe(
             task_id=task_id,
+            task_text=task_text,
             candidate=candidate,
             evidence_id=evidence_id,
             reward=reward,
