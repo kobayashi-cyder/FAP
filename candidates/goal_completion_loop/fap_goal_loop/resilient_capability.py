@@ -105,7 +105,16 @@ class ResilientCapabilityExecutor:
     def execute(self, action: PlannedAction, state: GoalState) -> ExecutionResult:
         handler = self.handlers.get(action.kind)
         if handler is None:
-            return ExecutionResult("blocked", error=f"capability_not_registered:{action.kind}")
+            return ExecutionResult(
+                "blocked",
+                error=f"capability_not_registered:{action.kind}",
+                metadata={
+                    "attempts": 0,
+                    "retry_safe": False,
+                    "retry_delay_seconds": 0.0,
+                    "retry_termination": "blocked",
+                },
+            )
 
         policy = self.retry_policies.get(action.kind, CapabilityRetryPolicy())
         last = ExecutionResult("failed", error="capability_not_executed")
