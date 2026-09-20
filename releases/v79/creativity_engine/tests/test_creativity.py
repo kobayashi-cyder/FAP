@@ -26,6 +26,18 @@ class CreativityTests(unittest.TestCase):
         self.assertTrue(all(x.score >= 0.0 for x in items))
         self.assertTrue(all(x.text for x in items))
 
+    def test_bundled_success_experience_is_absorbed(self):
+        engine = CreativityEngine()
+        self.assertEqual(set(engine.experience_store.consolidated_operators()), set(OPERATORS))
+        verified = [r for r in engine.experience_store.records if r.get("verified") is True]
+        self.assertEqual(len(verified), 15)
+        self.assertTrue(all(r.get("stage") in {"ephemeral", "shadow", "consolidated"} for r in verified))
+
+    def test_bundled_experience_can_be_disabled_for_clean_evaluation(self):
+        engine = CreativityEngine(use_bundled_experience=False)
+        self.assertEqual(engine.experience_store.records, [])
+        self.assertEqual(engine.experience_store.consolidated_operators(), [])
+
     def test_recombine_uses_multiple_winning_ideas(self):
         engine = CreativityEngine()
         items = engine.generate("新しい学習方法を考える", count=3)
@@ -38,11 +50,13 @@ class CreativityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             store = CreativeExperienceStore(Path(td) / "creative.json")
             engine = CreativityEngine(store)
-            candidate = engine.generate("小型AIの発想を増やす", count=5)[0]
+            task = "小型AIの発想を増やす"
+            candidate = engine.generate(task, count=5)[0]
             stages = []
             for i in range(3):
                 exp = engine.verified_success(
                     task_id=f"task-{i}",
+                    task_text=task,
                     candidate=candidate,
                     evidence_id=f"evidence-{i}",
                     reward=0.90,
@@ -54,22 +68,25 @@ class CreativityTests(unittest.TestCase):
     def test_duplicate_evidence_cannot_fake_consolidation(self):
         store = CreativeExperienceStore()
         engine = CreativityEngine(store)
-        candidate = engine.generate("再利用可能な発想を作る", count=1)[0]
+        task = "再利用可能な発想を作る"
+        candidate = engine.generate(task, count=1)[0]
         engine.verified_success(
-            task_id="a", candidate=candidate, evidence_id="same", reward=0.95
+            task_id="a", task_text=task, candidate=candidate, evidence_id="same", reward=0.95
         )
         with self.assertRaisesRegex(ValueError, "duplicate"):
             engine.verified_success(
-                task_id="b", candidate=candidate, evidence_id="same", reward=0.95
+                task_id="b", task_text=task, candidate=candidate, evidence_id="same", reward=0.95
             )
         self.assertEqual(store.consolidated_operators(), [])
 
     def test_failed_or_unverified_experience_is_not_absorbed(self):
         store = CreativeExperienceStore()
         engine = CreativityEngine(store)
-        candidate = engine.generate("安全な創造性", count=1)[0]
+        task = "安全な創造性"
+        candidate = engine.generate(task, count=1)[0]
         rejected = store.observe(
             task_id="bad",
+            task_text=task,
             candidate=candidate,
             evidence_id="bad-1",
             reward=0.99,
@@ -77,6 +94,7 @@ class CreativityTests(unittest.TestCase):
         )
         weak = store.observe(
             task_id="weak",
+            task_text=task,
             candidate=candidate,
             evidence_id="bad-2",
             reward=0.20,
@@ -84,21 +102,23 @@ class CreativityTests(unittest.TestCase):
         )
         self.assertEqual(rejected.stage, "rejected")
         self.assertEqual(weak.stage, "rejected")
-        self.assertEqual(store.operator_weights()[candidate.operator], 1.0)
+        self.assertEqual(store.operator_weights(task)[candidate.operator], 1.0)
 
     def test_successful_operator_gets_priority_on_future_generation(self):
         store = CreativeExperienceStore()
         engine = CreativityEngine(store)
-        base = engine.generate("省メモリで新しい会話機構", count=5)
+        task = "省メモリで新しい会話機構"
+        base = engine.generate(task, count=5)
         winner = next(x for x in base if x.operator == "inversion")
         for i in range(3):
             engine.verified_success(
                 task_id=f"inv-{i}",
+                task_text=task,
                 candidate=winner,
                 evidence_id=f"inv-evidence-{i}",
                 reward=1.0,
             )
-        later = engine.generate("省メモリで新しい会話機構", count=5)
+        later = engine.generate(task, count=5)
         self.assertEqual(later[0].operator, "inversion")
 
     def test_persistence_keeps_absorbed_success(self):
@@ -106,20 +126,37 @@ class CreativityTests(unittest.TestCase):
             path = Path(td) / "creative.json"
             store = CreativeExperienceStore(path)
             engine = CreativityEngine(store)
+            task = "創造経験の永続化"
             candidate = next(
-                x for x in engine.generate("創造経験の永続化", count=5)
+                x for x in engine.generate(task, count=5)
                 if x.operator == "combination"
             )
             for i in range(3):
                 engine.verified_success(
                     task_id=f"persist-{i}",
+                    task_text=task,
                     candidate=candidate,
                     evidence_id=f"persist-evidence-{i}",
                     reward=0.9,
                 )
             restored = CreativeExperienceStore(path)
             self.assertIn("combination", restored.consolidated_operators())
-            self.assertGreater(restored.operator_weights()["combination"], 1.0)
+            self.assertGreater(restored.operator_weights(task)["combination"], 1.0)
+
+    def test_mechanism_verifier_rejects_low_quality_candidate(self):
+        engine = CreativityEngine(use_bundled_experience=False)
+        bad = CreativeCandidate(
+            text="x",
+            operator="analogy",
+            novelty=0.1,
+            utility=0.1,
+            consistency=0.1,
+            diversity=0.1,
+            score=0.1,
+        )
+        verified, reward = engine.verify_candidate("創造課題", bad)
+        self.assertFalse(verified)
+        self.assertLess(reward, 0.70)
 
     def test_wrapper_keeps_base_responder_in_control_and_labels_ideas(self):
         seen = {}
