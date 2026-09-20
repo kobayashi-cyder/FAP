@@ -6,7 +6,10 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+RELEASES = ROOT.parents[1]
+V78 = RELEASES / "v78" / "learning_integration"
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(V78))
 
 from fap_creativity import (
     CreativeCandidate,
@@ -14,6 +17,7 @@ from fap_creativity import (
     CreativityAugmentedResponder,
     CreativityEngine,
     OPERATORS,
+    build_v79_responder,
 )
 
 
@@ -170,6 +174,20 @@ class CreativityTests(unittest.TestCase):
         self.assertEqual(result, "BASE")
         self.assertIn("[FAP creativity guidance]", seen["context"])
         self.assertIn("not facts", seen["context"])
+
+    def test_v79_composes_with_v78_distilled_guidance(self):
+        seen = {}
+
+        def base(user_text, context, mode):
+            seen["context"] = context
+            return "COMPOSED"
+
+        responder = build_v79_responder(base)
+        result = responder("エラーを新しい方法で修正して", "prior", "rich")
+        self.assertEqual(result, "COMPOSED")
+        self.assertIn("[FAP creativity guidance]", seen["context"])
+        self.assertIn("[FAP teacher-learning guidance]", seen["context"])
+        self.assertIn("debugging", seen["context"])
 
 
 if __name__ == "__main__":
