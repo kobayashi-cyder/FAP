@@ -1,43 +1,59 @@
-# FAP V82 — Sparse Adaptive Circuits
+# FAP V82 — Sparse Adaptive Circuit Orchestrator
 
-V82 is additive on top of the V80 Primitive Inventor loop and the V79/V78 creativity + teacher-learning stack.
+V82 turns the existing small mechanisms into a verifier-gated specialist pool rather than running every mechanism on every task.
 
-## Added
+## Specialist families
 
-- **Verifier First execution rights**: uncertified or quarantined circuits cannot enter runtime routing.
-- **Sparse routing**: default top-2 specialist activation per task.
-- **Active success memory**: only verified successful traces become short-lived routing priors.
-- **Bounded circuit evolution**: consolidated circuits emit deterministic parameter mutations; children remain unroutable candidates until separately certified.
-- **Promotion / quarantine**: verified success promotes `candidate -> ephemeral -> shadow -> consolidated`; repeated failure revokes execution rights.
-- **V79 creativity binding**: only routed creativity operators are rendered instead of running all five operators every turn.
-- **V80 Primitive bridge**: only SkillRegistry entries already promoted to `active` after Sandbox, automatic tests, boundary checks, determinism checks and Shadow successes are adopted as executable specialist circuits.
-- **V78 composition**: `build_v82_responder()` preserves teacher-learning guidance.
+- **V79 creative operators** — reframe, analogy, inversion, combination and constraint shift.
+- **V81 Local Adaptive Core** — fixed reservoir, predictive readout, bounded Hebbian overlay and verified counterexamples.
+- **V80 active Mini-IR primitives** — only primitives already promoted through Sandbox tests and Shadow success evidence.
+
+## Routing rule
+
+A circuit must satisfy both conditions:
+
+1. it has independent verifier evidence and is not quarantined;
+2. its routing score clears the activation threshold.
+
+Only then can it compete for the top-k slots. Default `top_k=2`. If nothing is relevant enough, zero optional circuits execute.
+
+Routing score combines:
+- task/tag similarity;
+- bounded base priority;
+- verified lifecycle stage;
+- short-lived success-only Active Memory;
+- a small bounded generation bonus.
+
+## Evolution
+
+A consolidated circuit may propose a few deterministic parameter mutations. A child starts as `candidate`, has no execution rights, and cannot enter routing until separately certified.
+
+## Active Memory
+
+Only verified successful runtime outcomes enter Active Memory. Failures do not become positive routing memories. Repeated runtime failure can quarantine and revoke a specialist.
+
+## Primitive integration
+
+The V80 bridge adopts only SkillRegistry records at `active`. Their recorded automatic-test, boundary, determinism, timeout and Shadow-success evidence is rechecked before V82 grants routing eligibility.
+
+## V81 local adaptation integration
+
+V81 local adaptation is registered as one specialist circuit. Certification confirms that a passive guidance probe does not change the fixed reservoir digest or verified-learning evidence. Its guidance runs only when the shared router actually selects the circuit.
 
 ## Combined loop
 
 ```text
-Self-generated task / external task
-    ↓
-Primitive Inventor (V80)
-    ↓
-Mini-IR Sandbox
-    ↓
-candidate → testing → shadow → active
-    ↓
-PrimitiveCircuitBridge (V82)
-    ↓
-Verifier First eligibility
-    ↓
-Sparse Router (top-k only)
-    ↓
-selected small circuits execute
-    ↓
-outcome verification
-    ↓
-success-only Active Memory
-    ↓
-promotion / quarantine / bounded evolution
-    └──────────────→ next candidate circuit
+Task
+  → verifier-approved circuit pool
+  → relevance activation threshold
+  → sparse top-k selection
+  → execute selected specialists only
+  → verify outcome
+  → success-only Active Memory
+  → promote / quarantine
+  → optional bounded mutation
+  → new unroutable candidate
+  → independent verification
 ```
 
-Evolution never grants itself execution rights. Mutation/invention proposes; independent evidence gates execution.
+Invention or mutation proposes a circuit. Verification grants execution rights.
