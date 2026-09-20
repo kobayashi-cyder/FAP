@@ -31,6 +31,19 @@ def _jaccard(a: Iterable[str], b: Iterable[str]) -> float:
     return len(sa & sb) / max(1, len(sa | sb))
 
 
+def _routing_similarity(task_tokens: Iterable[str], tag_tokens: Iterable[str]) -> float:
+    """Tag-oriented relevance.
+
+    Routing tags are a compact specialist signature while Japanese task n-grams can be
+    much larger. Jaccard therefore underestimates clear tag containment. The overlap
+    coefficient asks whether the smaller signature is represented in the task.
+    """
+    task_set, tag_set = set(task_tokens), set(tag_tokens)
+    if not task_set or not tag_set:
+        return 0.0
+    return len(task_set & tag_set) / max(1, min(len(task_set), len(tag_set)))
+
+
 @dataclass
 class CircuitSpec:
     circuit_id: str
@@ -237,7 +250,7 @@ class SparseRouter:
             if not self.verifier.is_eligible(spec):
                 continue
             tag_tokens = _tokens(" ".join(spec.tags))
-            similarity = _jaccard(task_tokens, tag_tokens) if task_tokens and tag_tokens else 0.0
+            similarity = _routing_similarity(task_tokens, tag_tokens)
             mem = self.memory.boost(spec.circuit_id, task)
             score = (
                 _clamp(spec.base_priority)
