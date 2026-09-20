@@ -1,38 +1,32 @@
 # FAP latest development snapshot
 
-Current additive development release: **V84 — Persistent Self-Generated Curriculum**.
+Current additive development release: **V85 — Production Vision Wiring**.
 
-Source, tests and integration notes are stored under [`releases/v84/`](releases/v84/).
+Source, tests and integration notes are stored under [`releases/v85/`](releases/v85/).
 
-V84 builds on V83 Bidirectional Visual IR Cognition and the V82/V81/V79/V80/V78 learning stack. It adds an upper-level policy for deciding what FAP should practice next and only advancing capability state after independent verification.
+V85 builds on V84 Self-Generated Curriculum and V83 Bidirectional Visual IR Cognition. It converts V83's production Vision boundary from a documented injection point into an explicit host runtime.
 
-V84 adds:
-- persistent `AbilityMap` tracking attempts, verified successes, frontier, uncertainty, stagnation and weakness;
-- weak/uncertain/underexplored capability selection with anti-starvation coverage;
-- slightly-above-frontier self-generated challenges;
-- explicit solver and independent-verifier boundaries;
-- success-only structural compression rather than persisted raw reasoning traces;
-- challenge-bound SHA-256 evidence digests;
-- `ephemeral -> shadow -> consolidated` success-pattern promotion;
-- concrete bounded Mini-IR curriculum for string, number and list transforms;
-- full-stack regression verification through V83, V82, V81, V79/V80 and V78.
+V85 adds:
+- `ProductionVisualRuntime` requiring a real host/existing Vision callback;
+- mandatory wrapping through V83 `CallableVisionAdapter`;
+- explicit mapper support when the existing Vision does not already return `VisualIR`;
+- fail-closed startup when production Vision is missing;
+- no silent `PrimitiveVision` fallback in production mode;
+- reuse of the same external Vision callback after every local repair/rerender;
+- a production manifest that records the external Vision requirement and shared `VisualIR` state.
 
-V84 also fixes the two blockers found on the earlier Self Curriculum PR:
-- `passed=True` without `independent=True` cannot increase verified successes or move the AbilityMap frontier;
-- evidence digests bind to the actual generated challenge (prompt, difficulty, payload and related state), so reused task IDs across restarts cannot collapse distinct challenges into one replay identity.
-
-Core loop:
+Production path:
 
 ```text
-AbilityMap
-  -> choose weak / uncertain capability
-  -> generate slightly harder task
-  -> current FAP solver
-  -> independent verifier / holdout
-  -> trusted success only
-  -> compress reusable structure
-  -> update frontier
-  -> choose next target
+existing / host Vision
+        ↓
+CallableVisionAdapter
+        ↓
+VisualIR observation
+        ↓
+V83 VisualCognitiveLoop
+        ↓
+structured diff → local repair → rerender → same Vision
 ```
 
-**Execution boundary:** V84 is a learning-policy and verification layer. It does not grant arbitrary generated code execution, and capability frontiers do not advance from self-asserted success.
+**Boundary:** the repository still does not contain a specific external computer-vision model. V85 wires the production host contract without pretending that the V83 bootstrap `PrimitiveVision` is a production backend.
