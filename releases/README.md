@@ -30,4 +30,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v85/` — Production Vision Host Wiring (explicit production backend contract, fail-closed host, existing-Vision object mapper, strict VisualIR normalization, bootstrap isolation).
 - `v86/` — Generic Skill Inventor + Generic Skill Graph (verified binding DAGs, bounded sandbox, evidence-gated registry, V84 capability bridge, V82 sparse-routing bridge).
 
+- `v87/` — Autonomous Improvement Core (FAP-Eval, failure clustering, V86 declarative Skill Evolution, benchmark-before/trial/settled evaluation, non-regression adoption, V84/V82 integration; rebased from the Library V90 handoff artifact).
+
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
