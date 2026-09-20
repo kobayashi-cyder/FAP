@@ -1,0 +1,45 @@
+name: V83 Visual Cognition Verify
+
+on:
+  push:
+    branches: ["feature/v83-visual-ir-vision-loop"]
+  pull_request:
+    paths:
+      - "releases/v83/**"
+      - "releases/v82/**"
+      - "releases/v81/**"
+      - "releases/v79/**"
+      - "releases/v78/**"
+      - "FAP_LATEST.md"
+      - "releases/README.md"
+      - ".github/workflows/v83-visual-cognition-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V83-V78
+        run: >-
+          python -m compileall -q
+          releases/v83/visual_cognition
+          releases/v82/adaptive_circuits
+          releases/v81/local_adaptation
+          releases/v79/creativity_engine
+          releases/v78/learning_integration
+      - name: V83 visual cognition tests
+        run: python -m unittest discover -s releases/v83/visual_cognition/tests -p "test_*.py" -v
+      - name: V82 adaptive circuit regressions
+        run: python -m unittest discover -s releases/v82/adaptive_circuits/tests -p "test_*.py" -v
+      - name: V81 local adaptation regressions
+        run: python -m unittest discover -s releases/v81/local_adaptation/tests -p "test_*.py" -v
+      - name: V79 creativity regressions
+        run: python -m unittest discover -s releases/v79/creativity_engine/tests -p "test_*.py" -v
+      - name: V78 learning regressions
+        run: python -m unittest discover -s releases/v78/learning_integration/tests -p "test_*.py" -v

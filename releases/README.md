@@ -25,4 +25,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v81/` — Local Adaptive Predictive Core (fixed reservoir, next-input predictive coding, bounded Hebbian overlay, verified counterexamples, replay-protected local learning).
 - `v82/` — Sparse Adaptive Circuit Orchestrator (Verifier First, relevance-threshold top-k routing, success-only Active Memory, bounded circuit evolution, V79/V81 sparsification, V80 active-Primitive bridge).
 
+- `v83/` — Bidirectional Visual IR Cognition (shared VisualIR, mandatory Vision feedback, structured local diffs/repair, Motion Primitive timeline, optional renderer replacement, Visual Skill Graph, V82 sparse-specialist bridge).
+
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
