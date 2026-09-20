@@ -320,17 +320,36 @@ class V86GenericSkillFactoryTests(unittest.TestCase):
             )
         )
 
-    def test_invented_skill_is_declarative_and_contains_no_source_field(self):
+    def test_invented_skill_is_declarative_and_contains_no_executable_code_field(self):
         factory = GenericSkillFactory(make_bindings())
         spec = factory.inventor.invent(
             name="declarative",
             ability="cleanup",
             required_tags=("trim", "lower"),
         )
-        encoded = json.dumps(spec.to_dict(), sort_keys=True)
+        payload = spec.to_dict()
+        encoded = json.dumps(payload, sort_keys=True)
         self.assertNotIn('"code"', encoded)
-        self.assertNotIn('"source"', encoded)
         self.assertNotIn('"python"', encoded)
+        self.assertNotIn('"import"', encoded)
+        self.assertEqual(
+            set(payload),
+            {
+                "skill_id",
+                "name",
+                "ability",
+                "tags",
+                "nodes",
+                "edges",
+                "output_node",
+            },
+        )
+        self.assertTrue(
+            all(set(node) == {"node_id", "binding_id"} for node in payload["nodes"])
+        )
+        self.assertTrue(
+            all(set(edge) == {"source", "target"} for edge in payload["edges"])
+        )
 
 
 if __name__ == "__main__":
