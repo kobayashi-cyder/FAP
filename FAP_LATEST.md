@@ -1,22 +1,22 @@
 # FAP latest development snapshot
 
-Current additive development release: **V79 — Creativity Success Learning**.
+Current additive development release: **V80 — Sparse Adaptive Circuits**.
 
-Source, tests and integration notes are stored under [`releases/v79/`](releases/v79/).
+Source, tests and integration notes are stored under [`releases/v80/`](releases/v80/).
 
-V79 is additive on top of V78 Gemma 4 Direct-Learning Integration. It preserves the V78 distilled circuits, teacher-shadow memory, concept graph and existing interaction stack while adding a bounded creative-search layer.
+V80 is additive on top of V79 Creativity Success Learning and V78 Gemma 4 Direct-Learning Integration. It preserves the existing creativity operators, verified creative-experience lifecycle, teacher-shadow memory and concept graph while adding a verifier-gated adaptive circuit layer.
 
-V79 adds:
-- five creative operators: reframe, analogy, inversion, combination and constraint shift;
-- multi-candidate divergence and recombination;
-- novelty, utility, consistency and diversity scoring;
-- verified creative-experience tracking with replay protection;
-- `ephemeral -> shadow -> consolidated` promotion;
-- 15 bundled mechanism-verified success observations, three per operator;
-- task-similarity-conditioned reuse of successful operator experience;
-- clean evaluation with bundled experience disabled;
-- V79 -> V78 -> base-responder composition so V78 distillation remains active.
+V80 adds:
+- verifier-first execution rights: uncertified or quarantined circuits cannot enter runtime routing;
+- sparse top-k specialist routing, defaulting to two circuits per task;
+- bounded success-only Active Memory used as a routing prior;
+- deterministic bounded circuit mutation for consolidated parents;
+- strict child lifecycle: mutated children begin as unroutable `candidate` circuits;
+- `candidate -> ephemeral -> shadow -> consolidated` promotion on verified successes;
+- automatic quarantine and eligibility revocation after repeated failures;
+- V79 creativity operator binding so only routed creative operators render at runtime;
+- V78 teacher-learning composition through `build_v80_responder()`.
 
-Verification passed on Python 3.11 and 3.12 for V79, with V78, V75 and V71 regression suites also passing.
+Local Python 3.11 checks passed for the V80 core (compile + 10/10 unit tests). Repository CI verifies V80 on Python 3.11 and 3.12 and runs V79/V78/V75/V71 regressions.
 
-**Important limitation:** V79 validates the mechanism for generating, testing, storing and reusing creative search experience. It does not by itself establish human-level creativity or GPT-class general capability. Creative candidates remain ideas/hypotheses and are not automatically promoted into factual Knowledge.
+**Important limitation:** V80 evolves specialist selection and bounded routing/circuit parameters. It does not yet auto-synthesize arbitrary executable circuit code. Generated executable implementations must remain behind the existing Primitive Inventor -> Sandbox -> Registry verification path before receiving execution rights.
