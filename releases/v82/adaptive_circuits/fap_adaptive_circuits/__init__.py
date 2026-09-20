@@ -12,7 +12,12 @@ from .adaptive import (
     SparseRouter,
     VerifierFirstGate,
 )
-from .integration import build_v82_responder
+from .integration import UnifiedAdaptiveResponder, build_v82_responder
+from .local_adaptation_bridge import (
+    LOCAL_ADAPTATION_CIRCUIT_ID,
+    LOCAL_ADAPTATION_TAGS,
+    LocalAdaptationCircuitBridge,
+)
 from .primitive_bridge import PrimitiveCircuitBridge, PrimitiveExecution
 
 __all__ = [
@@ -30,5 +35,9 @@ __all__ = [
     "VerifierFirstGate",
     "PrimitiveCircuitBridge",
     "PrimitiveExecution",
+    "LOCAL_ADAPTATION_CIRCUIT_ID",
+    "LOCAL_ADAPTATION_TAGS",
+    "LocalAdaptationCircuitBridge",
+    "UnifiedAdaptiveResponder",
     "build_v82_responder",
 ]
