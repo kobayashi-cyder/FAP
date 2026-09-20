@@ -68,10 +68,10 @@ class CreativeExperienceStore:
             self._merge_payload(self.path)
 
     def _merge_payload(self, path: Path) -> None:
+        from .experience_validation import validate_experience_payload
+
         payload = json.loads(path.read_text(encoding="utf-8"))
-        records = payload.get("records", [])
-        if not isinstance(records, list):
-            raise ValueError("invalid creativity experience store")
+        records = validate_experience_payload(payload)
         for raw in records:
             record = dict(raw)
             evidence_id = str(record.get("evidence_id", "")).strip()
