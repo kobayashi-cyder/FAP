@@ -1,31 +1,39 @@
 # FAP latest development snapshot
 
-Current additive development release: **V86 — Generic Skill Inventor + Generic Skill Graph**.
+Current additive development release: **V87 — Autonomous Improvement Core**.
 
-Source, tests and integration notes are stored under [`releases/v86/`](releases/v86/).
+Source, tests and integration notes are stored under [`releases/v87/`](releases/v87/).
 
-V86 adds a generic Skill Factory above the current FAP stack:
-- V84 AbilityMap can identify a weak capability;
-- `SkillInventor` composes verified capability bindings into a declarative DAG;
-- `SkillSandbox` executes only verified, deterministic, side-effect-free bindings;
-- unit, boundary, deterministic replay and shadow holdouts gate promotion;
-- `SkillRegistry` persists only structurally valid evidence-gated state;
-- `GenericSkillGraph` executes active skills only;
-- `AdaptiveSkillGraphBridge` makes active generic skills available to V82 sparse routing.
+V87 independently rebases the useful control-layer ideas from the Library handoff artifact `FAP_V90_AUTONOMOUS_IMPROVEMENT_CORE.zip` onto the current V86 mainline rather than copying its older duplicate subsystems.
+
+V87 adds:
+- `FAPEval` with per-ability scorecards and failure clustering;
+- largest-failure-cluster targeting with V84 AbilityMap weakness as a tie-break;
+- bounded V86 declarative Skill Evolution using eligible binding substitutions only;
+- V86 Inventor + verifier/shadow promotion for repair proposals;
+- benchmark-before, trial benchmark and settled benchmark-after;
+- acceptance only when the target ability improves without reducing overall accuracy;
+- quarantine of promoted but non-improving trial skills from V87 adoption;
+- optional synchronization of accepted active skills into V82 sparse routing;
+- independent FAP-Eval evidence fed back into V84 AbilityMap.
+
+Source artifact provenance:
+`SHA-256 660ae75d97cfab478bd54066a1afe4786dba40f07ffd30e0ce7b8c384965a1c7`.
+
+The source archive was independently rerun: V82 tests **10/10 PASS**, V90 tests **6/6 PASS**. Its bundled TEST_REPORT states 7 V90 tests, but only six V90 unittest methods are present, so the observed 6/6 result is authoritative.
 
 Core path:
 
 ```text
-capability gap
-  -> verified binding search
-  -> SkillSpec DAG
-  -> sandbox
-  -> verifier
-  -> candidate/testing/shadow/active
-  -> Generic Skill Graph
-  -> sparse routing
+FAP-Eval
+  -> failure cluster
+  -> V84 weakness
+  -> V86 invent/evolve
+  -> verifier + shadow promotion
+  -> trial benchmark
+  -> accept or quarantine
+  -> settled benchmark
+  -> optional V82 sparse-route adoption
 ```
 
-V85 remains the production Vision host layer, and V84 remains the autonomous curriculum policy.
-
-**Execution boundary:** invented skills contain binding references and graph structure, not generated source code. V86 cannot grant execution rights to an unverified binding.
+**Execution boundary:** V87 generates no arbitrary source code. Evolution changes only declarative references to host-owned, V86-eligible bindings.
