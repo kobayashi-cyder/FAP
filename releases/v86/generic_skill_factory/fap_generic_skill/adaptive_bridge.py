@@ -39,10 +39,22 @@ class AdaptiveSkillGraphBridge:
         self.top_k = max(1, int(top_k))
         self.skill_ids: set[str] = set()
 
-    def sync_active(self) -> list[str]:
+    def sync_active(
+        self,
+        *,
+        allowed_skill_ids: Optional[set[str]] = None,
+    ) -> list[str]:
+        """Synchronize active skills, optionally restricted to final-adopted IDs."""
+        allowed = (
+            None
+            if allowed_skill_ids is None
+            else {str(skill_id) for skill_id in allowed_skill_ids}
+        )
         adopted = []
         for record in self.graph.registry.active():
             spec = SkillSpec.from_dict(record["skill"])
+            if allowed is not None and spec.skill_id not in allowed:
+                continue
             self.skill_ids.add(spec.skill_id)
             if spec.skill_id not in self.controller.registry.specs:
                 self.controller.add_circuit(
@@ -89,8 +101,19 @@ class AdaptiveSkillGraphBridge:
                 adopted.append(spec.skill_id)
         return adopted
 
-    def route(self, task: str, *, top_k: Optional[int] = None):
-        self.sync_active()
+    def route(
+        self,
+        task: str,
+        *,
+        top_k: Optional[int] = None,
+        allowed_skill_ids: Optional[set[str]] = None,
+    ):
+        self.sync_active(allowed_skill_ids=allowed_skill_ids)
+        allowed = (
+            None
+            if allowed_skill_ids is None
+            else {str(skill_id) for skill_id in allowed_skill_ids}
+        )
         limit = max(1, int(top_k or self.top_k))
         full = self.controller.route(
             task,
@@ -99,7 +122,10 @@ class AdaptiveSkillGraphBridge:
         selected = tuple(
             choice
             for choice in full.selected
-            if choice.circuit_id in self.skill_ids
+            if (
+                choice.circuit_id in self.skill_ids
+                and (allowed is None or choice.circuit_id in allowed)
+            )
         )[:limit]
         from fap_adaptive_circuits import RouteDecision
         return RouteDecision(full.task, selected)
@@ -110,8 +136,13 @@ class AdaptiveSkillGraphBridge:
         value: Any,
         *,
         top_k: Optional[int] = None,
+        allowed_skill_ids: Optional[set[str]] = None,
     ) -> tuple[Any, list[RoutedSkillExecution]]:
-        decision = self.route(task, top_k=top_k)
+        decision = self.route(
+            task,
+            top_k=top_k,
+            allowed_skill_ids=allowed_skill_ids,
+        )
         results = [
             RoutedSkillExecution(
                 choice.circuit_id,
