@@ -1,0 +1,34 @@
+{
+  "release": "v78",
+  "source_artifact": {
+    "kind": "user-provided Gemma 4 direct-learning ZIP",
+    "sha256": "e12f51a37681d3aabb4dd00d320fe1bf31362a7e939e454b4e7abc1f7db66909",
+    "teacher_model_type": "gemma4",
+    "teacher_architecture": "Gemma4ForConditionalGeneration",
+    "teacher_checkpoint": "google/gemma-4/gemma-4-e2b-it",
+    "teacher_load_mode": "4bit",
+    "teacher_transformers": "5.17.0",
+    "teacher_torch": "2.10.0+cu128",
+    "source_selftest": "PASS"
+  },
+  "counts": {
+    "circuits": 10,
+    "memory_items": 22,
+    "concept_nodes": 28,
+    "concept_edges": 27
+  },
+  "files": {
+    "teacher_consolidated_circuits.json": {
+      "bytes": 9888,
+      "sha256": "5644066747f8b32597cb9635913369d751e4eee7c6b6ae20391593d65c129168"
+    },
+    "fap_memory.json": {
+      "bytes": 3156,
+      "sha256": "806dab33161df5fd945792d9396bd180adcffd84c22b4c97bee6aaefba097830"
+    },
+    "fap_concepts.json": {
+      "bytes": 6704,
+      "sha256": "fb07b5b84468bc7c06c7e2c9fc9e56de464e78a406f1970a5ec402b0619b0551"
+    }
+  }
+}
