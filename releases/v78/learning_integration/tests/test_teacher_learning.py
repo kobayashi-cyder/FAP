@@ -8,7 +8,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASES = ROOT.parents[2]
+RELEASES = ROOT.parents[1]
 V75 = RELEASES / "v75" / "managed_chat"
 V71 = RELEASES / "v71" / "runtime"
 V69 = RELEASES / "v69" / "interaction"
