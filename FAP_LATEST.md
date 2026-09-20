@@ -1,46 +1,42 @@
 # FAP latest development snapshot
 
-Current additive development release: **V82 — Sparse Adaptive Circuit Orchestrator**.
+Current additive development release: **V83 — Bidirectional Visual IR Cognition**.
 
-Source, tests and integration notes are stored under [`releases/v82/`](releases/v82/).
+Source, tests and integration notes are stored under [`releases/v83/`](releases/v83/).
 
-V82 builds on the current stack:
-- V80 Primitive Inventor / Mini-IR Sandbox / Skill Registry promotion loop;
-- V81 Local Adaptive Predictive Core;
-- V79 Creativity Success Learning;
-- V78 teacher-learning guidance.
+V83 builds on V82 Sparse Adaptive Circuit Orchestrator and adds a shared visual state space instead of making FAP draw directly from natural language.
 
-V82 adds:
-- verifier-first execution rights for specialist circuits;
-- sparse top-k routing with a relevance activation threshold, so unrelated inputs may activate zero optional circuits;
-- success-only bounded Active Memory that biases future routing;
-- bounded deterministic circuit mutation with unroutable candidate children;
-- automatic failure quarantine and execution-right revocation;
-- V79 creative operators as sparse specialists instead of an always-on five-operator pass;
-- V81 local adaptation as a sparse specialist instead of an always-on adaptive pass;
-- V80 `active` Mini-IR primitives as verifier-rechecked executable specialists;
-- shared routing competition across specialist families so only a few small circuits run per task.
+V83 adds:
+- natural language -> `VisualIR` planning for bounded shape/color/position/size facts;
+- `RendererPort` with a dependency-free small raster renderer;
+- `VisionPort` and `CallableVisionAdapter` so existing Vision output is normalized back into `VisualIR`;
+- mandatory render -> Vision -> structured diff verification for every initial and repaired candidate;
+- field-level differences for shape, color, position, radius and size;
+- local primitive-only repair, preserving unaffected primitives;
+- `MotionPrimitive` plus `VisualIR.sample(t)` for video/state transitions;
+- optional replaceable renderer/diffusion boundary rather than a diffusion dependency;
+- Visual Skill Graph: `imagine -> draw -> see -> review -> repair -> draw`, plus `motion -> draw`;
+- verifier-first registration of the verified Visual Skill Graph as the V82 `visual_cognition` sparse specialist.
 
-Combined direction:
+Combined visual direction:
 
 ```text
-invent / local-learn / existing specialist
-        ↓
-independent verification evidence
-        ↓
-eligible circuit pool
-        ↓
-relevance threshold
-        ↓
-top-k sparse route
-        ↓
-execute selected small circuits only
-        ↓
-verify outcome
-        ↓
-success-only Active Memory
-        ↓
-promote / quarantine / bounded evolution
+natural language
+      ↓
+    VisualIR
+      ↓
+small/replaceable renderer
+      ↓
+ existing Vision
+      ↓
+  VisualIR observation
+      ↓
+structured local diff
+      ↓
+local repair only
+      └──────────────→ rerender → Vision
+
+MotionPrimitive + time → VisualIR state → same loop
 ```
 
-**Execution boundary:** arbitrary generated Python/native code is still not granted execution rights. Self-invented executable skills remain constrained by the V80 allow-listed Mini-IR sandbox.
+**Execution boundary:** `PrimitiveVision` is only the deterministic bootstrap verifier. Production Vision is injected through `CallableVisionAdapter`; external diffusion remains optional.
