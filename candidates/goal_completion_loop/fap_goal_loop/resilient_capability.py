@@ -73,12 +73,20 @@ class CapabilityRetryPolicy:
         if not 0.0 <= float(jitter_unit) <= 1.0:
             raise ValueError("jitter_unit must be between 0 and 1")
         remaining = max(0.0, float(self.max_total_delay_seconds) - float(elapsed_delay))
-        delay = float(self.retry_delay_seconds) * (
+        raw_delay = float(self.retry_delay_seconds) * (
             float(self.retry_backoff_multiplier) ** max(0, int(attempt) - 1)
         )
+        # Cap first, then jitter inside the legal interval. If jitter is applied
+        # before the 60s cap, large backoff values collapse to the same 60s
+        # delay and synchronized retry waves reappear.
+        base_delay = min(60.0, max(0.0, raw_delay))
         if self.retry_jitter_ratio:
-            centered = (2.0 * float(jitter_unit)) - 1.0
-            delay *= 1.0 + (float(self.retry_jitter_ratio) * centered)
+            ratio = float(self.retry_jitter_ratio)
+            low = max(0.0, base_delay * (1.0 - ratio))
+            high = min(60.0, base_delay * (1.0 + ratio))
+            delay = low + (high - low) * float(jitter_unit)
+        else:
+            delay = base_delay
         try:
             hinted_delay = float(retry_after_seconds)
         except (TypeError, ValueError):
@@ -138,11 +146,21 @@ class ResilientCapabilityExecutor:
     def execute(self, action: PlannedAction, state: GoalState) -> ExecutionResult:
         handler = self.handlers.get(action.kind)
         if handler is None:
-            return ExecutionResult("blocked", error=f"capability_not_registered:{action.kind}")
+            return ExecutionResult(
+                "blocked",
+                error=f"capability_not_registered:{action.kind}",
+                metadata={
+                    "attempts": 0,
+                    "retry_safe": False,
+                    "retry_delay_seconds": 0.0,
+                    "retry_termination": "blocked",
+                },
+            )
 
         policy = self.retry_policies.get(action.kind, CapabilityRetryPolicy())
         last = ExecutionResult("failed", error="capability_not_executed")
         elapsed_delay = 0.0
+        termination = "attempts_exhausted"
         for attempt in range(1, policy.max_attempts + 1):
             try:
                 last = self._coerce(handler(action.instruction, dict(action.metadata), state))
@@ -162,10 +180,15 @@ class ResilientCapabilityExecutor:
 
             # Approval and blocking are terminal. Never replay them.
             if last.status in {"ok", "blocked", "needs_approval"}:
+                termination = (
+                    "completed" if last.status == "ok" else last.status
+                )
                 break
             if not self._is_transient(last):
+                termination = "non_transient_failure"
                 break
             if attempt >= policy.max_attempts:
+                termination = "attempts_exhausted"
                 break
             jitter_unit = self._jitter_source() if policy.retry_jitter_ratio else 0.5
             delay = policy.delay_before_attempt(
@@ -175,6 +198,7 @@ class ResilientCapabilityExecutor:
                 retry_after_seconds=last.metadata.get("retry_after_seconds"),
             )
             if policy.retry_delay_seconds and delay <= 0:
+                termination = "delay_budget_exhausted"
                 break
             if delay:
                 self._sleeper(delay)
@@ -184,6 +208,7 @@ class ResilientCapabilityExecutor:
         metadata["attempts"] = attempt
         metadata["retry_safe"] = bool(policy.max_attempts > 1)
         metadata["retry_delay_seconds"] = elapsed_delay
+        metadata["retry_termination"] = termination
         return ExecutionResult(
             status=last.status,
             output=last.output,
