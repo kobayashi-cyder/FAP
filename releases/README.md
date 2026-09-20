@@ -28,4 +28,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v83/` — Bidirectional Visual IR Cognition (shared VisualIR, mandatory Vision feedback, structured local diffs/repair, Motion Primitive timeline, optional renderer replacement, Visual Skill Graph, V82 sparse-specialist bridge).
 - `v84/` — Persistent Self-Generated Curriculum (AbilityMap, weak-area selection, slightly harder challenges, independent-verifier frontier gate, challenge-bound evidence, success-only compression, bounded Mini-IR practice bridge).
 
+- `v85/` — Production Vision Wiring (explicit host Vision callback, CallableVisionAdapter, no PrimitiveVision production fallback, mapped external Vision outputs, V83 loop/Skill Graph integration).
+
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
