@@ -1,10 +1,10 @@
 # FAP latest development snapshot
 
-Current additive development release: **V87 — Autonomous Improvement Core**.
+Current mainline baseline: **V87 — Autonomous Improvement Core**, with subsequent merged hardening on `main`.
 
-Source, tests and integration notes are stored under [`releases/v87/`](releases/v87/).
+Source, tests and integration notes for the V87 baseline are stored under [`releases/v87/`](releases/v87/).
 
-V87 independently rebases the useful control-layer ideas from the Library handoff artifact `FAP_V90_AUTONOMOUS_IMPROVEMENT_CORE.zip` onto the current V86 mainline rather than copying its older duplicate subsystems.
+V87 independently rebased the useful control-layer ideas from the Library handoff artifact `FAP_V90_AUTONOMOUS_IMPROVEMENT_CORE.zip` onto the then-current V86 mainline. V87 and later merged hardening now form the current `main`.
 
 V87 adds:
 - `FAPEval` with per-ability scorecards and failure clustering;
@@ -16,6 +16,8 @@ V87 adds:
 - quarantine of promoted but non-improving trial skills from V87 adoption;
 - optional synchronization of accepted active skills into V82 sparse routing;
 - independent FAP-Eval evidence fed back into V84 AbilityMap.
+
+Current `main` also includes merged post-V87 hardening, including resilient retry hardening and bounded production Vision/local-repair gate closure.
 
 Source artifact provenance:
 `SHA-256 660ae75d97cfab478bd54066a1afe4786dba40f07ffd30e0ce7b8c384965a1c7`.
