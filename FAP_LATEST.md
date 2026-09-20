@@ -1,21 +1,22 @@
 # FAP latest development snapshot
 
-Current additive development release: **V78 — Gemma 4 Direct-Learning Integration**.
+Current additive development release: **V79 — Creativity Success Learning**.
 
-Source, verified learning-state data, tests and integration notes are stored under [`releases/v78/`](releases/v78/).
+Source, tests and integration notes are stored under [`releases/v79/`](releases/v79/).
 
-V78 is built on the current `main` baseline `3dc56198ed2c1a5fa59b4a8e3a93c0594a0d37be`, which already contains additive releases through V77. It moves the completed Gemma 4 direct-learning result out of the historical V54 overlay and into the current FAP stack.
+V79 is additive on top of V78 Gemma 4 Direct-Learning Integration. It preserves the V78 distilled circuits, teacher-shadow memory, concept graph and existing interaction stack while adding a bounded creative-search layer.
 
-V78 adds:
-- SHA-256-verified loading of the compact Gemma 4 learned state;
-- 10 consolidated behaviour circuits;
-- 22 teacher-derived memory items retained as `teacher_shadow`, not silently promoted to factual Knowledge;
-- 28 concept nodes and 27 concept edges;
-- deterministic circuit activation, shadow-memory retrieval and context augmentation;
-- `LearnedManagedChat` integration with V75 bounded chat;
-- V71 `InteractionRuntime` integration through `build_interaction_runtime()`;
-- fail-closed digest validation and tamper tests.
+V79 adds:
+- five creative operators: reframe, analogy, inversion, combination and constraint shift;
+- multi-candidate divergence and recombination;
+- novelty, utility, consistency and diversity scoring;
+- verified creative-experience tracking with replay protection;
+- `ephemeral -> shadow -> consolidated` promotion;
+- 15 bundled mechanism-verified success observations, three per operator;
+- task-similarity-conditioned reuse of successful operator experience;
+- clean evaluation with bundled experience disabled;
+- V79 -> V78 -> base-responder composition so V78 distillation remains active.
 
-The V69–V77 interaction, lifecycle, provider-probe, health-gating, managed-chat, Android packaging and image-HTTP layers remain additive and unchanged underneath/alongside V78.
+Verification passed on Python 3.11 and 3.12 for V79, with V78, V75 and V71 regression suites also passing.
 
-**Important limitation:** V78 integrates distilled state and procedural circuits. It does not copy Gemma 4 neural weights into FAP and does not claim Gemma 4 or GPT-class general capability. Teacher-derived factual-looking memory remains explicitly shadow-labelled until independently verified.
+**Important limitation:** V79 validates the mechanism for generating, testing, storing and reusing creative search experience. It does not by itself establish human-level creativity or GPT-class general capability. Creative candidates remain ideas/hypotheses and are not automatically promoted into factual Knowledge.

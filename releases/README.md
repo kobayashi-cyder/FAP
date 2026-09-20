@@ -20,5 +20,6 @@ Additive release snapshots are stored here without overwriting historical mainli
 - `v76/` — Android Python packaging and verification for the current interaction stack.
 - `v77/` — HTTPS image provider adapter with credential isolation, response-size bounds and schema/MIME/base64 validation.
 - `v78/` — Gemma 4 Direct-Learning Integration (verified learned-state hashes, consolidated behaviour circuits, shadow memory, concept graph, V75/V71 chat/runtime integration).
+- `v79/` — Creativity Success Learning (divergent operators, verified creative-experience lifecycle, replay protection, task-conditioned reuse, V78 composition).
 
 Future updates should be added as a new version directory unless explicit mainline integration is requested.
