@@ -217,6 +217,107 @@ class UnifiedSelfImprovementLoopTests(unittest.TestCase):
                 result.evidence_id,
             )
 
+    def test_common_recipe_schema_invents_and_tests_visual_skill(self):
+        bindings = BindingRegistry()
+        bindings.register(
+            SkillBinding(
+                "visual.center_x",
+                lambda value: {**value, "x": 50},
+                ("visual", "position", "center"),
+            )
+        )
+        factory = GenericSkillFactory(bindings)
+        bridge = AdaptiveSkillGraphBridge(factory.graph, bindings)
+        visual_eval = FAPEval(
+            (
+                EvalCase(
+                    "v1",
+                    "visual_position",
+                    {"shape": "rectangle", "color": "red", "x": 10},
+                    {"shape": "rectangle", "color": "red", "x": 50},
+                ),
+                EvalCase(
+                    "v2",
+                    "visual_position",
+                    {"shape": "circle", "color": "blue", "x": 90},
+                    {"shape": "circle", "color": "blue", "x": 50},
+                ),
+                EvalCase(
+                    "v3",
+                    "visual_position",
+                    {"shape": "rectangle", "color": "green", "x": 0},
+                    {"shape": "rectangle", "color": "green", "x": 50},
+                ),
+            )
+        )
+        core = AutonomousImprovementCore(
+            ability_map=AbilityMap(["visual_position"]),
+            factory=factory,
+            evaluator=visual_eval,
+            adaptive_bridge=bridge,
+        )
+        unit = (
+            SkillTestCase(
+                {"shape": "rectangle", "color": "red", "x": 10},
+                {"shape": "rectangle", "color": "red", "x": 50},
+            ),
+            SkillTestCase(
+                {"shape": "circle", "color": "blue", "x": 90},
+                {"shape": "circle", "color": "blue", "x": 50},
+            ),
+            SkillTestCase(
+                {"shape": "rectangle", "color": "green", "x": 0},
+                {"shape": "rectangle", "color": "green", "x": 50},
+            ),
+            SkillTestCase(
+                {"shape": "circle", "color": "black", "x": 50},
+                {"shape": "circle", "color": "black", "x": 50},
+                boundary=True,
+            ),
+        )
+        shadow = (
+            SkillTestCase(
+                {"shape": "rectangle", "color": "white", "x": 25},
+                {"shape": "rectangle", "color": "white", "x": 50},
+            ),
+            SkillTestCase(
+                {"shape": "circle", "color": "yellow", "x": 75},
+                {"shape": "circle", "color": "yellow", "x": 50},
+            ),
+            SkillTestCase(
+                {"shape": "rectangle", "color": "cyan", "x": 100},
+                {"shape": "rectangle", "color": "cyan", "x": 50},
+            ),
+        )
+        loop = UnifiedSelfImprovementLoop(
+            core=core,
+            fallback_solver=lambda case: case.payload,
+            repair_recipes={
+                "visual_position": RepairRecipe(
+                    ability="visual_position",
+                    name="center_visual_primitive",
+                    required_tags=("center",),
+                    unit_cases=unit,
+                    shadow_cases=shadow,
+                )
+            },
+        )
+
+        result = loop.run(input_state={"kind": "serialized_visual_ir"})
+
+        self.assertTrue(result.accepted)
+        self.assertEqual(result.before_accuracy, 0.0)
+        self.assertEqual(result.after_accuracy, 1.0)
+        record = loop.evidence_store.records[-1]
+        self.assertEqual(
+            record["candidate_skill"]["ability"],
+            "visual_position",
+        )
+        self.assertIn(
+            result.candidate_skill_id,
+            result.routed_skill_ids,
+        )
+
     def test_non_improving_candidate_is_rejected_and_never_routed(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
