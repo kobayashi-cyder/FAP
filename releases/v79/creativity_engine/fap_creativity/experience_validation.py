@@ -6,18 +6,27 @@ import json
 import re
 from typing import Any
 
-from .engine import OPERATORS
-
+OPERATORS = ("reframe", "analogy", "inversion", "combination", "constraint_shift")
 _ALLOWED_STAGES = {"ephemeral", "shadow", "consolidated", "rejected"}
+_SUCCESS_STAGES = {"ephemeral", "shadow", "consolidated"}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _expected_success_stage(success_count: int) -> str:
+    if success_count <= 1:
+        return "ephemeral"
+    if success_count == 2:
+        return "shadow"
+    return "consolidated"
 
 
 def validate_experience_payload(payload: Any) -> list[dict]:
     """Validate persisted V79 experience before it is trusted by a runtime.
 
-    This is structural validation, not evidence authentication. It rejects
-    malformed or internally contradictory records fail-closed so a damaged
-    store cannot silently become an operator prior.
+    This is structural validation, not evidence authentication. Only invariants
+    representable in the persisted ledger are enforced. In particular, a
+    rejected record may still be verified with a strong reward because the
+    writer also considers the candidate score, which is not persisted.
     """
     if not isinstance(payload, dict) or set(payload) != {"records"}:
         raise ValueError("invalid creativity experience payload")
@@ -26,6 +35,7 @@ def validate_experience_payload(payload: Any) -> list[dict]:
         raise ValueError("invalid creativity experience records")
 
     seen: set[str] = set()
+    success_counts = {operator: 0 for operator in OPERATORS}
     validated: list[dict] = []
     required = {
         "task_id", "task_text", "operator", "candidate_digest",
@@ -39,23 +49,42 @@ def validate_experience_payload(payload: Any) -> list[dict]:
             raise ValueError("invalid creativity task_id")
         if not isinstance(record["task_text"], str) or not record["task_text"].strip():
             raise ValueError("invalid creativity task_text")
-        if record["operator"] not in OPERATORS:
+        operator = record["operator"]
+        if operator not in OPERATORS:
             raise ValueError("unknown creativity operator")
-        if not isinstance(record["candidate_digest"], str) or not _SHA256_RE.fullmatch(record["candidate_digest"]):
+        if (
+            not isinstance(record["candidate_digest"], str)
+            or not _SHA256_RE.fullmatch(record["candidate_digest"])
+        ):
             raise ValueError("invalid creativity candidate digest")
         evidence_id = record["evidence_id"]
-        if not isinstance(evidence_id, str) or not evidence_id.strip() or evidence_id in seen:
+        if (
+            not isinstance(evidence_id, str)
+            or not evidence_id.strip()
+            or evidence_id in seen
+        ):
             raise ValueError("invalid or duplicate creativity evidence_id")
         seen.add(evidence_id)
-        if type(record["reward"]) not in {int, float} or not isfinite(float(record["reward"])) or not 0.0 <= float(record["reward"]) <= 1.0:
+        if (
+            type(record["reward"]) not in {int, float}
+            or not isfinite(float(record["reward"]))
+            or not 0.0 <= float(record["reward"]) <= 1.0
+        ):
             raise ValueError("invalid creativity reward")
         if type(record["verified"]) is not bool:
             raise ValueError("invalid creativity verified flag")
-        if record["stage"] not in _ALLOWED_STAGES:
+        stage = record["stage"]
+        if stage not in _ALLOWED_STAGES:
             raise ValueError("invalid creativity stage")
-        successful = record["verified"] and float(record["reward"]) >= 0.70
-        if (record["stage"] == "rejected") == successful:
-            raise ValueError("contradictory creativity verification state")
+
+        if stage in _SUCCESS_STAGES:
+            if record["verified"] is not True or float(record["reward"]) < 0.70:
+                raise ValueError("contradictory creativity promotion state")
+            success_counts[operator] += 1
+            expected = _expected_success_stage(success_counts[operator])
+            if stage != expected:
+                raise ValueError("invalid creativity promotion history")
+
         validated.append(record)
     return validated
 
