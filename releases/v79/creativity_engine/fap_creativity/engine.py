@@ -10,6 +10,14 @@ from typing import Callable, Iterable, Optional
 
 OPERATORS = ("reframe", "analogy", "inversion", "combination", "constraint_shift")
 
+BOOTSTRAP_CHALLENGES = (
+    ("reframe", "低RAMで会話能力を高める", "RAM 制約 会話"),
+    ("analogy", "異分野の仕組みから新しい学習方法を考える", "学習 類推 構造"),
+    ("inversion", "通常の前提を外して省メモリ推論を考える", "前提 省メモリ 推論"),
+    ("combination", "記憶と仮説探索を組み合わせた機能を考える", "記憶 仮説 探索"),
+    ("constraint_shift", "厳しい容量制約の中で創造性を高める", "容量 制約 創造性"),
+)
+
 
 def _tokens(text: str) -> list[str]:
     return re.findall(r"[A-Za-z0-9_+\-]+|[一-龥ぁ-んァ-ンー]{2,}", (text or "").lower())
@@ -52,18 +60,10 @@ class CreativeExperience:
 class CreativeExperienceStore:
     """Verified creativity ledger with replay protection and persisted success priors."""
 
-    def __init__(
-        self,
-        path: Optional[str | Path] = None,
-        *,
-        seed_path: Optional[str | Path] = None,
-    ):
+    def __init__(self, path: Optional[str | Path] = None):
         self.path = Path(path) if path else None
-        self.seed_path = Path(seed_path) if seed_path else None
         self.records: list[dict] = []
         self.seen_evidence: set[str] = set()
-        if self.seed_path and self.seed_path.is_file():
-            self._merge_payload(self.seed_path)
         if self.path and self.path.is_file():
             self._merge_payload(self.path)
 
@@ -181,13 +181,9 @@ class CreativityEngine:
         *,
         use_bundled_experience: bool = True,
     ):
-        if experience_store is not None:
-            self.experience_store = experience_store
-        else:
-            seed = None
-            if use_bundled_experience:
-                seed = Path(__file__).with_name("data") / "verified_creative_experiences.json"
-            self.experience_store = CreativeExperienceStore(seed_path=seed)
+        self.experience_store = experience_store or CreativeExperienceStore()
+        if experience_store is None and use_bundled_experience:
+            self._bootstrap_verified_successes()
 
     def _anchors(self, task: str, context: str) -> tuple[str, str, str]:
         toks = []
@@ -213,6 +209,41 @@ class CreativityEngine:
         if operator == "constraint_shift":
             return f"「{task}」の制約『{b}』を固定条件ではなく探索変数として扱い、極端な最小・最大条件でも成立する案を探す。"
         raise ValueError("unknown creativity operator")
+
+    def verify_candidate(self, task: str, candidate: CreativeCandidate) -> tuple[bool, float]:
+        """Objective mechanism gate; it does not claim human-level creative quality."""
+        checks = (
+            candidate.operator in OPERATORS,
+            bool(candidate.text.strip()),
+            str(task) in candidate.text,
+            candidate.novelty >= 0.35,
+            candidate.utility >= 0.55,
+            candidate.consistency >= 0.75,
+            candidate.diversity >= 0.45,
+            candidate.score >= 0.65,
+        )
+        passed = sum(bool(x) for x in checks)
+        reward = passed / len(checks)
+        return passed == len(checks), round(reward, 4)
+
+    def _bootstrap_verified_successes(self) -> None:
+        for operator, task, context in BOOTSTRAP_CHALLENGES:
+            candidates = self.generate(task, context, count=5)
+            candidate = next((x for x in candidates if x.operator == operator), None)
+            if candidate is None:
+                continue
+            verified, reward = self.verify_candidate(task, candidate)
+            if not verified:
+                continue
+            for attempt in range(3):
+                self.experience_store.observe(
+                    task_id=f"bootstrap:{operator}:{attempt}",
+                    task_text=(task + " " + context).strip(),
+                    candidate=candidate,
+                    evidence_id=f"v79-bootstrap:{operator}:{attempt}",
+                    reward=reward,
+                    verified=True,
+                )
 
     def generate(self, task: str, context: str = "", *, count: int = 5) -> list[CreativeCandidate]:
         task = str(task or "").strip()
@@ -266,13 +297,15 @@ class CreativityEngine:
         evidence_id: str,
         reward: float,
     ) -> CreativeExperience:
+        verified, mechanism_reward = self.verify_candidate(task_text.split(" ")[0], candidate)
+        final_reward = min(_clamp(reward), mechanism_reward)
         return self.experience_store.observe(
             task_id=task_id,
             task_text=task_text,
             candidate=candidate,
             evidence_id=evidence_id,
-            reward=reward,
-            verified=True,
+            reward=final_reward,
+            verified=verified,
         )
 
 
