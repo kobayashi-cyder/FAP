@@ -13,6 +13,7 @@ from .adaptive import (
     VerifierFirstGate,
 )
 from .integration import build_v81_responder
+from .primitive_bridge import PrimitiveCircuitBridge, PrimitiveExecution
 
 __all__ = [
     "ActiveMemory",
@@ -27,5 +28,7 @@ __all__ = [
     "SparseCreativityAdapter",
     "SparseRouter",
     "VerifierFirstGate",
+    "PrimitiveCircuitBridge",
+    "PrimitiveExecution",
     "build_v81_responder",
 ]
