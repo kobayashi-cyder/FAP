@@ -11,15 +11,7 @@ from .goal_loop import ExecutionResult, GoalState, PlannedAction
 
 @dataclass(frozen=True)
 class CapabilityRetryPolicy:
-    """Fail-closed retry contract for a capability handler.
-
-    Retries are allowed only when the capability is explicitly declared
-    idempotent and a non-empty justification is recorded. Handler exceptions
-    remain terminal unless their concrete exception type is explicitly listed.
-    Optional retry delay, backoff, jitter, provider hints, and total delay budget
-    are bounded so provider recovery cannot create an unbounded wait or
-    synchronized retry wave.
-    """
+    """Fail-closed retry contract for a capability handler."""
 
     max_attempts: int = 1
     idempotent: bool = False
@@ -59,23 +51,13 @@ class CapabilityRetryPolicy:
         if self.retry_jitter_ratio and not self.retry_delay_seconds:
             raise ValueError("retry jitter requires retry_delay_seconds > 0")
 
-    def delay_before_attempt(
-        self,
-        attempt: int,
-        *,
-        elapsed_delay: float = 0.0,
-        jitter_unit: float = 0.5,
-        retry_after_seconds: Any = None,
-    ) -> float:
-        """Return bounded delay after ``attempt`` failed within the total budget."""
+    def delay_before_attempt(self, attempt: int, *, elapsed_delay: float = 0.0, jitter_unit: float = 0.5, retry_after_seconds: Any = None) -> float:
         if not self.retry_delay_seconds:
             return 0.0
         if not 0.0 <= float(jitter_unit) <= 1.0:
             raise ValueError("jitter_unit must be between 0 and 1")
         remaining = max(0.0, float(self.max_total_delay_seconds) - float(elapsed_delay))
-        delay = float(self.retry_delay_seconds) * (
-            float(self.retry_backoff_multiplier) ** max(0, int(attempt) - 1)
-        )
+        delay = float(self.retry_delay_seconds) * (float(self.retry_backoff_multiplier) ** max(0, int(attempt) - 1))
         if self.retry_jitter_ratio:
             centered = (2.0 * float(jitter_unit)) - 1.0
             delay *= 1.0 + (float(self.retry_jitter_ratio) * centered)
@@ -85,21 +67,13 @@ class CapabilityRetryPolicy:
             hinted_delay = 0.0
         if not isfinite(hinted_delay) or hinted_delay < 0:
             hinted_delay = 0.0
-        delay = max(delay, hinted_delay)
-        return min(60.0, max(0.0, delay), remaining)
+        return min(60.0, max(0.0, max(delay, hinted_delay)), remaining)
 
 
 class ResilientCapabilityExecutor:
     """Routes capability calls with bounded, explicit, fail-closed retries."""
 
-    def __init__(
-        self,
-        handlers: Mapping[str, Callable[[str, Dict[str, Any], GoalState], Any]],
-        *,
-        retry_policies: Mapping[str, CapabilityRetryPolicy] | None = None,
-        sleeper: Callable[[float], None] = sleep,
-        jitter_source: Callable[[], float] = random,
-    ) -> None:
+    def __init__(self, handlers: Mapping[str, Callable[[str, Dict[str, Any], GoalState], Any]], *, retry_policies: Mapping[str, CapabilityRetryPolicy] | None = None, sleeper: Callable[[float], None] = sleep, jitter_source: Callable[[], float] = random) -> None:
         self.handlers = {str(k): v for k, v in handlers.items()}
         if not self.handlers:
             raise ValueError("at least one handler is required")
@@ -121,19 +95,12 @@ class ResilientCapabilityExecutor:
             metadata = raw.get("metadata") or {}
             if not isinstance(metadata, Mapping):
                 raise ValueError("handler metadata must be an object")
-            return ExecutionResult(
-                status=status,
-                output=raw.get("output"),
-                error=str(raw.get("error", "")),
-                metadata=dict(metadata),
-            )
+            return ExecutionResult(status=status, output=raw.get("output"), error=str(raw.get("error", "")), metadata=dict(metadata))
         return ExecutionResult("ok", output=raw)
 
     @staticmethod
     def _is_transient(result: ExecutionResult) -> bool:
-        if result.status != "failed":
-            return False
-        return bool(result.metadata.get("transient", False))
+        return result.status == "failed" and bool(result.metadata.get("transient", False))
 
     def execute(self, action: PlannedAction, state: GoalState) -> ExecutionResult:
         handler = self.handlers.get(action.kind)
@@ -143,38 +110,27 @@ class ResilientCapabilityExecutor:
         policy = self.retry_policies.get(action.kind, CapabilityRetryPolicy())
         last = ExecutionResult("failed", error="capability_not_executed")
         elapsed_delay = 0.0
+        termination = "attempts_exhausted"
         for attempt in range(1, policy.max_attempts + 1):
             try:
                 last = self._coerce(handler(action.instruction, dict(action.metadata), state))
             except Exception as exc:
-                retryable_exception = bool(policy.retryable_exceptions) and isinstance(
-                    exc, policy.retryable_exceptions
-                )
-                last = ExecutionResult(
-                    "failed",
-                    error=f"{type(exc).__name__}: {exc}",
-                    metadata={
-                        "handler_exception": True,
-                        "kind": action.kind,
-                        "transient": retryable_exception,
-                    },
-                )
+                retryable_exception = bool(policy.retryable_exceptions) and isinstance(exc, policy.retryable_exceptions)
+                last = ExecutionResult("failed", error=f"{type(exc).__name__}: {exc}", metadata={"handler_exception": True, "kind": action.kind, "transient": retryable_exception})
 
-            # Approval and blocking are terminal. Never replay them.
             if last.status in {"ok", "blocked", "needs_approval"}:
+                termination = "completed" if last.status == "ok" else last.status
                 break
             if not self._is_transient(last):
+                termination = "non_transient_failure"
                 break
             if attempt >= policy.max_attempts:
+                termination = "attempts_exhausted"
                 break
             jitter_unit = self._jitter_source() if policy.retry_jitter_ratio else 0.5
-            delay = policy.delay_before_attempt(
-                attempt,
-                elapsed_delay=elapsed_delay,
-                jitter_unit=jitter_unit,
-                retry_after_seconds=last.metadata.get("retry_after_seconds"),
-            )
+            delay = policy.delay_before_attempt(attempt, elapsed_delay=elapsed_delay, jitter_unit=jitter_unit, retry_after_seconds=last.metadata.get("retry_after_seconds"))
             if policy.retry_delay_seconds and delay <= 0:
+                termination = "delay_budget_exhausted"
                 break
             if delay:
                 self._sleeper(delay)
@@ -184,9 +140,5 @@ class ResilientCapabilityExecutor:
         metadata["attempts"] = attempt
         metadata["retry_safe"] = bool(policy.max_attempts > 1)
         metadata["retry_delay_seconds"] = elapsed_delay
-        return ExecutionResult(
-            status=last.status,
-            output=last.output,
-            error=last.error,
-            metadata=metadata,
-        )
+        metadata["retry_termination"] = termination
+        return ExecutionResult(status=last.status, output=last.output, error=last.error, metadata=metadata)
