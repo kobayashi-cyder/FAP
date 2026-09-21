@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 import math
+import threading
 from typing import Sequence
 
 from fap_human_lbs.core import Mesh, RGBImage
@@ -9,6 +10,15 @@ from fap_photo_look import renderer as dense
 
 
 Vec3 = tuple[float, float, float]
+_THREAD_STATE = threading.local()
+
+
+def last_render_stats() -> dict:
+    return dict(getattr(_THREAD_STATE, "last_stats", {}) or {})
+
+
+def _remember_stats(stats: dict) -> None:
+    _THREAD_STATE.last_stats = dict(stats)
 
 
 def _tile_bounds(tile_x: int, tile_y: int, tile_size: int, width: int, height: int):
@@ -262,6 +272,7 @@ def render_sparse_photo_look_png(
         "fxaa": True,
         "filmic_finish": True,
     })
+    _remember_stats(sparse)
     return data, sparse
 
 
@@ -295,6 +306,7 @@ def render_scientific_fast_png(
         "fxaa": True,
         "filmic_finish": False,
     })
+    _remember_stats(sparse)
     return data, sparse
 
 
