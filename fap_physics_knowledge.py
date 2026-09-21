@@ -928,19 +928,23 @@ class PhysicsKnowledgeReasoner:
         self.numeric = PhysicsNumericSolver()
 
     def run(self, task: MCQTask, history=None, *, teacher_allowed: bool = False) -> dict[str, Any]:
-        # Physics is intentionally the only domain augmented in V87.27.
-        if task.domain != "physics":
-            out = self.fallback.run(task, history, teacher_allowed=teacher_allowed)
-            out["physics_knowledge"] = {"used": False, "reason": "non-physics-domain"}
-            return out
-
+        # Deterministic solvers run before broad domain routing. Each solver has
+        # its own strict semantic/unit guards, so this also recovers physics
+        # questions that the legacy keyword domain classifier labels "general".
         numeric = self.numeric.run(task)
         if numeric is not None:
             numeric["physics_knowledge"] = {
                 "used": False,
+                "advisory_only": True,
                 "reason": "resolved-by-deterministic-physics-numeric-solver",
             }
             return numeric
+
+        # Heuristic knowledge retrieval itself remains physics-domain-only.
+        if task.domain != "physics":
+            out = self.fallback.run(task, history, teacher_allowed=teacher_allowed)
+            out["physics_knowledge"] = {"used": False, "advisory_only": True, "reason": "non-physics-domain"}
+            return out
 
         rows, retrieved = self.store.evaluate_options(task)
         negative = bool(_NEGATIVE.search(task.question))
