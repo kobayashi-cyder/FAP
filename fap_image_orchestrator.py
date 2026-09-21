@@ -40,13 +40,6 @@ _SUBJECT_ALIASES = {
     "woman": ("女性", "女の人", "woman", "girl", "少女"),
     "man": ("男性", "男の人", "man", "boy", "少年"),
     "person": ("人物", "人", "person", "human"),
-    "mountain": ("山", "山々", "mountain", "mountains"),
-    "lake": ("湖", "湖畔", "lake"),
-    "river": ("川", "river"),
-    "sea": ("海", "ocean", "sea"),
-    "forest": ("森", "林", "forest", "woods"),
-    "city": ("街", "町", "都市", "city", "town"),
-    "house": ("家", "小屋", "house", "cabin"),
     "car": ("車", "自動車", "car"),
 }
 
