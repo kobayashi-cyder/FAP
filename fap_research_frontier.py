@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import math
 import re
@@ -280,6 +281,7 @@ def main() -> int:
     if args.snapshot_output:
         limit = max(5, min(100, int(args.snapshot_limit)))
         snapshot = {
+            "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
             "papers_processed": frontier["papers_processed"],
             "cluster_count": frontier["cluster_count"],
             "generated_from": str(args.reviews),
