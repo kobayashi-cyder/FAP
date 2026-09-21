@@ -48,7 +48,7 @@ C) It is a gluon
 D) It has no quantum statistics
 """)
     r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
-    assert r["decision_source"] == "physics_knowledge_retrieval", r.get("physics_knowledge")
+    print("PHYSICS_OPTIONS", r.get("physics_knowledge", {}).get("options"))\n    assert r["decision_source"] == "physics_knowledge_retrieval", r.get("physics_knowledge")
     assert r["reply"].splitlines()[-1] == "Answer: $B"
 
 
