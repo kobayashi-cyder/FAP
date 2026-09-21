@@ -806,56 +806,80 @@ class PhysicsKnowledgeStore:
             phrases = e.concepts + e.aliases
             exact = sum(1 for p in phrases if _norm(p) and _norm(p) in q)
             etokens = _tokens(" ".join(phrases + e.claims + e.formulas))
-            overlap = len(qtokens & etokens) / max(1, len(etokens))
-            if exact == 0 and overlap < 0.08:
+            common = len(qtokens & etokens)
+            overlap = common / max(1, len(etokens))
+            if exact == 0 and common < 2:
                 continue
-            score = exact * 2.0 + overlap * 3.0
+            score = exact * 2.0 + overlap * 3.0 + min(0.6, common * 0.08)
             ranked.append(RetrievedPhysics(e, round(score, 4)))
         ranked.sort(key=lambda x: (-x.retrieval_score, x.entry.knowledge_id))
         return ranked[:limit]
 
     @staticmethod
+    def _contextual_option(entry: PhysicsKnowledgeEntry, question: str, option: str) -> str:
+        """Attach only topic cues from the question, never the whole question.
+
+        The old implementation evaluated regexes against question+option. A fact
+        already stated in the question therefore gave the same evidence to A-D.
+        Here the question is used only to recover the subject for pronoun-like
+        options such as "it is a fermion".
+        """
+        q = _norm(question)
+        cues: list[str] = []
+        for phrase in entry.concepts + entry.aliases:
+            p = _norm(phrase)
+            if p and p in q and p not in cues:
+                cues.append(p)
+            if len(cues) >= 2:
+                break
+        return _norm((" ".join(cues) + " " + option).strip())
+
+    @staticmethod
     def _evaluate_entry(entry: PhysicsKnowledgeEntry, question: str, option: str) -> tuple[float, list[str], list[str]]:
-        combined = _norm(question + " " + option)
         option_n = _norm(option)
+        contextual = PhysicsKnowledgeStore._contextual_option(entry, question, option)
         evidence: list[str] = []
         contra: list[str] = []
         score = 0.0
 
+        # Patterns must discriminate between answer options.  The full question
+        # is intentionally excluded so a relation named in the stem cannot score
+        # every option equally.
         for pat in _as_patterns(entry.support_patterns):
-            if re.search(pat, combined, re.I):
+            if re.search(pat, contextual, re.I):
                 score += 1.25
                 evidence.append(entry.knowledge_id + ":pattern")
         for pat in _as_patterns(entry.contradiction_patterns):
-            if re.search(pat, combined, re.I):
+            if re.search(pat, contextual, re.I):
                 score -= 1.35
                 contra.append(entry.knowledge_id + ":pattern")
 
-        combined_text = question + " " + option_n
         true_pairs = [
             (
-                max(_overlap(option_n, claim), 0.90 * _overlap(combined_text, claim)),
-                max(_shared_count(option_n, claim), _shared_count(combined_text, claim)),
+                max(_overlap(option_n, claim), 0.92 * _overlap(contextual, claim)),
+                max(_shared_count(option_n, claim), _shared_count(contextual, claim)),
             )
             for claim in entry.claims
         ]
         false_pairs = [
             (
-                max(_overlap(option_n, claim), 0.90 * _overlap(combined_text, claim)),
-                max(_shared_count(option_n, claim), _shared_count(combined_text, claim)),
+                max(_overlap(option_n, claim), 0.92 * _overlap(contextual, claim)),
+                max(_shared_count(option_n, claim), _shared_count(contextual, claim)),
             )
             for claim in entry.misconceptions
         ]
         true_sim, true_shared = max(true_pairs, default=(0.0, 0))
         false_sim, false_shared = max(false_pairs, default=(0.0, 0))
 
-        # Semantic matching requires at least two meaningful shared tokens. The
-        # lower threshold improves paraphrase coverage while the token-count gate
-        # prevents one-word topic matches from becoming truth evidence.
-        if true_sim >= 0.30 and true_shared >= 2:
+        # Require option-specific content. Context cues may provide the subject,
+        # but at least one nontrivial claim token must come from the option itself.
+        option_true_shared = max((_shared_count(option_n, claim) for claim in entry.claims), default=0)
+        option_false_shared = max((_shared_count(option_n, claim) for claim in entry.misconceptions), default=0)
+
+        if true_sim >= 0.30 and true_shared >= 2 and option_true_shared >= 1:
             score += min(0.90, 1.35 * true_sim)
             evidence.append(entry.knowledge_id + ":claim")
-        if false_sim >= 0.30 and false_shared >= 2:
+        if false_sim >= 0.30 and false_shared >= 2 and option_false_shared >= 1:
             score -= min(0.95, 1.40 * false_sim)
             contra.append(entry.knowledge_id + ":misconception")
 
