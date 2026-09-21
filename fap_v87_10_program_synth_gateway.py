@@ -422,6 +422,8 @@ class VerificationOrgan:
             if not result.get("answer_coverage"):
                 return "NG", "事実質問を検出しましたが、直接回答がありません。"
             return "OK", "事実質問に対してローカル知識から直接回答しています。"
+        if result.get("needs_teacher") or "確定回答できません" in reply or "分からない内容を作らず" in reply:
+            return "PARTIAL", "ローカル経路だけでは質問への確定回答に到達していません。"
         if ok:
             return "OK", "意図と実行結果が一致しています。"
         return "PARTIAL", "意図は認識できていますが、外部能力または必要情報が不足しています。"
