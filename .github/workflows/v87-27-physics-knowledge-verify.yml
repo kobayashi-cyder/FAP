@@ -1,0 +1,74 @@
+name: V87.27 Physics Knowledge Verify
+
+on:
+  push:
+    branches:
+      - v87.27-physics-knowledge
+      - main
+    paths:
+      - "fap_physics_knowledge.py"
+      - "fap_v87_27_physics_knowledge_gateway.py"
+      - "RUN_FAP_V87_27_PHYSICS_KNOWLEDGE.cmd"
+      - "releases/v87_27/**"
+      - ".github/workflows/v87-27-physics-knowledge-verify.yml"
+  pull_request:
+    paths:
+      - "fap_physics_knowledge.py"
+      - "fap_v87_27_physics_knowledge_gateway.py"
+      - "RUN_FAP_V87_27_PHYSICS_KNOWLEDGE.cmd"
+      - "releases/v87_27/**"
+      - ".github/workflows/v87-27-physics-knowledge-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Run V87.27 focused tests
+        run: pytest -q releases/v87_27/physics_knowledge/tests
+      - name: Run V87.26 focused regression
+        run: pytest -q releases/v87_26/scientific_reasoning/tests
+      - name: Run V87.25 focused regression
+        run: pytest -q releases/v87_25/structured_reasoning/tests
+      - name: Run inherited V87.02-V87.12 text regression suite
+        run: >
+          pytest -q
+          tests/test_v87_02_gateway.py
+          tests/test_v87_03_distilled_gateway.py
+          tests/test_v87_03_local_distilled.py
+          tests/test_v87_04_builder.py
+          tests/test_v87_05_generic_builder.py
+          tests/test_v87_06_concept_builder.py
+          tests/test_v87_07_spec_compiler.py
+          tests/test_v87_08_code_generator.py
+          tests/test_v87_09_compositional_codegen.py
+          tests/test_v87_10_program_synth.py
+          tests/test_v87_11_sol_gap.py
+          tests/test_v87_12_semantic_adaptive.py
+      - name: Run V87.13-V87.24 media/offline regression
+        env:
+          PYTHONPATH: .:releases/v87_13/media_generation:releases/v87_14/video_temporal:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_18/critic_cascade:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_21/local_engine:releases/v87_22/offline_native:releases/v87_23/compact_offline:releases/v87_24/offline_bundle
+        run: >
+          pytest -q
+          releases/v87_13/media_generation/tests
+          releases/v87_14/video_temporal/tests
+          releases/v87_15/observed_media/tests
+          releases/v87_16/media_portfolio/tests
+          releases/v87_17/adaptive_fast_path/tests
+          releases/v87_18/critic_cascade/tests
+          releases/v87_19/autonomous_media/tests
+          releases/v87_20/media_lab/tests
+          releases/v87_21/local_engine/tests
+          releases/v87_22/offline_native/tests
+          releases/v87_23/compact_offline/tests
+          releases/v87_24/offline_bundle/tests
