@@ -25,6 +25,7 @@ class FAPV8727(v26.FAPV8726):
             "physics-formula-memory",
             "physics-condition-memory",
             "physics-misconception-memory",
+            "physics-numeric-solvers",
         ]:
             if x not in caps:
                 caps.append(x)
@@ -66,7 +67,7 @@ class FAPV8727(v26.FAPV8726):
             "shadow_base_intent": shadow_intent.name,
             "domain": task.domain,
             "decision_source": result.get("decision_source"),
-            "physics_used": bool((result.get("physics_knowledge") or {}).get("used")),
+            "physics_used": bool((result.get("physics_knowledge") or {}).get("used")) or bool((result.get("physics_numeric") or {}).get("used")),
             "ok": bool(result.get("ok")),
             "verdict": verdict,
             "confidence": confidence,
@@ -83,7 +84,7 @@ class FAPV8727(v26.FAPV8726):
                 "structured-detect",
                 "instruction-content-separate",
                 "domain-infer",
-                "physics-retrieve" if task.domain == "physics" else "option-conditioned-science",
+                ("physics-numeric" if result.get("decision_source") == "physics_numeric_solver" else "physics-retrieve") if task.domain == "physics" else "option-conditioned-science",
                 "contract-verify",
                 "integrate",
             ],
@@ -101,6 +102,7 @@ class FAPV8727(v26.FAPV8726):
                 "forced_choice": bool(result.get("forced_choice")),
                 "answer_contract": "Answer: $LETTER",
                 "physics_knowledge": result.get("physics_knowledge", {}),
+                "physics_numeric": result.get("physics_numeric", {}),
                 "option_assessments": result.get("option_assessments", []),
             },
             "status": self.status(),
