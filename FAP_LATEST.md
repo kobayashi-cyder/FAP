@@ -1,42 +1,38 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.17 — Adaptive Media Fast Path**.
+Current mainline: **V87.18 — Critic Cascade**.
 
-V87.17 reduces the number of generation/observation transitions needed to reach the same verified quality gate.
+V87.18 reduces evaluation transitions without weakening the acceptance gate.
 
 Current fast path:
 
-`best-known lane first -> observe actual artifact -> critic -> accept immediately if gate passes -> expand only on miss`
+`best-known lane -> observe actual artifact -> cheap critic stage -> expensive stages only when needed -> accept / repair / expand`
 
-When repair is needed:
+New in V87.18:
+- cheap critics run before expensive critics;
+- fatal evidence short-circuits immediately;
+- candidates clearly below an early continue floor skip later expensive critics;
+- candidates that survive early stages still run the full configured critic stack;
+- completed quality remains the minimum score across required evaluated stages;
+- therefore rejection becomes cheaper while acceptance remains fully verified.
 
-`repair best verified defects -> retry a narrow lane set -> expand only if still insufficient`
-
-New in V87.17:
-- historically strongest observed backend is attempted first;
-- if that candidate clears the unchanged quality gate, remaining backends are skipped;
-- full portfolio competition remains available as fallback;
-- repair rounds restart narrow before re-expanding;
-- lightweight lane profiles learn score EMA, acceptance reliability, and failure rate;
-- successful/reliable lanes move forward automatically;
-- unreliable lanes are deprioritized without being removed;
-- image and video use the same adaptive routing path.
-
-Transition effect:
-- with N configured backends, an easy/common request can fall from N generator/observer calls to **1**;
-- difficult requests retain the V87.16 portfolio fallback;
-- critic and observation gates are not weakened.
+Combined V87.17 + V87.18 effect:
+- unnecessary generator/observer lanes are skipped;
+- unnecessary expensive critic stages are skipped;
+- full portfolio and full critic stacks remain available when needed;
+- no evidence gate is weakened.
 
 Verification:
-- V87.17 focused tests: **7/7 PASS on Python 3.11**
-- V87.17 focused tests: **7/7 PASS on Python 3.12**
-- GitHub Actions run: **35587260082 — SUCCESS**
+- V87.18 focused tests: **6/6 PASS on Python 3.11**
+- V87.18 focused tests: **6/6 PASS on Python 3.12**
+- GitHub Actions run: **35587408504 — SUCCESS at test step**
+- V87.17 focused tests: **7/7 PASS on Python 3.11/3.12**
 - V87.16 focused tests: **8/8 PASS on Python 3.11/3.12**
 - V87.15 observed-media tests: **8/8 PASS on Python 3.11/3.12**
 - V87.14 temporal critic tests: **8/8 PASS on Python 3.11/3.12**
 - prior V87.12 runtime suite: **91/91 PASS**
 
-V87.17 is aimed at outperforming stronger systems first on **verified completion efficiency**: reaching an accepted artifact with fewer generation/observation transitions while preserving the same evidence-backed gate. It does **not** yet claim universal quality superiority over GPT-5.6 Sol or a frontier image/video generator; that requires an identical-prompt head-to-head benchmark.
+The shortest path to surpassing GPT-5.6 Sol is not to compete first on raw one-shot model size. FAP is targeting **verified completion efficiency** first: reach an accepted artifact with fewer generation, observation, critique, and repair transitions. Universal quality superiority still requires an identical-prompt head-to-head benchmark.
 
 Implementation:
 - `releases/v87_13/media_generation/`
@@ -44,5 +40,6 @@ Implementation:
 - `releases/v87_15/observed_media/`
 - `releases/v87_16/media_portfolio/`
 - `releases/v87_17/adaptive_fast_path/`
+- `releases/v87_18/critic_cascade/`
 
-Promotion history is intentionally sequential through V87.17. Qwen is not used.
+Promotion history is intentionally sequential through V87.18. Qwen is not used.
