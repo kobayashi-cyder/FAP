@@ -10,6 +10,10 @@ on:
       - "fap_v87_12_semantic_adaptive_gateway.py"
       - "fap_sol_gap_controller.py"
       - "fap_semantic_memory.py"
+      - "fap_v87_25_structured_reasoning_gateway.py"
+      - "fap_v87_26_scientific_reasoning_gateway.py"
+      - "fap_v87_27_physics_knowledge_gateway.py"
+      - "fap_v87_28_physics_solver_gateway.py"
       - "tests/test_speed_restore.py"
       - ".github/workflows/chat-speed-restore-verify.yml"
   pull_request:
@@ -39,6 +43,10 @@ jobs:
           python -m py_compile fap_v87_12_semantic_adaptive_gateway.py
           python -m py_compile fap_sol_gap_controller.py
           python -m py_compile fap_semantic_memory.py
+          python -m py_compile fap_v87_25_structured_reasoning_gateway.py
+          python -m py_compile fap_v87_26_scientific_reasoning_gateway.py
+          python -m py_compile fap_v87_27_physics_knowledge_gateway.py
+          python -m py_compile fap_v87_28_physics_solver_gateway.py
       - name: Speed regression tests
         run: pytest -q tests/test_speed_restore.py
       - name: V87.10-V87.12 regressions
