@@ -102,3 +102,33 @@ Compatibility:
 - V87.28 and earlier reasoning/physics paths remain;
 - chat-speed restoration remains;
 - Qwen is not used.
+
+
+## Current mainline chat
+
+The standard chat UI can now run against the current V87.32 mainline facade instead of
+stopping at the V87.12 semantic-adaptive backend.
+
+Run:
+
+```text
+RUN_FAP_CHAT_LATEST.cmd
+```
+
+This starts `fap_v87_32_unified_chat_gateway.py` on the existing chat port and keeps
+the same `web/FAP_Chat.html` UI. The UI version badge is populated from
+`/api/v1/status`, so it reports `v87.32-unified-chat` when the current
+gateway is active.
+
+Routing:
+- ordinary conversation and semantic/adaptive memory keep the optimized V87.12 fast path;
+- structured MCQ/scientific/physics requests retain the V87.25-V87.28 chain;
+- image capability and image generation use the V87.32 native photo-look engine;
+- rejected photo-look candidates remain visible for inspection but are not falsely reported
+  as accepted;
+- Qwen is not used.
+
+Compatibility:
+- existing session format and `/api/v1/chat` contract are preserved;
+- the old version-specific launchers remain unchanged;
+- `RUN_FAP_CHAT_LATEST.cmd` is the stable launcher intended to follow future mainline chat upgrades.
