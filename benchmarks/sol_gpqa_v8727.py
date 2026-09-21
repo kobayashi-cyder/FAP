@@ -65,6 +65,7 @@ def main():
         "holdout": {"max_abs": [], "margin": [], "evidence_ids": Counter()},
     }
     dev_physics_terms = Counter()
+    dev_evidence_cases = {}
     changed = changed_to_correct = changed_to_wrong = 0
     sources = Counter()
     physics_used = 0
@@ -128,6 +129,23 @@ def main():
                     split_score_diag[split]["margin"].append(margin)
                     if any(abs(x) > 1e-9 for x in scores):
                         split_stats[split]["evidence_nonzero"] += 1
+                        if split == "dev":
+                            qkey = hashlib.sha256(row["Question"].encode("utf-8")).hexdigest()[:12]
+                            if qkey not in dev_evidence_cases:
+                                dev_evidence_cases[qkey] = {
+                                    "question": row["Question"],
+                                    "choices": {letter: choices[pos] for pos,letter in enumerate("ABCD")},
+                                    "correct": correct,
+                                    "scores": {
+                                        str(opt.get("letter")): {
+                                            "score": float(opt.get("score", 0.0)),
+                                            "evidence": list(opt.get("evidence") or []),
+                                            "contradictions": list(opt.get("contradictions") or []),
+                                        }
+                                        for opt in opts
+                                    },
+                                    "retrieved": [str(x.get("knowledge_id")) for x in retrieved[:8]],
+                                }
                     for opt in opts:
                         if abs(float(opt.get("score", 0.0))) > 1e-9:
                             for tag in list(opt.get("evidence") or []) + list(opt.get("contradictions") or []):
@@ -204,6 +222,7 @@ def main():
         for name,stats in split_stats.items()
       },
       "dev_physics_topic_terms": dev_physics_terms.most_common(60),
+      "dev_evidence_cases": list(dev_evidence_cases.values())[:10],
       "median_latency_s":statistics.median(latencies),
       "mean_latency_s":statistics.mean(latencies),
     }
