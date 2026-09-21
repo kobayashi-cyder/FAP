@@ -4,12 +4,6 @@ on:
   push:
     branches: [main]
     paths:
-      - "fap_literature_review.py"
-      - "fap_research_frontier.py"
-      - "fap_research_cycle.py"
-      - "tests/test_literature_review.py"
-      - "tests/test_research_frontier.py"
-      - "tests/test_research_cycle.py"
       - ".github/workflows/broad-literature-critical-appraisal.yml"
   schedule:
     - cron: "23 18 * * *"
