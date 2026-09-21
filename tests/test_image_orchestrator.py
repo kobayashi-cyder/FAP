@@ -52,6 +52,15 @@ class ImageOrchestratorTests(unittest.TestCase):
         self.assertIn("mountains", spec.backgrounds)
         self.assertTrue(spec.photorealistic)
 
+    def test_multi_subject_scene_does_not_apply_global_single_count(self):
+        spec = ImageRequestParser().parse(
+            "女性1人とビーグル1匹が夕暮れの湖畔にいる写真風の画像を生成して"
+        )
+        self.assertIn("woman", spec.subjects)
+        self.assertIn("beagle", spec.subjects)
+        self.assertIsNone(spec.count)
+        self.assertNotIn("multiple subjects", spec.must_not_have)
+
     def test_generate_repairs_missing_breed_then_selects_better_candidate(self):
         api = FakeAPI([
             "a realistic dog outdoors at sunset",

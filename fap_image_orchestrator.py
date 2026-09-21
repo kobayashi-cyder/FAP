@@ -40,13 +40,6 @@ _SUBJECT_ALIASES = {
     "woman": ("女性", "女の人", "woman", "girl", "少女"),
     "man": ("男性", "男の人", "man", "boy", "少年"),
     "person": ("人物", "人", "person", "human"),
-    "mountain": ("山", "山々", "mountain", "mountains"),
-    "lake": ("湖", "湖畔", "lake"),
-    "river": ("川", "river"),
-    "sea": ("海", "ocean", "sea"),
-    "forest": ("森", "林", "forest", "woods"),
-    "city": ("街", "町", "都市", "city", "town"),
-    "house": ("家", "小屋", "house", "cabin"),
     "car": ("車", "自動車", "car"),
 }
 
@@ -120,6 +113,11 @@ class ImageRequestParser:
                 count = n
                 break
 
+        # A single scalar count is only safe when one primary subject class is
+        # requested. "女性1人とビーグル1匹" must not become "one total subject".
+        if len(subjects) > 1:
+            count = None
+
         style = "unspecified"
         for name, pat in _STYLE_PATTERNS:
             if pat.search(raw):
@@ -156,8 +154,8 @@ class ImageRequestParser:
             "watermark", "text overlay", "logo", "blurry", "low resolution",
             "deformed anatomy", "extra limbs", "duplicate subject",
         ]
-        if count == 1:
-            must_not += ["multiple subjects", "two dogs", "two people"]
+        if count == 1 and len(subjects) == 1:
+            must_not += ["multiple subjects", "duplicate primary subject"]
 
         width = int(os.environ.get("FAP_IMAGE_WIDTH", "768"))
         height = int(os.environ.get("FAP_IMAGE_HEIGHT", "768"))
