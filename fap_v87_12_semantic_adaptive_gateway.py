@@ -236,6 +236,8 @@ class FAPV8712(v11.FAPV8711):
             else:
                 result, ability, effective_intent = self._route_adapted(intent, adaptation, text, history)
             route = ["intent", intent.name]
+            if result.get("factual_qa"):
+                route += ["factual-qa"]
             if adaptation.get("applied"):
                 route += ["adaptive-route", ability]
             route += ["deliberate", "semantic-context", "verify", "integrate"]
