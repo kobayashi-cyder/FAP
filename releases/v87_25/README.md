@@ -48,3 +48,24 @@ A narrow literal binary-arithmetic solver can independently verify simple numeri
 V87.25 is based on V87.24 and leaves all V87.24 offline-bundle preparation and disconnected media inference paths unchanged.
 
 Qwen is not used.
+
+## Verification
+
+GitHub Actions run **35590574347 — SUCCESS** on Python 3.11 and 3.12.
+
+Per interpreter:
+- V87.25 focused tests: **6/6 PASS**;
+- inherited V87.02-V87.12 text regression suite: **96/96 PASS**;
+- V87.22 offline-media regression suite: **6/6 PASS**;
+- V87.24 offline-bundle regression suite: **5/5 PASS**.
+
+GPQA Diamond run **35590580662 — SUCCESS**:
+- questions: 198;
+- shuffled repeats: 4;
+- trials: 792;
+- answer-contract parse rate: **100%**;
+- measured accuracy: **208/792 = 26.26%**;
+- ability route: `structured_mcq` for **792/792**;
+- decision source: `unresolved_content_tiebreak` for **792/792**.
+
+Therefore the GPQA result is approximately chance-level and is **not** evidence of GPQA-grade semantic reasoning. It verifies that the previous routing/format failure has been removed and that future knowledge/reasoning improvements can now be measured cleanly.
