@@ -1,6 +1,27 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.43 — Reflective Local Conversation**.
+Current mainline: **V87.44 — Natural Context Follow-Up**.
+
+V87.44 fixes a failure where a known topic was explained correctly but a natural
+clarification such as:
+
+```text
+YOU: 大気の運動について
+FAP: ...気圧傾度力、コリオリ効果...
+YOU: どういうことなのかわかりますか？
+```
+
+lost the topic and fell back to the generic unresolved answer.
+
+The reflective organ now recognizes natural clarification / understanding
+phrases, resolves the most recent known topic from conversation history, and
+re-explains it in plain language. The diagnostic route marks this as:
+
+```text
+reflective-chat → clarify → context-followup
+```
+
+V87.43 reflective reasoning remains underneath V87.44.
 
 V87.43 moves ordinary conversation beyond exact constants and fixed capability
 answers. A new local reflective organ resolves known topics, chooses an
