@@ -1,11 +1,11 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.10 — Program Synthesizer**.
+Current mainline: **V87.11 — Sol-gap Reasoning Controller**.
 
-Introduces ordered Program IR so sequential transformations can be compiled into Python while preserving V87.09 parallel-statistics routing.
+Adds multi-intent routing, persistent goals and constraints, multiple candidate plans, coverage critique, and bounded replanning while retaining the earlier builders.
 
-Verified runtime test suite: **72/72 PASS**.
+Verified runtime test suite: **81/81 PASS**.
 
-Runtime snapshot: `releases/runtime_packages/FAP_V87_10_PROGRAM_SYNTH_RUNTIME.zip`.
+Runtime snapshot: `releases/runtime_packages/FAP_V87_11_SOL_GAP_RUNTIME.zip`.
 
-Promotion history is intentionally sequential through V87.10. Qwen is not used.
+Promotion history is intentionally sequential through V87.11. Qwen is not used.
