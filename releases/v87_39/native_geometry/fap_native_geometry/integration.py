@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 from fap_human_lbs.core import (
     build_human_mesh, default_human_skeleton, pose_from_prompt, v_add
 )
@@ -16,6 +18,7 @@ _PY_SKINNED=None
 _HUMAN_SK=None
 _HUMAN_MESH=None
 _LBS=NativeLBSCache()
+_LBS_LOCK=threading.Lock()
 _LAST_LBS={}
 
 def last_lbs_stats():
@@ -23,7 +26,8 @@ def last_lbs_stats():
 
 def native_skinned_positions(mesh,skeleton,pose):
     global _LAST_LBS
-    positions,stats=_LBS.skin(mesh,skeleton,pose)
+    with _LBS_LOCK:
+        positions,stats=_LBS.skin(mesh,skeleton,pose)
     _LAST_LBS=dict(stats)
     return positions
 
@@ -37,7 +41,8 @@ def _human_mesh_and_positions(node,center,text):
     elif node.state=="walking": pose_text+=" 歩く"
     elif node.state=="standing": pose_text+=" 直立 腕を下げる"
     pose=pose_from_prompt(pose_text)
-    positions,stats=_LBS.skin(_HUMAN_MESH,_HUMAN_SK,pose)
+    with _LBS_LOCK:
+        positions,stats=_LBS.skin(_HUMAN_MESH,_HUMAN_SK,pose)
     _LAST_LBS=dict(stats)
     pts=[v_add(p,center) for p in positions]
     return _HUMAN_MESH,pts,{
