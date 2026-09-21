@@ -1,56 +1,52 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.26 — Option-Conditioned Scientific Reasoner**.
+Current mainline: **V87.27 — Physics Knowledge Substrate**.
 
-V87.26 keeps the V87.25 structured A-D gateway and adds a conservative scientific hypothesis competition layer.
+V87.27 starts the native physics expansion on top of V87.26 without replacing existing routing.
 
-New path:
+Default physics path:
 
 ```text
-explicit A-D answer contract
-  -> instruction/content separation
-  -> domain inference
-  -> A hypothesis: support / contradiction
-  -> B hypothesis: support / contradiction
-  -> C hypothesis: support / contradiction
-  -> D hypothesis: support / contradiction
-  -> polarity-aware competition
-  -> V87.25 fallback if evidence is weak
-  -> contract verification
+explicit A-D MCQ
+  -> deterministic physics solver (strict semantic/unit guards)
+  -> if unresolved: physics knowledge retrieval (advisory-only)
+  -> inherited V87.26 structured science path
+  -> answer contract verification
 ```
 
-Compatibility rule:
-- non-MCQ requests remain on the inherited text path;
-- low-confidence scientific questions fall back to V87.25 rather than fabricating certainty;
-- V87.13-V87.24 media/offline paths are unchanged;
+What is new:
+- structured physics knowledge covering quantum mechanics, particle physics, mechanics, electromagnetism, thermodynamics/statistical physics, relativity, nuclear physics, optics and condensed matter;
+- concepts, aliases, canonical claims, misconceptions, formulas and applicability conditions;
+- retrieval traces per answer option;
+- general deterministic solvers for photon energy from wavelength, Lorentz gamma, Hubble recession velocity, Schwarzschild radius, and classical kinetic energy;
+- deterministic solvers run before broad domain routing, so a physics problem mislabeled as `general` can still be solved.
+
+Safety / anti-overfit boundary:
+- heuristic physics retrieval is **advisory-only** and cannot independently override the inherited answer;
+- two narrow research solvers that produced dev-only gains are quarantined behind `FAP_EXPERIMENTAL_NARROW_PHYSICS=1`;
+- those dev-only gains are excluded from the default runtime and benchmark claim;
+- no GPQA answer table is embedded;
 - Qwen is not used.
 
-Scientific evidence layer:
-- compact general textbook relations across physics, chemistry, biology, mathematics and computer science;
-- per-option evidence and contradiction traces;
-- negative/EXCEPT question polarity;
-- minimum evidence and score-margin gates;
-- no GPQA answer keys or benchmark-specific answer table.
-
 Verification:
-- GitHub Actions **35591888459 — SUCCESS** on Python 3.11 and 3.12;
-- per interpreter: V87.26 focused **5/5**, V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS.
+- branch Actions **35595452457 — SUCCESS** on Python 3.11 and 3.12;
+- per interpreter: V87.27 focused **12/12**, V87.26 focused **5/5**, V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS.
 
-GPQA Diamond:
-- Actions **35591758676 — SUCCESS**;
-- 198 questions × 4 shuffled repeats = 792 trials;
+Default GPQA Diamond:
+- Actions **35595452463 — SUCCESS**;
+- V87.26: **208/792 = 26.26%**;
+- V87.27 default: **208/792 = 26.26%**;
 - parse rate: **100%**;
-- score: **208/792 = 26.26%**;
-- `option_conditioned_science`: **4/792**;
-- unresolved fallback: **788/792**.
+- changed predictions: **0**.
 
-The GPQA score is unchanged from V87.25. V87.26 therefore represents verified architectural progress in scientific evidence routing, not a benchmark-accuracy gain. The next bottleneck is knowledge coverage: most GPQA questions still do not retrieve enough native scientific evidence to leave the fallback path.
+During development, two narrow deterministic solvers changed 8 dev-split trials and solved all 8 correctly, but they had **zero holdout coverage**. They are therefore not enabled by default and are not counted as evidence of general reasoning improvement.
 
 Implementation:
-- `fap_scientific_reasoning.py`
-- `fap_v87_26_scientific_reasoning_gateway.py`
-- `RUN_FAP_V87_26_SCIENTIFIC_REASONING.cmd`
-- `releases/v87_26/`
-- `benchmarks/sol_gpqa_v8726.py`
+- `fap_physics_knowledge.py`
+- `fap_physics_numeric.py`
+- `fap_v87_27_physics_knowledge_gateway.py`
+- `RUN_FAP_V87_27_PHYSICS_KNOWLEDGE.cmd`
+- `releases/v87_27/`
+- `benchmarks/sol_gpqa_v8727.py`
 
-V87.25 and all prior verified functionality remain underneath this release.
+V87.26 and all prior verified functionality remain underneath this release.
