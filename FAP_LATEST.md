@@ -1,65 +1,52 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.24 — Verified Offline Bundle Preparation**.
+Current mainline: **V87.25 — Structured Benchmark Reasoning Gateway**.
 
-V87.24 closes the setup gap between a legal local distilled image checkpoint and fully disconnected FAP generation.
+V87.25 is rebased on the verified V87.24 mainline and adds a narrow structured A-D question lane without replacing existing FAP routing.
 
-Two phases are explicitly separated.
+New path:
 
-One-time connected preparation:
-- user reviews and accepts the source model license/terms;
-- FAP downloads the pinned `segmind/SSD-1B` A1111 checkpoint;
-- source revision is pinned;
-- expected file size is pinned;
-- SHA-256 is pinned and verified before activation;
-- required small Diffusers configuration files are stored locally;
-- FAP writes the explicit Apache-2.0 / knowledge-distillation sidecar;
-- a corrupted or substituted checkpoint is rejected.
+```text
+explicit A-D answer contract
+  -> instruction/content separation
+  -> choice parsing
+  -> domain inference
+  -> bounded reasoning
+  -> contract verification
+```
 
-Disconnected inference:
-- `HF_HUB_OFFLINE=1`;
-- `TRANSFORMERS_OFFLINE=1`;
-- V87.23 loads the checkpoint with `local_files_only=True`;
-- non-loopback networking is blocked during inference;
-- bundle integrity is re-verified before the Media Lab starts;
-- no provider/API credential is required;
-- generated PNG artifacts stay local and are displayed through localhost.
+Compatibility rule:
+- only explicit four-choice A-D requests with a multiple-choice/answer contract enter the new lane;
+- every other request delegates to the inherited V87.12 text path unchanged;
+- V87.24 offline-bundle preparation and all prior media paths remain unchanged.
 
-Pinned image reference:
-- model: `segmind/SSD-1B`;
-- checkpoint: `SSD-1B-A1111.safetensors`;
-- source revision: `3bbad7fb72248b876d839e6bd0950aa09e3b8bce`;
-- license identifier: Apache-2.0;
-- public metadata identifies prior knowledge distillation;
-- expected size: 4,465,671,322 bytes;
-- SHA-256: `1895a00bfc769a00b0c0c43a95e433e79e9db8a85402b45a33e8448785bde94d`.
+Why this was added:
+The V87.18 GPQA Diamond measurement produced 0/792 with a 0% parse rate because benchmark questions could be hijacked by keyword routing and did not satisfy the required `Answer: $LETTER` output contract.
 
-Windows workflow:
-1. while connected once, run `PREPARE_FAP_V87_24_OFFLINE_SSD1B.cmd`;
-2. after successful size/SHA verification, disconnect the network;
-3. run `RUN_FAP_V87_24_OFFLINE_BUNDLE_MEDIA_LAB.cmd`;
-4. open `http://127.0.0.1:11440/`;
-5. image generation then uses only the local verified bundle.
+V87.25 measurement:
+- GPQA Diamond: 198 questions × 4 shuffled repeats = 792 trials;
+- parse rate: **100%**;
+- measured score: **208/792 = 26.26%**;
+- all 792 decisions used `unresolved_content_tiebreak`.
+
+The 26.26% score is chance-level behavior, not a claim of scientific reasoning progress. The important verified change is that routing and answer-contract failures are separated from semantic competence, so later reasoning improvements can be measured honestly.
 
 Verification:
-- V87.24 focused tests: **5/5 PASS on Python 3.11**;
-- V87.24 focused tests: **5/5 PASS on Python 3.12**;
-- GitHub Actions run: **35590308818 — SUCCESS**;
-- tests cover explicit license acceptance, bundle creation, source checksum binding, corruption rejection and refusal to activate the wrong checkpoint.
-- V87.23 final tests: **5/5 PASS on Python 3.11/3.12**;
-- V87.22 provides the generic fully offline image/video folder-based engine.
+- comprehensive GitHub Actions **35590686139 — SUCCESS**;
+- Python 3.11: V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS;
+- Python 3.12: the same **181/181** tests PASS;
+- GPQA Actions **35590580662 — SUCCESS**.
 
-Distillation boundary:
-FAP does not claim to have freshly distilled GPT-5.6 Sol, OpenAI private weights, or another proprietary teacher. V87.24 uses a public checkpoint whose own metadata identifies it as already knowledge-distilled and Apache-2.0 licensed. Fresh distillation would require a separately lawful teacher, lawful training data, and compute; none is fabricated or assumed.
-
-Operational boundary:
-The 4.47 GB checkpoint and Python inference dependencies must be prepared locally before disconnecting. Model weights are intentionally not committed to this Git repository.
+Anti-gaming boundary:
+- no GPQA answer key or benchmark answer table is embedded;
+- unresolved forced choices stay confidence 0.25 and internal verdict PARTIAL;
+- only independently verified literal arithmetic is marked OK in this stage.
 
 Implementation:
-- `releases/v87_22/offline_native/`
-- `releases/v87_23/compact_offline/`
-- `releases/v87_24/offline_bundle/`
-- `PREPARE_FAP_V87_24_OFFLINE_SSD1B.cmd`
-- `RUN_FAP_V87_24_OFFLINE_BUNDLE_MEDIA_LAB.cmd`
+- `fap_benchmark_reasoning.py`
+- `fap_v87_25_structured_reasoning_gateway.py`
+- `RUN_FAP_V87_25_STRUCTURED_REASONING.cmd`
+- `releases/v87_25/structured_reasoning/`
+- `benchmarks/sol_gpqa_v8725.py`
 
-Promotion history is intentionally sequential through V87.24. Qwen is not used.
+V87.24 remains intact underneath this release. Qwen is not used.
