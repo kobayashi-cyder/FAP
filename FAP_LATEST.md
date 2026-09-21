@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.33 — Scene Object Registry**.
+Current mainline: **V87.33 — Scene Object Registry**.
 
 V87.33 fixes the object-coverage and UI-constraint problems exposed by the
 Media Lab prompt `鳥と犬`.
