@@ -81,3 +81,11 @@ runtime/v87_30_lbs_demo/
 
 No pretrained checkpoint, image API, Torch, Diffusers, Pillow or NumPy is
 required by the LBS renderer. Qwen is not used.
+
+
+## Verification
+
+GitHub Actions run 35599407955 passed on Python 3.11 and 3.12 with 7/7 focused
+tests per interpreter. The tests cover hierarchy propagation, multi-bone
+weights, LBS deformation, PNG rendering, prompt-dependent pose/view changes,
+native-engine declarations and Media Lab artifact-integrity acceptance.
