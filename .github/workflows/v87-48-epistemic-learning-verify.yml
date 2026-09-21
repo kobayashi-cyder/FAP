@@ -1,4 +1,4 @@
-name: v87-48-epistemic-learning-verify
+name: v87-49-scientific-modeling-verify
 
 on:
   push:
@@ -8,6 +8,9 @@ on:
       - "fap_inquiry_engine.py"
       - "fap_knowledge_retrieval.py"
       - "fap_v87_48_epistemic_learning_gateway.py"
+      - "fap_scientific_modeling.py"
+      - "fap_v87_49_scientific_modeling_gateway.py"
+      - "knowledge/scientific_models_ja.jsonl"
       - "tests/test_epistemic_learning.py"
       - ".github/workflows/v87-48-epistemic-learning-verify.yml"
   workflow_dispatch:
@@ -23,6 +26,6 @@ jobs:
           python-version: "3.11"
       - name: Compile V87.48 modules
         run: |
-          python -m py_compile             fap_epistemic_learning.py             fap_knowledge_retrieval.py             fap_inquiry_engine.py             fap_v87_48_epistemic_learning_gateway.py
+          python -m py_compile             fap_epistemic_learning.py             fap_knowledge_retrieval.py             fap_inquiry_engine.py             fap_scientific_modeling.py             fap_v87_48_epistemic_learning_gateway.py             fap_v87_49_scientific_modeling_gateway.py
       - name: Epistemic learning regression tests
         run: python -m unittest -v tests.test_epistemic_learning
