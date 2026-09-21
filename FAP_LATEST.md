@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.38 — Native C99 Raster Core**.
+Current mainline: **V87.38 — Native C99 Raster Core**.
 
 V87.38 native-compiles the remaining screen-space hot loops while preserving
 V87.37 sparse routing and lazy organ loading.
@@ -52,3 +52,12 @@ Compatibility:
 - V87.34 Scene Graph 2 remains;
 - earlier reasoning/physics/chat-speed paths remain;
 - Qwen is not used.
+
+
+Measured CI benchmark (GitHub Ubuntu runner, Python 3.11, 384x384 native cat render):
+- V87.37 Python sparse renderer median: 0.086533 s;
+- V87.38 native C99 renderer median: 0.022206 s;
+- measured speedup: **3.897x**.
+
+This benchmark is runner-specific and is not a claim that every workload or
+the user's Windows PC will see the same ratio.
