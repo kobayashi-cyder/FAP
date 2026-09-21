@@ -125,7 +125,7 @@ class FAPV8728(v27.FAPV8727):
                 "answer_contract": "Answer: $LETTER",
                 "physics_deterministic": solved.get("physics_deterministic", {}),
             },
-            "status": self.status(),
+            "status": self.chat_status(),
         }
 
 

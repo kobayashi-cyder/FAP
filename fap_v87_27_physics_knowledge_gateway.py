@@ -118,7 +118,7 @@ class FAPV8727(v26.FAPV8726):
                 "physics_numeric": result.get("physics_numeric", {}),
                 "option_assessments": result.get("option_assessments", []),
             },
-            "status": self.status(),
+            "status": self.chat_status(),
         }
 
 
