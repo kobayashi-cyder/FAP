@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.31 — Scene Graph + Prompt Compliance Gate**.
+Current mainline: **V87.31 — Scene Graph + Prompt Compliance Gate**.
 
 V87.31 fixes the image-generation correctness issue exposed by the Media Lab
 case `人と犬` with a `写真風` hard constraint.
