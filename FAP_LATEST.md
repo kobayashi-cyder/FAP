@@ -1,6 +1,46 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.53 — Rolling Research Frontier**.
+Current mainline: **V87.54 — Targeted Research Cycles**.
+
+V87.54 takes the rolling research frontier one step further. High-value
+unresolved clusters are converted into explicit research cycles and then
+re-challenged against targeted recent literature before FAP suggests the next
+test.
+
+Each cycle contains:
+- one priority research question;
+- multiple competing provisional hypotheses;
+- an explicit falsifier for each hypothesis;
+- the next observation/experiment that would best discriminate the alternatives;
+- a value-of-information score used to prioritize scarce reasoning/search effort;
+- a targeted Crossref literature re-search (up to 20 top topics × 60 papers in
+  the scheduled workflow) that checks whether the relevant appraisal dimension
+  is actually discussed in a broader one-year evidence window;
+- a phase such as `evidence-needed`, `literature-signal-found`,
+  `evidence-still-ambiguous`, or `evidence-sparse`.
+
+The rolling workflow publishes a sanitized
+`knowledge/research_cycle_latest.json` snapshot together with the research
+frontier. Literature hits are only screening signals: they do not automatically
+confirm a hypothesis and are never promoted to verified fact solely because
+many papers mention the same issue.
+
+When the snapshot is present, prompts such as:
+
+```text
+大気について次の検証を進めて
+この未解決問題の研究サイクルを回して
+```
+
+route to:
+
+```text
+research-cycle → literature-rechallenge → falsification-next
+```
+
+V87.53 research frontier, V87.52 hypothesis reasoning, V87.51 literature
+appraisal, V87.50 dated recent science, V87.49 scientific modeling and V87.48
+epistemic learning remain underneath V87.54.
 
 V87.53 turns the large unresolved-literature pool into a rolling research
 agenda instead of leaving it as a flat list of unanswered appraisal questions.
