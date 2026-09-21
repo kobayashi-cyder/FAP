@@ -391,13 +391,21 @@ class InquiryEngine:
         return ranked
 
     def _learn(self, topic: str, questions: list[InquiryQuestion], confidence: float) -> dict:
-        counts = {"promoted": 0, "reinforced": 0, "conflicts": 0, "skipped": 0, "recalled": 0}
-        for q in questions:
-            if q.recalled:
-                counts["recalled"] += 1
-                continue
-            if not q.resolved:
-                continue
+        counts = {
+            "promoted": 0,
+            "reinforced": 0,
+            "conflicts": 0,
+            "skipped": 0,
+            "recalled": sum(1 for q in questions if q.recalled),
+        }
+
+        # Persist the highest-value conclusions, not every syntactic variation.
+        # This keeps 2048-question bursts from turning the ledger into duplicate
+        # bulk while still retaining the best newly verified knowledge.
+        candidates = [q for q in questions if q.resolved and not q.recalled]
+        candidates.sort(key=lambda q: (-q.value_score, q.generation, q.qid))
+        learn_budget = min(256, max(64, self.resolve_budget // 2))
+        for q in candidates[:learn_budget]:
             result = self.ledger.promote(
                 topic=topic,
                 kind=q.kind,
@@ -414,6 +422,8 @@ class InquiryEngine:
                 counts[status] += 1
             else:
                 counts["skipped"] += 1
+        counts["not_promoted_budget"] = max(0, len(candidates) - learn_budget)
+
         self.ledger.update_frontier(topic, questions)
         counts["ledger"] = self.ledger.stats()
         return counts
