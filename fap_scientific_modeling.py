@@ -32,6 +32,26 @@ class ModelMatch:
     score: float
 
 
+@dataclass(frozen=True)
+class ScienceUpdate:
+    update_id: str
+    title: str
+    domain: str
+    topics: tuple[str, ...]
+    as_of: str
+    source_title: str
+    source_url: str
+    institution: str
+    evidence_type: str
+    claim: str
+
+
+@dataclass(frozen=True)
+class ScienceUpdateMatch:
+    update: ScienceUpdate
+    score: float
+
+
 EXPLAIN_CUES = re.compile(
     r"(解説|説明|どう動|動き方|仕組み|メカニズム|なぜ|どうして|"
     r"式で|方程式|モデル|どう考え|what happens|how does|explain|mechanism)",
@@ -123,6 +143,82 @@ class ScientificModelLibrary:
         return ModelMatch(model, round(score, 4))
 
 
+class RecentScienceIndex:
+    """Loads dated science updates as evidence data, not routing logic."""
+
+    def __init__(self, root: Path):
+        self.root = Path(root)
+        self._updates: list[ScienceUpdate] | None = None
+
+    def _load(self) -> list[ScienceUpdate]:
+        folder = self.root / "knowledge"
+        out: list[ScienceUpdate] = []
+        if not folder.exists():
+            return out
+        for path in sorted(folder.glob("latest_science_*.jsonl")):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                try:
+                    row = json.loads(line)
+                except Exception:
+                    continue
+                if not isinstance(row, dict):
+                    continue
+                uid = str(row.get("id", "")).strip()
+                claim = str(row.get("claim", "")).strip()
+                if not uid or not claim:
+                    continue
+                out.append(ScienceUpdate(
+                    update_id=uid,
+                    title=str(row.get("title", uid)),
+                    domain=str(row.get("domain", "science")),
+                    topics=tuple(str(x) for x in row.get("topics", []) if str(x)),
+                    as_of=str(row.get("as_of", "")),
+                    source_title=str(row.get("source_title", "")),
+                    source_url=str(row.get("source_url", "")),
+                    institution=str(row.get("institution", "")),
+                    evidence_type=str(row.get("evidence_type", "update")),
+                    claim=claim,
+                ))
+        return out
+
+    @property
+    def updates(self) -> list[ScienceUpdate]:
+        if self._updates is None:
+            self._updates = self._load()
+        return self._updates
+
+    @staticmethod
+    def _score(query: str, model: ScientificModel, update: ScienceUpdate) -> float:
+        q = terms(query)
+        mt = terms(" ".join((model.title, model.domain, " ".join(model.aliases))))
+        ut = terms(" ".join((update.title, update.domain, " ".join(update.topics), update.claim)))
+        if not ut:
+            return 0.0
+        q_overlap = len(q & ut) / max(1.0, math.sqrt(max(1, len(q)) * len(ut))) if q else 0.0
+        model_overlap = len(mt & ut) / max(1.0, math.sqrt(max(1, len(mt)) * len(ut))) if mt else 0.0
+        domain_bonus = 0.12 if update.domain == model.domain else 0.0
+        recency_bonus = 0.08 if update.as_of >= "2026-01-01" else 0.04
+        return q_overlap + 0.55 * model_overlap + domain_bonus + recency_bonus
+
+    def relevant(self, query: str, model: ScientificModel, limit: int = 3) -> list[ScienceUpdateMatch]:
+        ranked = [
+            (self._score(query, model, update), update)
+            for update in self.updates
+        ]
+        # Stable two-pass sort: newest evidence first on equal relevance,
+        # then relevance score descending.
+        ranked.sort(key=lambda x: (x[1].as_of, x[1].update_id), reverse=True)
+        ranked.sort(key=lambda x: x[0], reverse=True)
+        out = []
+        for score, update in ranked:
+            if score < 0.10:
+                continue
+            out.append(ScienceUpdateMatch(update, round(score, 4)))
+            if len(out) >= max(1, int(limit)):
+                break
+        return out
+
+
 class ScientificModelComposer:
     """Composes mechanism/equation explanations from retrieved model data.
 
@@ -132,6 +228,7 @@ class ScientificModelComposer:
 
     def __init__(self, root: Path):
         self.library = ScientificModelLibrary(root)
+        self.recent_science = RecentScienceIndex(root)
 
     @staticmethod
     def _history_context(history: list[Mapping], limit: int = 6) -> str:
@@ -204,6 +301,15 @@ class ScientificModelComposer:
             return None
 
         reply, mode = self._render(match.model, t)
+
+        recent = self.recent_science.relevant(t, match.model, 3)
+        if recent:
+            latest_text = "最新の取得済み科学見地として、" + "".join(
+                f"[{m.update.as_of} {m.update.institution}] {m.update.claim}"
+                for m in recent[:2]
+            )
+            reply += latest_text
+
         return {
             "ok": True,
             "reply": reply,
@@ -220,4 +326,21 @@ class ScientificModelComposer:
             "model_equations": list(match.model.equations),
             "model_assumptions": list(match.model.assumptions),
             "model_limits": list(match.model.limits),
+            "recent_science": [
+                {
+                    "id": m.update.update_id,
+                    "as_of": m.update.as_of,
+                    "institution": m.update.institution,
+                    "source_title": m.update.source_title,
+                    "source_url": m.update.source_url,
+                    "evidence_type": m.update.evidence_type,
+                    "claim": m.update.claim,
+                    "match_score": m.score,
+                }
+                for m in recent
+            ],
+            "science_snapshot_as_of": max(
+                (m.update.as_of for m in recent),
+                default="",
+            ),
         }
