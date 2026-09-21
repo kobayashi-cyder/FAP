@@ -91,7 +91,9 @@ def topic_candidates(row: dict, idf: dict[str, float], limit: int = 2) -> list[s
     for subject in row.get("subjects") or []:
         s = re.sub(r"\s+", " ", str(subject)).strip()
         if 3 <= len(s) <= 80:
-            candidates.append((3.0, s))
+            # Crossref subjects are already curated topic labels, so keep them
+            # ahead of rare title tokens for stable cross-paper clustering.
+            candidates.append((100.0, s))
 
     counts = Counter(words(row.get("title", "")))
     for token, tf in counts.items():
