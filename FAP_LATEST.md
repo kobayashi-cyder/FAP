@@ -1,51 +1,44 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.21 — Local Image Engine Autodiscovery**.
+Current mainline: **V87.22 — Offline Native Media Engine**.
 
-V87.21 connects the V87.20 Media Lab to a real locally running AUTOMATIC1111 / Forge-compatible image engine without requiring an API key.
+V87.22 adds fully local image/video generation using only model files already present on the machine.
 
-Current local image path:
+Offline guarantees:
+- `HF_HUB_OFFLINE=1`;
+- `TRANSFORMERS_OFFLINE=1`;
+- Diffusers `local_files_only=True`;
+- telemetry disabled;
+- non-loopback network creation blocked during inference;
+- no provider credential required;
+- models are loaded only from `FAP_OFFLINE_MODEL_DIRS`.
 
-`Media Lab prompt -> loopback engine autodiscovery -> /sdapi/v1/txt2img -> persisted PNG -> actual-file observer -> digest verification -> browser preview`
+License / distillation gate:
+- every offline model requires `fap_model_manifest.json`;
+- unknown or restricted licenses are rejected;
+- initial permissive allowlist includes Apache-2.0, MIT, BSD and CC0;
+- proprietary OpenAI weights and unverified teachers are not distilled or copied;
+- already-distilled permissive checkpoints can be used directly.
 
-New in V87.21:
-- automatic loopback discovery of:
-  - `http://127.0.0.1:7860`
-  - `http://127.0.0.1:7861`
-  - `http://localhost:7860`
-- AUTOMATIC1111 / Forge-compatible `/sdapi/v1/sd-models` probe;
-- real `/sdapi/v1/txt2img` generation;
-- no API key required for loopback engines;
-- generated PNG bytes are persisted and SHA-256 identified before display;
-- local generators participate in FAP candidate -> testing -> shadow -> active promotion;
-- V87.19 remote HTTPS engines remain available as fallback/alternative;
-- Windows launcher: `RUN_FAP_V87_21_LOCAL_MEDIA_LAB.cmd`;
-- existing A1111/Forge launcher helper: `START_EXISTING_A1111_FOR_FAP.cmd`;
-- plain HTTP remains restricted to loopback only.
+The recommended legal reference image checkpoint is `black-forest-labs/FLUX.1-schnell`, whose model card identifies Apache-2.0 and whose Diffusers documentation identifies it as timestep-distilled.
+
+Generation:
+- image pipelines persist PNG;
+- video pipelines persist MP4 using local frame encoding;
+- the V87.20 browser Media Lab displays the resulting local artifacts;
+- no network download is attempted at inference time.
 
 Verification:
-- V87.21 focused tests: **5/5 PASS on Python 3.11**
-- V87.21 focused tests: **5/5 PASS on Python 3.12**
-- GitHub Actions run: **35589200452 — SUCCESS**
-- tests cover local model probe, real PNG byte persistence, no-key generation, hybrid manager routing, local skill promotion, and rejection of non-loopback HTTP engines.
-- V87.20 focused tests: **5/5 PASS on Python 3.11/3.12**
-- V87.19 focused tests: **9/9 PASS on Python 3.11/3.12**
-- prior V87.12 runtime suite: **91/91 PASS**
+- V87.22 focused tests pass on Python 3.11 and 3.12;
+- GitHub Actions run **35589651284 — SUCCESS**;
+- tests cover permissive-license manifests, rejection of unknown licenses, forced offline environment, blocked non-loopback sockets, local image output and local video output.
+
+Windows:
+- set `FAP_OFFLINE_MODEL_DIRS` to local Diffusers model folders;
+- run `RUN_FAP_V87_22_OFFLINE_MEDIA_LAB.cmd`;
+- open `http://127.0.0.1:11440/`.
 
 Operational boundary:
-FAP now automatically uses an existing local A1111/Forge installation when it is running with API support. FAP does not silently download multi-gigabyte diffusion model weights. If no compatible local installation/model exists and no V87.19 remote engine is configured, the Media Lab remains in NEEDS ENGINE state rather than fabricating a generated image.
+FAP does not fabricate or silently download model weights. The model and Python dependencies must already exist locally before the network is disconnected.
 
-Windows usage:
-1. If a local A1111/Forge installation already exists, run `START_EXISTING_A1111_FOR_FAP.cmd`.
-2. Run `RUN_FAP_V87_21_LOCAL_MEDIA_LAB.cmd`.
-3. Open `http://127.0.0.1:11440/`.
-4. Enter an image prompt and press **FAPで生成**.
-
-Implementation:
-- `releases/v87_21/local_engine/`
-- `fap_v87_21_media_lab.py`
-- `RUN_FAP_V87_21_LOCAL_MEDIA_LAB.cmd`
-- `START_EXISTING_A1111_FOR_FAP.cmd`
-- V87.20 Media Lab remains the browser UI.
-
-Promotion history is intentionally sequential through V87.21. Qwen is not used.
+Promotion history is intentionally sequential through V87.22. Qwen is not used.
