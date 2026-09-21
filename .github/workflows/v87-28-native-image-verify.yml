@@ -1,0 +1,40 @@
+name: V87.28 Native Image Engine Verify
+
+on:
+  push:
+    branches:
+      - feature/v87-28-native-image-engine
+      - main
+    paths:
+      - "releases/v87_28/**"
+      - "fap_v87_28_native_image_lab.py"
+      - "RUN_FAP_V87_28_NATIVE_IMAGE_LAB.cmd"
+      - ".github/workflows/v87-28-native-image-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_28/**"
+      - "fap_v87_28_native_image_lab.py"
+      - "RUN_FAP_V87_28_NATIVE_IMAGE_LAB.cmd"
+      - ".github/workflows/v87-28-native-image-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Compile native engine
+        run: |
+          python -m py_compile fap_v87_28_native_image_lab.py
+          python -m py_compile releases/v87_28/native_image/fap_native_image/engine.py
+          python -m py_compile releases/v87_28/native_image/fap_native_image/manager.py
+      - name: Run V87.28 focused tests
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_28/native_image
+        run: pytest -q releases/v87_28/native_image/tests
