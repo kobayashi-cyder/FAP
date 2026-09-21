@@ -1,6 +1,24 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.39 — Native Geometry + Sparse LBS**.
+Current mainline: **V87.40 — Direct Factual Chat**.
+
+V87.40 fixes ordinary factual questions being misrouted into procedural distilled
+circuits. High-precision local fact answers now run before the procedural V78
+circuits, and bare physical quantities such as "speed" no longer count as
+performance constraints by themselves.
+
+Regression case:
+
+```text
+YOU: 真空中の光速度は？
+FAP: 真空中の光速度 c は 299,792,458 m/s です。
+```
+
+The factual path is deliberately fail-closed: only explicit local entries are
+answered directly; unknown facts continue through the existing reasoning /
+optional-teacher paths rather than inventing a value.
+
+V87.39 remains the media/geometry foundation underneath V87.40.
 
 V87.39 extends the V87.38 native boundary upward from screen-space raster work
 into geometry preparation, morphology and skeletal deformation.
