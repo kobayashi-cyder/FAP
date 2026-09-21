@@ -2,9 +2,9 @@
 
 - FAP release packaged: `V87_39`
 - Runtime core source: `./fap_v87_43_reflective_chat_gateway.py`
-- Source main commit: `c217779df3b2531cbefb318ee99c5bc4f089dbdc`
-- Android branch commit before APK commit: `bb4270159aecbeedf8c31721398e9f4fc3e5c9e5`
-- Built at UTC: `2026-09-21T21:12:06Z`
+- Source main commit: `8cff75245a04b29ad68e133aa26aaff0dafdadc8`
+- Android branch commit before APK commit: `e6f17fca49e385f879cc3a2d5710acebaf0cc634`
+- Built at UTC: `2026-09-21T21:13:15Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `fc5250ac4773dfd9cd032209a459bb05b20a0dc51f0babfba8eb22903a966c06`
+- SHA-256: `1ab12e6821434e67e38f2be1b6c4a981a518c732a6c89893ed9079dba30c6a0e`
 - Build: debug APK
