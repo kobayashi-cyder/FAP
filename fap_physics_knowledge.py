@@ -6,6 +6,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from fap_benchmark_reasoning import MCQDecision, MCQTask
 from fap_scientific_reasoning import OptionConditionedScientificReasoner
+from fap_physics_numeric import PhysicsNumericSolver
 
 
 _WORD = re.compile(r"[A-Za-z][A-Za-z0-9_+\-]*")
@@ -924,6 +925,7 @@ class PhysicsKnowledgeReasoner:
     def __init__(self, fallback: OptionConditionedScientificReasoner):
         self.fallback = fallback
         self.store = PhysicsKnowledgeStore()
+        self.numeric = PhysicsNumericSolver()
 
     def run(self, task: MCQTask, history=None, *, teacher_allowed: bool = False) -> dict[str, Any]:
         # Physics is intentionally the only domain augmented in V87.27.
@@ -931,6 +933,14 @@ class PhysicsKnowledgeReasoner:
             out = self.fallback.run(task, history, teacher_allowed=teacher_allowed)
             out["physics_knowledge"] = {"used": False, "reason": "non-physics-domain"}
             return out
+
+        numeric = self.numeric.run(task)
+        if numeric is not None:
+            numeric["physics_knowledge"] = {
+                "used": False,
+                "reason": "resolved-by-deterministic-physics-numeric-solver",
+            }
+            return numeric
 
         rows, retrieved = self.store.evaluate_options(task)
         negative = bool(_NEGATIVE.search(task.question))
