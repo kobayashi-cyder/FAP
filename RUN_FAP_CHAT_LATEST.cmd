@@ -6,7 +6,7 @@ set "PORT=11439"
 set "EXISTING="
 for /f "usebackq delims=" %%V in (`powershell.exe -NoProfile -Command "try { (Invoke-RestMethod -TimeoutSec 1 http://127.0.0.1:11439/api/v1/status).version } catch { ''}"`) do set "EXISTING=%%V"
 
-if /I "%EXISTING%"=="87.33-unified-chat" (
+if /I "%EXISTING%"=="87.34-unified-chat" (
   start "" "http://127.0.0.1:11439/"
   exit /b 0
 )
@@ -20,9 +20,9 @@ if not "%EXISTING%"=="" (
 set "FAP_PORT=%PORT%"
 where py >nul 2>nul
 if %errorlevel%==0 (
-  start "FAP V87.33 Unified Chat" /min py -3 "%~dp0fap_v87_33_unified_chat_gateway.py"
+  start "FAP V87.34 Unified Chat" /min py -3 "%~dp0fap_v87_34_unified_chat_gateway.py"
 ) else (
-  start "FAP V87.33 Unified Chat" /min python "%~dp0fap_v87_33_unified_chat_gateway.py"
+  start "FAP V87.34 Unified Chat" /min python "%~dp0fap_v87_34_unified_chat_gateway.py"
 )
 
 timeout /t 2 /nobreak >nul
