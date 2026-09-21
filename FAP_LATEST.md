@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.39 — Native Geometry + Sparse LBS**.
+Current mainline: **V87.39 — Native Geometry + Sparse LBS**.
 
 V87.39 extends the V87.38 native boundary upward from screen-space raster work
 into geometry preparation, morphology and skeletal deformation.
@@ -58,3 +58,15 @@ Compatibility:
 - V87.34 Scene Graph 2 remains;
 - earlier reasoning/physics/chat-speed paths remain;
 - Qwen is not used.
+
+
+Measured CI benchmark (GitHub Ubuntu runner, Python 3.11):
+- V87.38 native render median: 0.032831 s;
+- V87.39 native-geometry render median: 0.028092 s;
+- incremental render speedup: **1.169x**;
+- Python LBS median: 0.002458 s;
+- native sparse-LBS median: 0.001992 s;
+- LBS speedup: **1.234x**.
+
+These are runner-specific measurements and are not guarantees for every
+Windows PC or workload.
