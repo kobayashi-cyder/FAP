@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -53,6 +54,25 @@ class SceneImageManager:
             initial_width=1,
             repair_width=1,
         ).run(request)
+
+        # The shared controller intentionally drops fatal candidates from
+        # best_candidate. V87.31 must still return the rejected image so the UI
+        # can show *why* it failed (for example: photo style unavailable).
+        # Preserve rejection status; only retain the best observed candidate
+        # for inspection.
+        if result.best_candidate is None:
+            observed = [
+                candidate
+                for round_ in result.rounds
+                for candidate in round_.candidates
+            ]
+            if observed:
+                inspected = max(
+                    observed,
+                    key=lambda x: (float(x.critique.score), x.backend_id),
+                )
+                result = replace(result, best_candidate=inspected)
+
         return MediaSkillRun(
             result,
             (f"media.generate.image:{self.engine.engine_id}",),
