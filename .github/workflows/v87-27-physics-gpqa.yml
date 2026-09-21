@@ -1,0 +1,31 @@
+name: V87.27 Physics GPQA Eval
+
+on:
+  push:
+    branches:
+      - v87.27-physics-knowledge
+    paths:
+      - "fap_physics_knowledge.py"
+      - "fap_v87_27_physics_knowledge_gateway.py"
+      - "benchmarks/sol_gpqa_v8727.py"
+      - ".github/workflows/v87-27-physics-gpqa.yml"
+  workflow_dispatch:
+
+jobs:
+  gpqa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FAP_TEACHER_FALLBACK: "0"
+      PYTHONPATH: "."
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compare V87.26 and V87.27 on identical GPQA permutations
+        run: python benchmarks/sol_gpqa_v8727.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v87-27-physics-gpqa
+          path: benchmark_results/
