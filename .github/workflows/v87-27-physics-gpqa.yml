@@ -6,6 +6,7 @@ on:
       - v87.27-physics-knowledge
     paths:
       - "fap_physics_knowledge.py"
+      - "fap_physics_numeric.py"
       - "fap_v87_27_physics_knowledge_gateway.py"
       - "benchmarks/sol_gpqa_v8727.py"
       - ".github/workflows/v87-27-physics-gpqa.yml"
