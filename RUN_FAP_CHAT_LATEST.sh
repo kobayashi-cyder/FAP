@@ -4,8 +4,8 @@ set -u
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT" || exit 1
 
-LATEST_VERSION="87.52-unified-chat"
-GATEWAY="$ROOT/fap_v87_52_hypothesis_reasoning_gateway.py"
+LATEST_VERSION="87.53-unified-chat"
+GATEWAY="$ROOT/fap_v87_53_research_frontier_gateway.py"
 
 find_python() {
   if command -v python3 >/dev/null 2>&1; then
