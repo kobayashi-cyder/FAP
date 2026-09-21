@@ -816,6 +816,17 @@ class PhysicsKnowledgeStore:
         return ranked[:limit]
 
     @staticmethod
+    def _entry_grounded(entry: PhysicsKnowledgeEntry, question: str, option: str) -> bool:
+        """Require a subject/law anchor before semantic claim scoring."""
+        hay = _norm(question + " " + option)
+        anchors: list[str] = []
+        if entry.concepts:
+            anchors.append(entry.concepts[0])
+        anchors.extend(entry.aliases)
+        anchors.extend(x for x in entry.concepts[1:] if (" " in x or "-" in x) and len(x) >= 5)
+        return any(_norm(a) in hay for a in anchors if _norm(a))
+
+    @staticmethod
     def _contextual_option(entry: PhysicsKnowledgeEntry, question: str, option: str) -> str:
         """Attach only topic cues from the question, never the whole question.
 
@@ -861,27 +872,21 @@ class PhysicsKnowledgeStore:
             )
             for claim in entry.claims
         ]
-        false_pairs = [
-            (
-                max(_overlap(option_n, claim), 0.92 * _overlap(contextual, claim)),
-                max(_shared_count(option_n, claim), _shared_count(contextual, claim)),
-            )
-            for claim in entry.misconceptions
-        ]
         true_sim, true_shared = max(true_pairs, default=(0.0, 0))
-        false_sim, false_shared = max(false_pairs, default=(0.0, 0))
 
-        # Require option-specific content. Context cues may provide the subject,
-        # but at least one nontrivial claim token must come from the option itself.
+        # Require option-specific content and a grounded subject/law.  Generic
+        # relation words (e.g. "spin-1 boson") must not activate knowledge about
+        # a different entity (e.g. photon knowledge in an electron question).
         option_true_shared = max((_shared_count(option_n, claim) for claim in entry.claims), default=0)
-        option_false_shared = max((_shared_count(option_n, claim) for claim in entry.misconceptions), default=0)
+        grounded = PhysicsKnowledgeStore._entry_grounded(entry, question, option)
 
-        if true_sim >= 0.30 and true_shared >= 2 and option_true_shared >= 1:
+        if grounded and true_sim >= 0.30 and true_shared >= 2 and option_true_shared >= 1:
             score += min(0.90, 1.35 * true_sim)
             evidence.append(entry.knowledge_id + ":claim")
-        if false_sim >= 0.30 and false_shared >= 2 and option_false_shared >= 1:
-            score -= min(0.95, 1.40 * false_sim)
-            contra.append(entry.knowledge_id + ":misconception")
+
+        # Misconception text is intentionally NOT scored by loose semantic
+        # similarity. True and false physics statements often share almost all
+        # tokens; contradiction requires the explicit contradiction regex above.
 
         return score, evidence, contra
 
