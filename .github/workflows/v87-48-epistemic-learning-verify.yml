@@ -1,4 +1,4 @@
-name: v87-54-mainline-verify
+name: v87-55-mainline-verify
 
 on:
   push:
@@ -21,6 +21,7 @@ on:
       - "fap_research_cycle.py"
       - "fap_research_cycle_chat.py"
       - "fap_v87_54_research_cycle_gateway.py"
+      - "fap_v87_55_recursive_research_gateway.py"
       - "tests/test_research_frontier_chat.py"
       - "tests/test_research_cycle.py"
       - "tests/test_hypothesis_reasoning.py"
