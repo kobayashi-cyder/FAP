@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.25 — Structured Benchmark Reasoning Gateway**.
+Current mainline: **V87.25 — Structured Benchmark Reasoning Gateway**.
 
 V87.25 is rebased on the verified V87.24 mainline and adds a narrow structured A-D question lane without replacing existing FAP routing.
 
@@ -32,9 +32,9 @@ V87.25 measurement:
 The 26.26% score is chance-level behavior, not a claim of scientific reasoning progress. The important verified change is that routing and answer-contract failures are separated from semantic competence, so later reasoning improvements can be measured honestly.
 
 Verification:
-- GitHub Actions **35590574347 — SUCCESS**;
-- Python 3.11: 6 V87.25 focused + 96 inherited text + 6 V87.22 media + 5 V87.24 bundle tests PASS;
-- Python 3.12: same suites PASS;
+- comprehensive GitHub Actions **35590686139 — SUCCESS**;
+- Python 3.11: V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS;
+- Python 3.12: the same **181/181** tests PASS;
 - GPQA Actions **35590580662 — SUCCESS**.
 
 Anti-gaming boundary:
