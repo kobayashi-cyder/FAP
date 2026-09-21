@@ -69,6 +69,9 @@ def main():
     max_abs_scores = []
     evidence_margins = []
     retrieval_ids = Counter()
+    used_correct = 0
+    used_wrong = 0
+    used_ids_by_split = {"dev": Counter(), "holdout": Counter()}
     latencies = []
 
     for i,(row,choices,correct) in enumerate(prepared):
@@ -118,6 +121,18 @@ def main():
             if split == "dev":
                 dev_physics_terms.update(topic_terms(row["Question"]))
 
+        if bool(pk.get("used")):
+            if cpred == correct:
+                used_correct += 1
+            else:
+                used_wrong += 1
+            chosen = next((x for x in (pk.get("options") or []) if str(x.get("letter")) == str(cpred)), None)
+            if chosen:
+                for tag in list(chosen.get("evidence") or []) + list(chosen.get("contradictions") or []):
+                    kid = str(tag).split(":", 1)[0]
+                    if kid:
+                        used_ids_by_split[split][kid] += 1
+
         if bpred != cpred:
             changed += 1
             if cpred == correct and bpred != correct: changed_to_correct += 1
@@ -139,6 +154,11 @@ def main():
       "physics_v87_27_accuracy":physics_cand/physics_total if physics_total else 0,
       "physics_delta_correct":physics_cand-physics_base,
       "physics_knowledge_used":physics_used,
+      "physics_used_correct":used_correct,
+      "physics_used_wrong":used_wrong,
+      "physics_used_ids_by_split": {
+        name: counts.most_common(20) for name,counts in used_ids_by_split.items()
+      },
       "changed_predictions":changed,
       "changed_to_correct":changed_to_correct,
       "changed_to_wrong":changed_to_wrong,
