@@ -113,6 +113,11 @@ class ImageRequestParser:
                 count = n
                 break
 
+        # A single scalar count is only safe when one primary subject class is
+        # requested. "女性1人とビーグル1匹" must not become "one total subject".
+        if len(subjects) > 1:
+            count = None
+
         style = "unspecified"
         for name, pat in _STYLE_PATTERNS:
             if pat.search(raw):
@@ -149,8 +154,8 @@ class ImageRequestParser:
             "watermark", "text overlay", "logo", "blurry", "low resolution",
             "deformed anatomy", "extra limbs", "duplicate subject",
         ]
-        if count == 1:
-            must_not += ["multiple subjects", "two dogs", "two people"]
+        if count == 1 and len(subjects) == 1:
+            must_not += ["multiple subjects", "duplicate primary subject"]
 
         width = int(os.environ.get("FAP_IMAGE_WIDTH", "768"))
         height = int(os.environ.get("FAP_IMAGE_HEIGHT", "768"))
