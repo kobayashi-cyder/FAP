@@ -158,11 +158,18 @@ class ReflectiveConversationOrgan:
     """Local knowledge-grounded conversational reasoning.
 
     The organ is deliberately broader than exact fact lookup but remains
-    fail-closed. It only elaborates a topic when it has an explicit concept
-    entry or can resolve a follow-up to a recent explicit topic.
+    fail-closed. It can elaborate an explicit local concept, resolve a recent
+    topic, compare two known concepts, or reason structurally from a premise
+    supplied by the user. It does not invent external facts for unknown topics.
     """
 
     FOLLOWUP = re.compile(r"^(?:それ|これは|その点|では|じゃあ|もう少し|詳しく)?(?:について|に関して|は)?[？?。\s]*$")
+    PREMISE_REASONING = re.compile(
+        r"(どう思う|どう考える|妥当|仮説|もし|仮に|とすると|としたら|"
+        r"という見方|という考え|捉えると|観点|本質|前提|何が欠損|"
+        r"成り立つ|あり得る|可能性)",
+        re.I,
+    )
 
     def _rank(self, text: str) -> list[tuple[float, Concept]]:
         return sorted(
@@ -185,6 +192,30 @@ class ReflectiveConversationOrgan:
             if concept is not None and score > 0:
                 return concept
         return None
+
+    @staticmethod
+    def _last_user_premise(history: list[Mapping]) -> str:
+        for row in reversed(history[-12:]):
+            if row.get("role") != "user":
+                continue
+            value = re.sub(r"\s+", " ", str(row.get("text", ""))).strip()
+            if value:
+                return value[:360]
+        return ""
+
+    @staticmethod
+    def _render_premise_reasoning(claim: str) -> str:
+        claim = re.sub(r"\s+", " ", str(claim or "")).strip()
+        if len(claim) > 220:
+            claim = claim[:219] + "…"
+        return (
+            f"その内容は、仮説・前提として考えることができます。対象の主張は「{claim}」です。"
+            "まず前提と結論を分け、前提から何が実際に予測されるかを出します。"
+            "次に、同じ結果を説明できる別の仮説と、主張が崩れる反例を並べます。"
+            "最後に、どの観測や実験なら仮説同士を区別できるかを見ると、"
+            "単なる賛否ではなく検証可能な議論になります。"
+            "外部知識が必要な部分は、ローカル根拠がない限り事実として補いません。"
+        )
 
     @staticmethod
     def _question_mode(text: str) -> str:
@@ -250,6 +281,27 @@ class ReflectiveConversationOrgan:
             score = 2.0 if followup else 0.0
 
         if concept is None:
+            premise_trigger = bool(self.PREMISE_REASONING.search(t))
+            short_opinion = bool(re.fullmatch(r"(?:それ|これ|その話)?(?:は)?どう(?:思う|考える)[？?。\s]*", t))
+            claim = t
+            if short_opinion:
+                claim = self._last_user_premise(history)
+            if premise_trigger and claim:
+                return {
+                    "ok": True,
+                    "reply": self._render_premise_reasoning(claim),
+                    "confidence": 0.82,
+                    "needs_teacher": False,
+                    "local": True,
+                    "reflective_reasoning": True,
+                    "grounded": True,
+                    "grounding": "user-premise",
+                    "topic_id": "user-premise",
+                    "evidence_ids": ["user-premise"],
+                    "reasoning_mode": "premise",
+                    "followup_resolved": bool(short_opinion),
+                    "related_topics": [],
+                }
             return None
 
         mode = self._question_mode(t)
