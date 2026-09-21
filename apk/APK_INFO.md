@@ -1,10 +1,10 @@
 # FAP Android APK
 
-- FAP release packaged: `V87_31`
-- Runtime core source: `./fap_v87_31_scene_image_lab.py`
-- Source main commit: `ea55da11dbabb952b9cbb01d21170bbe12f81095`
-- Android branch commit before APK commit: `33421dfe306765325747905cf9d1904e95ebfe41`
-- Built at UTC: `2026-09-21T13:01:19Z`
+- FAP release packaged: `V87_32`
+- Runtime core source: `./fap_v87_32_photo_look_lab.py`
+- Source main commit: `29256fcde932694cc8735bb34ca13261391ef521`
+- Android branch commit before APK commit: `dbff2f408ddba3306a74d91c55cd9b0d89943350`
+- Built at UTC: `2026-09-21T13:14:02Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `fdbe5caad815309698bb4fd8d9e16b177e3421bbc597cb624c2c4bbcc7430754`
+- SHA-256: `382979c9b82cbda1a0578a820ec5617bc1f9013c4826949371d5b3840b50cce3`
 - Build: debug APK
