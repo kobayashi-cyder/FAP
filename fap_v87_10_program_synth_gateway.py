@@ -26,6 +26,7 @@ from fap_inquiry_engine import InquiryEngine
 from fap_scientific_modeling import ScientificModelComposer
 from fap_hypothesis_engine import HypothesisEngine
 from fap_research_frontier_chat import ResearchFrontierOrgan
+from fap_research_cycle_chat import ResearchCycleOrgan
 
 ROOT = Path(__file__).resolve().parent
 WEB_FILE = ROOT / "web" / "FAP_Chat.html"
@@ -436,6 +437,9 @@ class VerificationOrgan:
             if n <= 0:
                 return "PARTIAL", "仮説推論を選択しましたが、競合仮説を生成できませんでした。"
             return "OK", f"{n}件の競合仮説を生成し、予測・反証条件・次の観測を分離しました。仮説は検証済み事実へ自動昇格しません。"
+        if result.get("research_cycle"):
+            n = int(result.get("cycle_count", 0))
+            return "OK", f"{n}件の研究サイクル候補から、仮説・反証条件・次の検証を提示しています。文献一致だけで事実へ昇格しません。"
         if result.get("research_frontier"):
             n = int(result.get("papers_processed", 0))
             return "OK", f"{n}件規模の文献スクリーニング由来フロンティアから未解決候補を提示しています。未記載を科学的未解決とは断定しません。"
@@ -482,6 +486,7 @@ class FAPV8710:
         self.scientific_model = ScientificModelComposer(ROOT)
         self.hypothesis = HypothesisEngine(ROOT)
         self.research_frontier = ResearchFrontierOrgan(ROOT)
+        self.research_cycle = ResearchCycleOrgan(ROOT)
         self.reflective = ReflectiveConversationOrgan()
         self.verify = VerificationOrgan()
         self.lock = threading.Lock()
@@ -499,6 +504,8 @@ class FAPV8710:
             "generic-hypothesis-generation", "falsification-first-reasoning",
             "competing-hypothesis-analysis", "provisional-hypothesis-memory",
             "research-frontier-chat", "literature-gap-clustering",
+            "targeted-research-cycles", "literature-rechallenge-loop",
+            "hypothesis-to-falsification-cycle",
         ]
         if self.image.available()[0]:
             caps.append("image-generation")
@@ -577,6 +584,10 @@ class FAPV8710:
         # Abductive reasoning is triggered only for hypothesis/alternative/
         # falsification language, so ordinary science explanations keep using
         # the structured model path above.
+        cycle = self.research_cycle.run(text, history)
+        if cycle is not None:
+            return cycle
+
         frontier = self.research_frontier.run(text, history)
         if frontier is not None:
             return frontier
