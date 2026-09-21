@@ -472,21 +472,19 @@ class InquiryEngine:
         topic = self._topic_label(hits, t)
         questions = self._generate_questions(topic, target)
 
-        # Carry high-value unresolved questions across sessions, then expand the
-        # generic question grid. Persistent questions are data, not router code.
+        # Carry high-value unresolved questions across sessions. Resolve this
+        # compact seed/frontier first so answers can discover related concepts
+        # before generic filler consumes the target capacity.
         self._inject_frontier(topic, questions, target)
-        self._fill_generic(topic, questions, target)
         questions = self._score_questions(questions, hits)
-
-        # Pass 1 is value-prioritized. Large 2048-question bursts no longer spend
-        # equal effort on near-duplicates before falsification/uncertainty tests.
         first_budget = min(len(questions), self.resolve_budget)
         for q in questions[:first_budget]:
             self._answer_question(q, t, hits)
 
-        # Answer -> new question expansion can replace low-value filler slots
-        # only while capacity remains.
+        # Answer -> next-question expansion gets first claim on remaining slots.
+        # Only after that do generic dimensions fill the requested count.
         self._expand_from_answers(topic, t, context, questions, target)
+        self._fill_generic(topic, questions, target)
         questions = self._score_questions(questions, hits)
 
         rounds = 1
