@@ -20,6 +20,7 @@ from fap_v78_distilled import DistilledFAPOrgan
 from fap_spec_builder import SpecificationCompilerBuilder, BuilderError
 from fap_code_generator import CodeGenerationError
 from fap_program_synth import ProgramSynthesizer
+from fap_factual_qa import FactualQAOrgan
 
 ROOT = Path(__file__).resolve().parent
 WEB_FILE = ROOT / "web" / "FAP_Chat.html"
@@ -417,6 +418,10 @@ class VerificationOrgan:
             return "NG", "天気質問に日時だけを返しています。"
         if intent.name.startswith("image") and "文脈" in reply and "画像" not in reply:
             return "NG", "画像能力質問を文脈検索へ誤ルーティングしています。"
+        if result.get("factual_qa"):
+            if not result.get("answer_coverage"):
+                return "NG", "事実質問を検出しましたが、直接回答がありません。"
+            return "OK", "事実質問に対してローカル知識から直接回答しています。"
         if ok:
             return "OK", "意図と実行結果が一致しています。"
         return "PARTIAL", "意図は認識できていますが、外部能力または必要情報が不足しています。"
@@ -434,6 +439,7 @@ class FAPV8710:
         self.codegen = ProgramSynthesizer(ARTIFACTS, RUNTIME / "code_workspace")
         self.e2b = E2BOrgan()
         self.memory = MemoryOrgan()
+        self.factual = FactualQAOrgan()
         self.verify = VerificationOrgan()
         self.lock = threading.Lock()
 
@@ -442,7 +448,7 @@ class FAPV8710:
             "intent", "datetime", "calculator", "memory", "verification", "fap-eval",
             "distilled-v78-local-chat", "behavior-circuits:10", "teacher-shadow:22",
             "builder-stage4", "builder:spec-compiler", "code-generator-stage3", "codegen:program-ir", "codegen:primitive-composition", "codegen:python", "codegen:html", "codegen:json", "codegen:markdown", "codegen:self-test", "codegen:repair-loop", "builder:constraint-extractor", "builder:generic-grid-composer", "builder:concept-resolver", "builder:mechanism-decomposition", "builder:generic-intent", "builder:composition", "builder:single-html", "builder:tetris", "builder:breakout", "builder:pong", "builder:snake", "builder:minesweeper", "builder:2048", "builder:memory-match", "builder:json",
-            "weather", "image-routing",
+            "weather", "image-routing", "local-factual-qa", "direct-fact-routing",
         ]
         if self.image.available()[0]:
             caps.append("image-generation")
@@ -492,6 +498,13 @@ class FAPV8710:
                 return self.builder.build(text)
             except BuilderError as e:
                 return {"ok": False, "reply": f"Builder Stage 4では完了できませんでした: {e}", "confidence": 0.86}
+
+        # High-precision factual questions should be answered before procedural
+        # distilled circuits. This prevents words such as "speed" from being
+        # mistaken for a performance constraint.
+        factual = self.factual.run(text)
+        if factual is not None:
+            return factual
 
         # General conversation is local-first. Gemma4:E2B is an optional teacher, not a dependency.
         local = self.distilled.run(text, history)
