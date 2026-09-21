@@ -68,6 +68,9 @@ def main():
     dev_evidence_cases = {}
     changed = changed_to_correct = changed_to_wrong = 0
     sources = Counter()
+    numeric_solvers = Counter()
+    numeric_solver_correct = Counter()
+    numeric_solver_split = {"dev": Counter(), "holdout": Counter()}
     physics_used = 0
     retrieval_nonempty = 0
     evidence_nonzero = 0
@@ -95,9 +98,15 @@ def main():
         src = str(meta.get("decision_source"))
         sources[src]+=1
         pk = meta.get("physics_knowledge") or {}
+        pn = meta.get("physics_numeric") or {}
         physics_used += int(bool(pk.get("used")))
 
         split = split_of(row["Question"])
+        if pn.get("used"):
+            solver_name = str(pn.get("solver") or "unknown")
+            numeric_solvers[solver_name] += 1
+            numeric_solver_correct[solver_name] += int(cpred == correct)
+            numeric_solver_split[split][solver_name] += 1
         split_stats[split]["trials"] += 1
         split_stats[split]["base_correct"] += int(bpred == correct)
         split_stats[split]["cand_correct"] += int(cpred == correct)
@@ -197,6 +206,9 @@ def main():
       "changed_to_correct":changed_to_correct,
       "changed_to_wrong":changed_to_wrong,
       "decision_sources":dict(sources),
+      "numeric_solvers": dict(numeric_solvers),
+      "numeric_solver_correct": dict(numeric_solver_correct),
+      "numeric_solver_split": {name: dict(counts) for name,counts in numeric_solver_split.items()},
       "physics_retrieval_diagnostics": {
         "retrieval_nonempty": retrieval_nonempty,
         "evidence_nonzero": evidence_nonzero,
