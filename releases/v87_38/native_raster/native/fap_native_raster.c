@@ -36,29 +36,49 @@ static int is_near(uint8_t r, uint8_t g, uint8_t b, int tr, int tg, int tb, int 
     return d <= tolerance * 3;
 }
 
-static Material material_for(uint8_t r, uint8_t g, uint8_t b) {
+static Material make_material(
+    double ambient,
+    double diffuse,
+    double specular,
+    double shininess,
+    double micro_noise,
+    double warm_shift
+) {
     Material m;
+    m.ambient = ambient;
+    m.diffuse = diffuse;
+    m.specular = specular;
+    m.shininess = shininess;
+    m.micro_noise = micro_noise;
+    m.warm_shift = warm_shift;
+    return m;
+}
+
+static Material material_for(uint8_t r, uint8_t g, uint8_t b) {
     if (is_near(r,g,b,214,171,141,32)) {
-        m = (Material){0.36,0.72,0.16,22.0,0.018,0.018};
-    } else if (is_near(r,g,b,35,32,30,28)) {
-        m = (Material){0.26,0.62,0.48,54.0,0.010,0.0};
-    } else if (
+        return make_material(0.36,0.72,0.16,22.0,0.018,0.018);
+    }
+    if (is_near(r,g,b,35,32,30,28)) {
+        return make_material(0.26,0.62,0.48,54.0,0.010,0.0);
+    }
+    if (
         is_near(r,g,b,145,101,70,34) ||
         is_near(r,g,b,76,57,48,30) ||
         is_near(r,g,b,190,142,98,34) ||
         is_near(r,g,b,226,218,198,28)
     ) {
-        m = (Material){0.34,0.76,0.08,12.0,0.060,0.012};
-    } else if (is_near(r,g,b,71,112,158,36)) {
-        m = (Material){0.31,0.72,0.05,9.0,0.040,0.0};
-    } else if (is_near(r,g,b,57,66,82,34)) {
-        m = (Material){0.29,0.68,0.035,8.0,0.035,0.0};
-    } else if (is_near(r,g,b,52,48,45,30)) {
-        m = (Material){0.24,0.62,0.18,26.0,0.025,0.0};
-    } else {
-        m = (Material){0.34,0.70,0.08,14.0,0.018,0.0};
+        return make_material(0.34,0.76,0.08,12.0,0.060,0.012);
     }
-    return m;
+    if (is_near(r,g,b,71,112,158,36)) {
+        return make_material(0.31,0.72,0.05,9.0,0.040,0.0);
+    }
+    if (is_near(r,g,b,57,66,82,34)) {
+        return make_material(0.29,0.68,0.035,8.0,0.035,0.0);
+    }
+    if (is_near(r,g,b,52,48,45,30)) {
+        return make_material(0.24,0.62,0.18,26.0,0.025,0.0);
+    }
+    return make_material(0.34,0.70,0.08,14.0,0.018,0.0);
 }
 
 static uint32_t noise_hash(int x, int y, int seed) {
