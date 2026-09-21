@@ -27,6 +27,7 @@ from fap_scientific_modeling import ScientificModelComposer
 from fap_hypothesis_engine import HypothesisEngine
 from fap_research_frontier_chat import ResearchFrontierOrgan
 from fap_research_cycle_chat import ResearchCycleOrgan
+from fap_image_orchestrator import ImageOrchestrator
 
 ROOT = Path(__file__).resolve().parent
 WEB_FILE = ROOT / "web" / "FAP_Chat.html"
@@ -319,50 +320,39 @@ class WeatherOrgan:
 
 
 class ImageOrgan:
+    def __init__(self):
+        self.orchestrator = ImageOrchestrator(
+            image_base=IMAGE_BASE,
+            artifact_dir=ARTIFACTS,
+            http_json=http_json,
+        )
+
     def available(self) -> tuple[bool, str]:
-        try:
-            models = http_json(IMAGE_BASE + "/sdapi/v1/sd-models", timeout=3)
-            count = len(models) if isinstance(models, list) else 0
-            return True, f"画像生成器官は接続済みです（models={count}）。"
-        except Exception as e:
-            return False, "画像生成意図は認識できますが、画像モデルが未接続です。FAP_IMAGE_APIへAUTOMATIC1111互換APIを接続してください。"
+        return self.orchestrator.available()
 
     def prompt_from(self, text: str) -> str:
+        # Backward-compatible helper retained for callers/tests that inspect the
+        # old ImageOrgan surface. V87.56 generation itself uses ImageRequestSpec.
         p = re.sub(r"(画像|写真|イラスト|絵).{0,8}(生成|作って|描いて)", "", text)
         p = re.sub(r"(生成して|作って|描いて|ください|お願い)", "", p).strip(" 、。")
         return p or text.strip()
 
     def run_capability(self) -> dict:
         ok, reply = self.available()
-        return {"ok": ok, "reply": reply, "confidence": 0.98 if ok else 0.96}
+        if ok:
+            reply += (
+                " 要求を構造化し、複数候補を生成して、利用可能なら"
+                "CLIP interrogateで実画像を検査し、不足要素を再生成します。"
+            )
+        return {
+            "ok": ok,
+            "reply": reply,
+            "confidence": 0.99 if ok else 0.96,
+            "image_orchestrator": "87.56",
+        }
 
     def run_generate(self, text: str) -> dict:
-        ok, status = self.available()
-        if not ok:
-            return {"ok": False, "reply": status, "confidence": 0.96}
-        prompt = self.prompt_from(text)
-        try:
-            out = http_json(
-                IMAGE_BASE + "/sdapi/v1/txt2img",
-                method="POST",
-                data={"prompt": prompt, "steps": 20, "width": 768, "height": 768},
-                timeout=180,
-            )
-            images = out.get("images") or []
-            if not images:
-                return {"ok": False, "reply": "画像モデルは応答しましたが、画像データが返りませんでした。", "confidence": 0.85}
-            raw = base64.b64decode(images[0].split(",", 1)[-1])
-            name = "img_" + dt.datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".png"
-            path = ARTIFACTS / name
-            path.write_bytes(raw)
-            return {
-                "ok": True,
-                "reply": f"画像を生成しました。\nPrompt: {prompt}",
-                "confidence": 0.97,
-                "artifacts": [{"type": "image", "src": "/artifacts/" + name, "name": name}],
-            }
-        except Exception as e:
-            return {"ok": False, "reply": f"画像生成器官の実行に失敗しました: {compact(e)}", "confidence": 0.86}
+        return self.orchestrator.generate(text)
 
 
 class E2BOrgan:
@@ -424,6 +414,14 @@ class VerificationOrgan:
             return "NG", "天気質問に日時だけを返しています。"
         if intent.name.startswith("image") and "文脈" in reply and "画像" not in reply:
             return "NG", "画像能力質問を文脈検索へ誤ルーティングしています。"
+        if result.get("image_orchestrated"):
+            if not result.get("ok"):
+                return "PARTIAL", "画像オーケストレーターは起動しましたが、候補生成に成功していません。"
+            if result.get("visual_verified") and float(result.get("image_score", 0.0)) >= 0.80:
+                return "OK", "実画像をCLIP自己検査し、要求適合度の高い候補を選択しています。"
+            if result.get("visual_verified"):
+                return "PARTIAL", "画像は生成され実画像検査も行いましたが、要求適合度が目標値に届いていません。"
+            return "PARTIAL", "画像生成は成功しましたが、実画像の意味検査器官が未接続のため視覚的一致は未検証です。"
         if result.get("factual_qa"):
             if not result.get("answer_coverage"):
                 return "NG", "事実質問を検出しましたが、直接回答がありません。"
@@ -506,6 +504,9 @@ class FAPV8710:
             "research-frontier-chat", "literature-gap-clustering",
             "targeted-research-cycles", "literature-rechallenge-loop",
             "hypothesis-to-falsification-cycle",
+            "image-orchestrator:v87.56", "image-request-spec",
+            "multi-candidate-image-generation", "image-repair-loop",
+            "optional-clip-image-self-critique",
         ]
         if self.image.available()[0]:
             caps.append("image-generation")
