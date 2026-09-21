@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "fap_v87_10_program_synth_gateway.py"
+      - "fap_v87_12_semantic_adaptive_gateway.py"
       - "fap_epistemic_learning.py"
       - "fap_inquiry_engine.py"
       - "fap_knowledge_retrieval.py"
