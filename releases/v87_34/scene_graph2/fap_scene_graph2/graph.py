@@ -124,8 +124,9 @@ def _negative_kind(text: str, kind: str) -> bool:
 def _kind_count(text: str, kind: str) -> int:
     term = _KIND_TERMS[kind]
     number = r"(\d+|[一二三四五六七八九十])"
+    attr = r"(?:(?:白い|黒い|赤い|青い|茶色の?|灰色の?|グレーの?|white|black|red|blue|brown|gray|grey)\s*)?"
     patterns = (
-        rf"{number}\s*(?:人|匹|羽|頭|台|個)?\s*(?:の)?\s*{term}",
+        rf"{number}\s*(?:人|匹|羽|頭|台|個)?\s*(?:の)?\s*{attr}{term}",
         rf"{term}\s*(?:が|は|を)?\s*{number}\s*(?:人|匹|羽|頭|台|個)?",
     )
     for p in patterns:
