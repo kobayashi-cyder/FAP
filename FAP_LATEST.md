@@ -1,6 +1,31 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.48 — Epistemic Learning**.
+Current mainline: **V87.49 — Structured Scientific Modeling**.
+
+V87.49 adds a generic structured scientific-model layer on top of V87.48.
+Scientific coverage is now data-driven: a model record can provide variables,
+drivers, governing equations, mechanisms, scale dependence, assumptions,
+observables and prediction limits without adding a topic-specific branch to the
+chat router.
+
+The first models cover atmospheric dynamics and generic fluid dynamics. For
+atmospheric motion the model can connect pressure-gradient acceleration,
+Coriolis deflection, gravity, surface friction, buoyancy, thermodynamics and
+mass conservation, and can expose equations such as momentum balance,
+hydrostatic balance, the ideal-gas relation and continuity.
+
+Example route:
+
+```text
+YOU: 大気の動き方を式も含めて解説して
+route: scientific-model → equations
+```
+
+New scientific domains can be added to
+`knowledge/scientific_models_ja.jsonl` rather than by growing hard-coded chat
+logic.
+
+V87.48 epistemic learning remains underneath V87.49.
 
 V87.48 changes the inquiry loop from "ask many questions" into a more selective
 learning system:
