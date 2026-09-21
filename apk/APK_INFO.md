@@ -2,9 +2,9 @@
 
 - FAP release packaged: `V87_39`
 - Runtime core source: `./fap_v87_52_hypothesis_reasoning_gateway.py`
-- Source main commit: `8b323b05f0c74c242d4c1cfe460785a8d31a3790`
-- Android branch commit before APK commit: `2f86ea9234a457b13f6374ac0d89614b8afdae15`
-- Built at UTC: `2026-09-21T22:30:38Z`
+- Source main commit: `d44f4e6e73b2f303c4c8ae57cd449b3e3f05ac3b`
+- Android branch commit before APK commit: `d375c4530ef73248c834999f1ae771880ea4a804`
+- Built at UTC: `2026-09-21T22:31:56Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `ab1be8069979bb9cb28db127685597dc35dec4351fb1a43ad066615dc22a8575`
+- SHA-256: `ce216e144adb5cb5c0ef4db14b834c1038738de15f49ede8a8ad65fd1c51d2bd`
 - Build: debug APK
