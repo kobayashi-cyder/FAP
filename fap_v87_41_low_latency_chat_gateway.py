@@ -57,10 +57,12 @@ class Handler(v40.Handler):
 
     @staticmethod
     def _fast_status():
+        current = str(base.VERSION)
+        mainline = current.split("-", 1)[0]
         return {
             "name": "FAP",
-            "version": VERSION,
-            "mainline_version": "87.41",
+            "version": current,
+            "mainline_version": mainline,
             "state": "ready",
             "protocol": "1.0",
             "capabilities": [

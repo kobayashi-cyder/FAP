@@ -1,6 +1,32 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.42 — Science Capability Self-Knowledge**.
+Current mainline: **V87.43 — Reflective Local Conversation**.
+
+V87.43 moves ordinary conversation beyond exact constants and fixed capability
+answers. A new local reflective organ resolves known topics, chooses an
+explanation mode (overview / why / how / deep / compare), uses recent chat to
+resolve short follow-ups, and keeps every answer tied to explicit local concept
+evidence.
+
+Example:
+
+```text
+YOU: 大気の運動に関しては？
+FAP: 大気の運動は、空間的な気圧・密度・温度の差から生じる力と、
+     地球の自転、重力、地表摩擦の組み合わせで決まります。...
+```
+
+The first knowledge set covers atmospheric motion, pressure-gradient force,
+Coriolis effect, convection, waves, energy, entropy, natural selection, gene
+expression, acid/base chemistry and algorithmic complexity. It also supports
+two-concept comparisons and topic follow-ups. Unknown factual topics still fall
+through to the conservative unresolved path instead of being fabricated.
+
+The lightweight status endpoint now reports the descendant version correctly,
+so V87.42/V87.43 no longer appear as V87.41 in the browser header.
+
+V87.42 science-capability self-knowledge and V87.41 low-latency behavior remain
+underneath V87.43.
 
 V87.42 fixes a conversational self-knowledge failure where questions such as:
 

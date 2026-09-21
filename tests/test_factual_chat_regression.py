@@ -7,6 +7,8 @@ from fap_factual_qa import FactualQAOrgan
 from fap_v78_distilled import DistilledFAPOrgan
 from fap_v87_12_semantic_adaptive_gateway import FAPV8712
 from fap_v87_42_science_capability_gateway import FAPV8742Unified
+from fap_reflective_conversation import ReflectiveConversationOrgan
+from fap_v87_43_reflective_chat_gateway import FAPV8743Unified
 
 
 class FactualChatRegressionTests(unittest.TestCase):
@@ -78,6 +80,41 @@ class FactualChatRegressionTests(unittest.TestCase):
         )
         self.assertEqual(verdict, "PARTIAL")
         self.assertIn("確定回答", note)
+
+
+    def test_atmospheric_motion_is_explained_reflectively(self):
+        core = FAPV8743Unified()
+        out = core.chat("大気の運動に関しては？", "v8743-atmosphere")
+        self.assertEqual(out["verdict"], "OK")
+        self.assertIn("気圧傾度力", out["reply"])
+        self.assertIn("コリオリ", out["reply"])
+        self.assertIn("reflective-chat", out["route"])
+        self.assertGreaterEqual(out["confidence"], 0.9)
+
+    def test_reflective_followup_resolves_recent_topic(self):
+        organ = ReflectiveConversationOrgan()
+        history = [
+            {"role": "user", "text": "大気の運動に関しては？"},
+            {"role": "assistant", "text": "大気の運動は気圧差などで決まります。"},
+        ]
+        out = organ.run("それは？", history)
+        self.assertIsNotNone(out)
+        self.assertTrue(out["followup_resolved"])
+        self.assertEqual(out["topic_id"], "atmospheric_motion")
+
+    def test_reflective_compare_uses_two_grounded_concepts(self):
+        out = ReflectiveConversationOrgan().run("気圧傾度力とコリオリ効果の違いを比較して", [])
+        self.assertIsNotNone(out)
+        self.assertEqual(out["reasoning_mode"], "compare")
+        self.assertGreaterEqual(len(out["evidence_ids"]), 2)
+        self.assertIn("違いを短く言うと", out["reply"])
+
+
+    def test_latest_fast_status_reports_descendant_version(self):
+        import fap_v87_43_reflective_chat_gateway as v43
+        st = v43.Handler._fast_status()
+        self.assertEqual(st["version"], "87.43-unified-chat")
+        self.assertEqual(st["mainline_version"], "87.43")
 
 
 if __name__ == "__main__":
