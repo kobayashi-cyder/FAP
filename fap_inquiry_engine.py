@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Mapping
 
 from fap_knowledge_retrieval import RepositoryKnowledgeIndex, RetrievalHit, sentences, terms
+from fap_epistemic_learning import EpistemicLedger, QuestionValueScorer
 
 
 QUESTION_CUES = re.compile(r"[？?]|(なぜ|どうして|どう|何|教えて|説明|について|とは|できますか|できる)")
@@ -114,6 +115,9 @@ class InquiryQuestion:
     resolved: bool = False
     answer: str = ""
     evidence_ids: tuple[str, ...] = ()
+    value_score: float = 0.0
+    attempts: int = 0
+    recalled: bool = False
 
 
 def _clean_sentence(text: str) -> str:
@@ -140,9 +144,13 @@ class InquiryEngine:
     """
 
     def __init__(self, root: Path):
+        self.root = Path(root)
         self.index = RepositoryKnowledgeIndex(root)
+        self.scorer = QuestionValueScorer()
+        self.ledger = EpistemicLedger(root)
         self.default_target = _env_int("FAP_INQUIRY_TARGET", 256, 32, 2048)
         self.max_rounds = _env_int("FAP_INQUIRY_ROUNDS", 8, 1, 16)
+        self.resolve_budget = _env_int("FAP_INQUIRY_RESOLVE_BUDGET", 512, 64, 2048)
         self.display_limit = _env_int("FAP_INQUIRY_DISPLAY", 32, 8, 96)
 
     @staticmethod
@@ -202,6 +210,18 @@ class InquiryEngine:
         query: str,
         hits: list[RetrievalHit],
     ) -> InquiryQuestion:
+        question.attempts += 1
+
+        # Persistent recall is allowed only for previously promoted conclusions
+        # that still retain their original evidence IDs.
+        recalled = self.ledger.recall(question.question)
+        if recalled and recalled.get("evidence_ids"):
+            question.resolved = True
+            question.answer = str(recalled.get("answer", ""))
+            question.evidence_ids = tuple(str(x) for x in recalled.get("evidence_ids", []))
+            question.recalled = True
+            return question
+
         ranked: list[tuple[float, str, str]] = []
         seen: set[str] = set()
         for hit in hits:
@@ -246,9 +266,9 @@ class InquiryEngine:
         base_hits: list[RetrievalHit],
     ) -> int:
         progress = 0
-        for q in questions:
-            if q.resolved:
-                continue
+        unresolved = [q for q in questions if not q.resolved]
+        unresolved.sort(key=lambda q: (-q.value_score, q.attempts, q.generation, q.qid))
+        for q in unresolved[:self.resolve_budget]:
             before = q.resolved
             self._answer_question(q, text, self._focused_hits(text, q, context, base_hits))
             if q.resolved and not before:
@@ -333,6 +353,71 @@ class InquiryEngine:
             pass_no += 1
         return added
 
+    def _inject_frontier(self, topic: str, questions: list[InquiryQuestion], target: int) -> int:
+        if len(questions) >= target:
+            return 0
+        existing = {re.sub(r"\W+", "", q.question) for q in questions}
+        added = 0
+        serial = len(questions)
+        for row in self.ledger.frontier_for(topic, min(128, target)):
+            text = str(row.get("question", "")).strip()
+            key = re.sub(r"\W+", "", text)
+            if not text or key in existing:
+                continue
+            existing.add(key)
+            questions.append(InquiryQuestion(
+                qid=f"gf-{serial:03d}",
+                kind=str(row.get("kind", "uncertainty")),
+                question=text,
+                generation=max(1, int(row.get("generation", 1) or 1)),
+                parent_id="persistent-frontier",
+                value_score=float(row.get("value_score", 0.0) or 0.0),
+            ))
+            serial += 1
+            added += 1
+            if len(questions) >= target:
+                break
+        return added
+
+    def _score_questions(self, questions: list[InquiryQuestion], hits: list[RetrievalHit]) -> list[InquiryQuestion]:
+        evidence_hint = max((float(h.score) for h in hits[:4]), default=0.0)
+        ranked = self.scorer.rank(questions, evidence_hint)
+        # Persistent frontier scores are lower bounds: do not erase prior value.
+        for q in ranked:
+            q.value_score = max(
+                float(q.value_score),
+                float(getattr(q, "value_score", 0.0) or 0.0),
+            )
+        return ranked
+
+    def _learn(self, topic: str, questions: list[InquiryQuestion], confidence: float) -> dict:
+        counts = {"promoted": 0, "reinforced": 0, "conflicts": 0, "skipped": 0, "recalled": 0}
+        for q in questions:
+            if q.recalled:
+                counts["recalled"] += 1
+                continue
+            if not q.resolved:
+                continue
+            result = self.ledger.promote(
+                topic=topic,
+                kind=q.kind,
+                question=q.question,
+                answer=q.answer,
+                evidence_ids=q.evidence_ids,
+                value_score=q.value_score,
+                confidence=confidence,
+            )
+            status = str(result.get("status", "skipped"))
+            if status == "conflict":
+                counts["conflicts"] += 1
+            elif status in counts:
+                counts[status] += 1
+            else:
+                counts["skipped"] += 1
+        self.ledger.update_frontier(topic, questions)
+        counts["ledger"] = self.ledger.stats()
+        return counts
+
     @staticmethod
     def _best_overview(text: str, hits: list[RetrievalHit]) -> str:
         ranked: list[tuple[float, str]] = []
@@ -387,21 +472,30 @@ class InquiryEngine:
         topic = self._topic_label(hits, t)
         questions = self._generate_questions(topic, target)
 
-        # Pass 1: resolve the base epistemic grid.
-        for q in questions:
+        # Carry high-value unresolved questions across sessions, then expand the
+        # generic question grid. Persistent questions are data, not router code.
+        self._inject_frontier(topic, questions, target)
+        self._fill_generic(topic, questions, target)
+        questions = self._score_questions(questions, hits)
+
+        # Pass 1 is value-prioritized. Large 2048-question bursts no longer spend
+        # equal effort on near-duplicates before falsification/uncertainty tests.
+        first_budget = min(len(questions), self.resolve_budget)
+        for q in questions[:first_budget]:
             self._answer_question(q, t, hits)
 
-        # Answer -> new question expansion. This discovers related local chunks
-        # from answers and produces more questions without topic-specific code.
+        # Answer -> new question expansion can replace low-value filler slots
+        # only while capacity remains.
         self._expand_from_answers(topic, t, context, questions, target)
-        self._fill_generic(topic, questions, target)
+        questions = self._score_questions(questions, hits)
 
         rounds = 1
         for round_no in range(2, self.max_rounds + 1):
             progress = self._resolve_round(t, context, questions, hits)
             rounds = round_no
-            # Expand again when newly resolved answers reveal new evidence.
             added = self._expand_from_answers(topic, t, context, questions, target)
+            if added:
+                questions = self._score_questions(questions, hits)
             if progress == 0 and added == 0:
                 break
 
@@ -421,6 +515,9 @@ class InquiryEngine:
             CUES["live_data"].search(h.chunk.text) for h in hits[:8]
         ))
 
+        base_confidence = round(min(0.97, 0.68 + hits[0].score * 0.24), 3)
+        learning = self._learn(topic, questions, base_confidence)
+
         if audit_mode:
             reply = self._audit_reply(topic, questions)
         else:
@@ -434,13 +531,16 @@ class InquiryEngine:
         return {
             "ok": True,
             "reply": reply,
-            "confidence": round(min(0.97, 0.68 + hits[0].score * 0.24), 3),
+            "confidence": base_confidence,
             "needs_teacher": False,
             "local": True,
             "inquiry_reasoning": True,
             "question_generation": True,
             "question_resolution": True,
             "answer_to_question_expansion": True,
+            "question_value_ranking": True,
+            "persistent_epistemic_learning": True,
+            "contradiction_quarantine": True,
             "topic_specific_routing": False,
             "topic": topic,
             "target_questions": target,
@@ -457,9 +557,13 @@ class InquiryEngine:
                 "question": q.question,
                 "generation": q.generation,
                 "parent_id": q.parent_id,
+                "value_score": q.value_score,
+                "attempts": q.attempts,
+                "recalled": q.recalled,
                 "resolved": q.resolved,
                 "answer": q.answer,
                 "evidence_ids": list(q.evidence_ids),
             } for q in questions],
             "evidence": evidence,
+            "epistemic_learning": learning,
         }
