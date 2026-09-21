@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.34 — Scene Graph 2**.
+Current mainline: **V87.34 — Scene Graph 2**.
 
 V87.34 upgrades V87.33's object registry into a structured scene representation.
 
