@@ -24,7 +24,7 @@ class SequenceGenerator:
         score = self.scores[index]
         return MediaArtifact(
             request.media_type,
-            f"{self.backend_id}-{self.calls}",
+            f"{self.backend_id}-digest-{self.calls:03d}",
             "video/mp4" if request.media_type == "video" else "image/png",
             metadata={"raw_score": score},
         )
