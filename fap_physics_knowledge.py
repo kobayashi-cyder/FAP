@@ -177,7 +177,7 @@ K: tuple[PhysicsKnowledgeEntry, ...] = (
         ("The electron is a spin-1 boson.",),
         (),(),
         (r"electron.{0,50}(fermion|spin.?1/2|lepton)",),
-        (r"electron.{0,50}(boson|spin.?1\b)",)
+        (r"electron.{0,50}(boson|spin.?1(?!/2)\b)",)
     ),
     PhysicsKnowledgeEntry(
         "photon_boson","particle",
@@ -185,7 +185,7 @@ K: tuple[PhysicsKnowledgeEntry, ...] = (
         ("The photon is the massless spin-1 gauge boson of electromagnetism.",),
         ("The photon is a spin-1/2 fermion with electric charge.",),
         (),(),
-        (r"photon.{0,70}(massless|spin.?1|boson|gauge)",),
+        (r"photon.{0,70}(massless|spin.?1(?!/2)\b|boson|gauge)",),
         (r"photon.{0,70}(fermion|spin.?1/2|electric charge)",)
     ),
     PhysicsKnowledgeEntry(
