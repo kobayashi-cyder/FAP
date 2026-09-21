@@ -1,46 +1,43 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.37 — Sparse End-to-End Execution**.
+Current mainline: **V87.38 — Native C99 Raster Core**.
 
-V87.37 reconnects the V82 sparse-circuit design to the current V87 media
-stack instead of allowing later media generations to become increasingly dense
-at runtime.
+V87.38 native-compiles the remaining screen-space hot loops while preserving
+V87.37 sparse routing and lazy organ loading.
 
-Core changes:
-- V82 verifier-first SparseRouter selects one media organ with `top_k=1`;
-- media organs are lazy: scene, cat morphology and scientific DNA are not
-  instantiated at normal chat startup;
-- the selected organ is cached after first use;
-- V87.32 material/shading math is preserved, but post-processing is restricted
-  to 32x32 active screen tiles;
-- finished studio backgrounds are cached per resolution;
-- FXAA runs only on active tiles;
-- filmic processing runs only on subject pixels;
-- DNA uses a scientific fast renderer with no studio background, contact
-  shadows or filmic pass;
-- the launcher polls readiness instead of sleeping for a fixed two seconds.
+Moved from Python into a portable C99 shared library:
+- triangle barycentric rasterization;
+- z-buffer initialization and depth testing;
+- interpolated normal/material shading;
+- deterministic micro-surface noise;
+- sparse active-tile FXAA;
+- subject-only filmic finishing.
 
-Current routed organs:
-- scene -> V87.34 Scene Graph 2;
-- cat_morphology -> V87.35 Morphology;
-- scientific_dna -> V87.36 Scientific Geometry.
+The bridge uses Python stdlib `ctypes`, so it is not tied to a CPython
+extension ABI.
 
-Sparsity is observable in runtime metadata:
-- selected circuit / score;
-- loaded organ set;
-- active tiles / total tiles;
-- active tile ratio;
-- FXAA pixels touched;
-- filmic subject pixels;
-- background-cache state.
+Build targets:
+- Windows -> `fap_native_raster.dll`;
+- Linux -> `libfap_native_raster.so`;
+- macOS -> `libfap_native_raster.dylib`.
 
-Important boundary:
-- V87.37 makes routing, organ loading and screen-space post-processing sparse;
-- V87.32's triangle rasterizer already operates inside each triangle bounding
-  box, but its Python inner pixel loop is not yet replaced by native C/Rust;
-- V87.35 coat painting still processes the relevant mesh faces in Python;
-- therefore this is a substantial sparse-execution step, not a claim that every
-  low-level operation is now sparse/native.
+Windows manual build:
+
+```text
+BUILD_FAP_V87_38_NATIVE_RASTER.cmd
+```
+
+The normal launcher also attempts a one-time quiet native build when the DLL is
+absent. If no supported C compiler is installed, FAP falls back to V87.37's
+Python sparse renderer instead of failing.
+
+Still handled in Python:
+- V82 sparse organ routing;
+- Scene Graph / Morphology / DNA semantics;
+- mesh construction;
+- camera projection and active-tile discovery;
+- artifact verification / acceptance;
+- PNG encoding.
 
 Run:
 
@@ -49,11 +46,18 @@ RUN_FAP_CHAT_LATEST.cmd
 ```
 
 Compatibility:
+- V87.37 sparse routing/lazy organs remain;
 - V87.36 Scientific DNA remains;
 - V87.35 Cat Morphology remains;
 - V87.34 Scene Graph 2 remains;
-- V87.33 Object Registry remains;
-- V87.32 material/shading behavior remains as the general visual base;
-- V87.28 and earlier reasoning/physics paths remain;
-- previous chat-speed restoration remains;
+- earlier reasoning/physics/chat-speed paths remain;
 - Qwen is not used.
+
+
+Measured CI benchmark (GitHub Ubuntu runner, Python 3.11, 384x384 native cat render):
+- V87.37 Python sparse renderer median: 0.086533 s;
+- V87.38 native C99 renderer median: 0.022206 s;
+- measured speedup: **3.897x**.
+
+This benchmark is runner-specific and is not a claim that every workload or
+the user's Windows PC will see the same ratio.
