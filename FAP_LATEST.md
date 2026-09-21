@@ -1,6 +1,22 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.41 — Low-Latency Conversational Chat**.
+Current mainline: **V87.42 — Science Capability Self-Knowledge**.
+
+V87.42 fixes a conversational self-knowledge failure where questions such as:
+
+```text
+科学的な質問に答えられますか？
+```
+
+fell through to the generic unknown-answer path. The current FAP now reports
+the scientific abilities it actually implements: direct local facts, structured
+A-D scientific reasoning, and deterministic physics solvers, while keeping the
+boundary that unknown free-form facts are not fabricated.
+
+It also tightens verification: replies that explicitly say they cannot reach a
+confirmed answer are now `PARTIAL`, not incorrectly `OK`.
+
+V87.41 low-latency chat behavior remains underneath V87.42.
 
 V87.41 removes the expensive recursive status tree from the hot chat path.
 Normal chat responses now return only a lightweight version/state snapshot, and
