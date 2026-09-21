@@ -2,9 +2,9 @@
 
 - FAP release packaged: `V87_39`
 - Runtime core source: `./fap_v87_48_epistemic_learning_gateway.py`
-- Source main commit: `3e20723e7376db4b94cbea7db67b7d96a4f7d7bf`
-- Android branch commit before APK commit: `09a401b657b71370769676762f166be83aca7527`
-- Built at UTC: `2026-09-21T21:56:05Z`
+- Source main commit: `fafc7302b52f10bf46ea539a01e36d4283a56ee1`
+- Android branch commit before APK commit: `e2700f819489066ab008833a5a3d9ca7639ac9b8`
+- Built at UTC: `2026-09-21T22:04:37Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `3e84fad383cfdefbd308a952326780148bc21abd97cdacdff94f37f14d9b4c80`
+- SHA-256: `8428b18a4099f3255cd795635247b60d337104969bfaa433ad7826a902e0d907`
 - Build: debug APK
