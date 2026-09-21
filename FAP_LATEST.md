@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.37 — Sparse End-to-End Execution**.
+Current mainline: **V87.37 — Sparse End-to-End Execution**.
 
 V87.37 reconnects the V82 sparse-circuit design to the current V87 media
 stack instead of allowing later media generations to become increasingly dense
