@@ -224,7 +224,7 @@ def _caption_terms(text: str) -> set[str]:
 
 def _term_aliases(term: str) -> tuple[str, ...]:
     aliases = {
-        "beagle": ("beagle", "dog", "hound"),
+        "beagle": ("beagle",),
         "dog": ("dog", "canine", "hound"),
         "cat": ("cat", "feline"),
         "woman": ("woman", "female", "girl"),
