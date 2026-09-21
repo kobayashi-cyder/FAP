@@ -6,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
-$LatestVersion = '87.55-unified-chat'
-$Gateway = Join-Path $Root 'fap_v87_55_recursive_research_gateway.py'
+$LatestVersion = '87.56-unified-chat'
+$Gateway = Join-Path $Root 'fap_v87_56_image_orchestrator_gateway.py'
 $Runtime = Join-Path $Root 'runtime'
 New-Item -ItemType Directory -Force -Path $Runtime | Out-Null
 $StdoutLog = Join-Path $Runtime 'fap_chat_latest.stdout.log'
@@ -167,7 +167,7 @@ $oldPort = $env:FAP_PORT
 $env:FAP_PORT = [string]$Port
 try {
     Write-Host "[INFO] Preflight: validating latest chat stack..."
-    & $Python.Exe @Prefix '-c' "import fap_v87_55_recursive_research_gateway as g; s=g.CORE.chat_status(); print('[OK] preflight version=' + str(s.get('version',''))); raise SystemExit(0 if s.get('version') == '87.55-unified-chat' else 4)"
+    & $Python.Exe @Prefix '-c' "import fap_v87_56_image_orchestrator_gateway as g; s=g.CORE.chat_status(); print('[OK] preflight version=' + str(s.get('version',''))); raise SystemExit(0 if s.get('version') == '87.56-unified-chat' else 4)"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Latest FAP CHAT preflight failed with exit code $LASTEXITCODE."
         exit $LASTEXITCODE

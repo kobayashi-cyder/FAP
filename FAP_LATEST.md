@@ -1,6 +1,41 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.55 — Recursive Research Rechallenge**.
+Current mainline: **V87.56 — Image Orchestrator**.
+
+V87.56 reconnects image generation to the current unified FAP chat and replaces
+the old one-shot `txt2img` path with a generate → inspect → repair → select
+loop.
+
+The image path now:
+- parses the request into an `ImageRequestSpec` containing subjects, count,
+  requested style, framing, lighting, background, required terms and negative
+  constraints;
+- keeps the original natural-language request in the generation prompt so
+  unknown concepts are not discarded by the parser;
+- generates multiple candidates per round through an AUTOMATIC1111-compatible
+  local API configured by `FAP_IMAGE_API`;
+- optionally calls `/sdapi/v1/interrogate` with CLIP to inspect the actual
+  generated pixels;
+- scores requested subjects/style/composition cues against the visual caption;
+- explicitly penalizes missing primary subjects such as a requested beagle;
+- carries missing requirements into a repair prompt and regenerates;
+- selects the best candidate across rounds;
+- marks images as visually unverified when the interrogation endpoint is not
+  available instead of pretending the semantic check succeeded.
+
+Default control variables are `FAP_IMAGE_CANDIDATES=2`,
+`FAP_IMAGE_ROUNDS=2`, `FAP_IMAGE_STEPS=28`,
+`FAP_IMAGE_CFG=7.0`, and `FAP_IMAGE_PASS_SCORE=0.80`. Width and height
+default to 768×768 and can be overridden with `FAP_IMAGE_WIDTH` and
+`FAP_IMAGE_HEIGHT`.
+
+Photorealistic output still depends on the local image checkpoint connected to
+the AUTOMATIC1111-compatible API. The FAP-owned V87.29/V87.31 procedural and
+scene renderers remain useful for structural rendering, but are not
+misrepresented as photorealistic diffusion models.
+
+V87.55 recursive research and the earlier scientific/epistemic layers remain
+underneath V87.56.
 
 V87.55 makes the targeted research cycle recursive instead of doing only one
 literature pass. Each high-value unresolved topic can now run several refined
