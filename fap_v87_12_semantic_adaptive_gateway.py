@@ -341,6 +341,8 @@ class FAPV8712(v11.FAPV8711):
                 "equations": result.get("model_equations", []),
                 "assumptions": result.get("model_assumptions", []),
                 "limits": result.get("model_limits", []),
+                "science_snapshot_as_of": result.get("science_snapshot_as_of", ""),
+                "recent_science": result.get("recent_science", []),
             },
             "inquiry": {
                 "enabled": bool(result.get("inquiry_reasoning")),
