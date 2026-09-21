@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import fap_v87_26_scientific_reasoning_gateway as baseline
+BASELINE_CORE = baseline.FAPV8726()
 import fap_v87_27_physics_knowledge_gateway as candidate
+CANDIDATE_CORE = candidate.CORE
 
 URL = "https://openaipublic.blob.core.windows.net/simple-evals/gpqa_diamond.csv"
 ANSWER_RE = re.compile(r"(?i)Answer[ \t]*:[ \t]*\$?([A-D])\$?")
@@ -52,9 +54,9 @@ def main():
 
     for i,(row,choices,correct) in enumerate(prepared):
         prompt = TEMPLATE.format(Question=row["Question"],A=choices[0],B=choices[1],C=choices[2],D=choices[3])
-        bpred,bout = pred(baseline.CORE,prompt,f"v26-{i}")
+        bpred,bout = pred(BASELINE_CORE,prompt,f"v26-{i}")
         t0=time.perf_counter()
-        cpred,cout = pred(candidate.CORE,prompt,f"v27-{i}")
+        cpred,cout = pred(CANDIDATE_CORE,prompt,f"v27-{i}")
         latencies.append(time.perf_counter()-t0)
 
         base_correct += int(bpred == correct)
