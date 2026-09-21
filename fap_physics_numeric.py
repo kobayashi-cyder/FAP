@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -368,15 +369,23 @@ class PhysicsNumericSolver:
         )
 
     def solve(self, task: MCQTask) -> PhysicsNumericResult | None:
-        for solver in (
+        solvers = [
             self._solve_photon_energy_from_wavelength,
             self._solve_lorentz_gamma,
             self._solve_hubble_recession_velocity,
             self._solve_schwarzschild_radius,
             self._solve_classical_kinetic_energy,
-            self._solve_quasar_comoving_distance,
-            self._solve_circular_aperture_minima_gap,
-        ):
+        ]
+        # Two narrow research solvers were useful during development, but their
+        # observed GPQA gains occur only on the dev split. They are quarantined
+        # from the default runtime to avoid presenting dev-specific coverage as
+        # general reasoning progress.
+        if os.getenv("FAP_EXPERIMENTAL_NARROW_PHYSICS", "0").strip().lower() in {"1","true","yes","on"}:
+            solvers.extend([
+                self._solve_quasar_comoving_distance,
+                self._solve_circular_aperture_minima_gap,
+            ])
+        for solver in solvers:
             result = solver(task)
             if result is not None:
                 return result
