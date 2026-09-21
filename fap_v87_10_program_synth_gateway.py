@@ -577,13 +577,13 @@ class FAPV8710:
         # Abductive reasoning is triggered only for hypothesis/alternative/
         # falsification language, so ordinary science explanations keep using
         # the structured model path above.
-        hypothesis = self.hypothesis.run(text, history)
-        if hypothesis is not None:
-            return hypothesis
-
         frontier = self.research_frontier.run(text, history)
         if frontier is not None:
             return frontier
+
+        hypothesis = self.hypothesis.run(text, history)
+        if hypothesis is not None:
+            return hypothesis
 
         # Generic inquiry is data-driven: retrieve local evidence, generate
         # epistemic subquestions, try to resolve them, then synthesize. Topic
