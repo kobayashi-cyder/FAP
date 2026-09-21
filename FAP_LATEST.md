@@ -1,11 +1,27 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.12 — Semantic Long-Term Memory + Adaptive Routing**.
+Current mainline: **V87.13 — Bounded Iterative Media Generation**.
 
-Replaces raw long-history dependence with semantic memory consolidation and adds bounded success/failure-based routing adaptation without overriding explicit intents.
+V87.13 adds a provider-neutral quality loop for image and video generation:
 
-Verified runtime test suite: **91/91 PASS**.
+`request -> generate -> independent critic -> defect-scoped repair -> regenerate -> quality gate`
 
-Runtime snapshot: `releases/runtime_packages/FAP_V87_12_SEMANTIC_ADAPTIVE_RUNTIME.zip`.
+Key behavior:
+- supports image and video artifacts through one bounded controller;
+- preserves the user's original request across repair turns;
+- retains the best verified artifact if later attempts regress;
+- rejects fatal critic evidence fail-closed;
+- stops stalled duplicate-output loops;
+- keeps generation backends replaceable rather than coupling FAP to one model.
 
-Promotion history is intentionally sequential through V87.12. Qwen is not used.
+Verification:
+- V87.13 focused tests: **7/7 PASS on Python 3.11**
+- V87.13 focused tests: **7/7 PASS on Python 3.12**
+- GitHub Actions run: **35586178717 — SUCCESS**
+- prior V87.12 runtime suite: **91/91 PASS**
+
+V87.13 does **not** claim a native photorealistic image generator or text-to-video diffusion model. It strengthens FAP's self-refining generation control layer so connected generators can be iteratively improved under independent evidence.
+
+Implementation: `releases/v87_13/media_generation/`.
+
+Promotion history is intentionally sequential through V87.13. Qwen is not used.
