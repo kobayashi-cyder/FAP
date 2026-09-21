@@ -1,6 +1,48 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.52 — Hypothesis + Falsification Reasoning**.
+Current mainline: **V87.53 — Rolling Research Frontier**.
+
+V87.53 turns the large unresolved-literature pool into a rolling research
+agenda instead of leaving it as a flat list of unanswered appraisal questions.
+
+The broad literature workflow now:
+- screens recent journal articles;
+- keeps short abstract-derived open-question / limitation / claim hints in the
+  workflow artifact without committing full abstracts;
+- clusters papers into recurring research-topic families;
+- aggregates unresolved appraisal dimensions such as validation, causality,
+  robustness, generalization, scale and uncertainty;
+- ranks clusters by paper volume, critical unresolved dimensions,
+  explicit open-question hints, post-publication updates and Crossref citation
+  counts;
+- generates priority research questions for each cluster;
+- attaches **provisional** hypothesis → falsifier → next-test loops;
+- publishes a sanitized top-frontier snapshot to
+  `knowledge/research_frontier_latest.json` when the workflow can push it.
+
+Important epistemic boundary: absence of a method or limitation from an abstract
+is not proof that the underlying science is unresolved. Frontier entries are
+research priorities produced by automated screening, not verified facts.
+
+When a snapshot is present, chat prompts such as:
+
+```text
+この分野の未解決問題は？
+大気について次に調べるべき研究課題は？
+```
+
+route to:
+
+```text
+research-frontier → gap-prioritize
+```
+
+and return the highest-priority questions together with provisional
+hypothesis/falsification/next-observation loops.
+
+V87.52 hypothesis reasoning, V87.51 literature appraisal, V87.50 dated recent
+science, V87.49 scientific modeling and V87.48 epistemic learning remain
+underneath V87.53.
 
 V87.52 adds a generic abductive-reasoning layer above the existing scientific
 models, inquiry engine and epistemic ledger.

@@ -1,4 +1,4 @@
-name: v87-52-mainline-verify
+name: v87-53-mainline-verify
 
 on:
   push:
@@ -14,6 +14,9 @@ on:
       - "fap_v87_51_literature_appraisal_gateway.py"
       - "fap_hypothesis_engine.py"
       - "fap_v87_52_hypothesis_reasoning_gateway.py"
+      - "fap_research_frontier_chat.py"
+      - "fap_v87_53_research_frontier_gateway.py"
+      - "tests/test_research_frontier_chat.py"
       - "tests/test_hypothesis_reasoning.py"
       - "knowledge/scientific_models_ja.jsonl"
       - "knowledge/latest_science_2026.jsonl"
@@ -35,6 +38,8 @@ jobs:
           python -m py_compile             fap_epistemic_learning.py             fap_knowledge_retrieval.py             fap_inquiry_engine.py             fap_scientific_modeling.py             fap_v87_48_epistemic_learning_gateway.py             fap_v87_49_scientific_modeling_gateway.py             fap_v87_50_recent_science_gateway.py \
             fap_v87_51_literature_appraisal_gateway.py \
             fap_hypothesis_engine.py \
-            fap_v87_52_hypothesis_reasoning_gateway.py
+            fap_v87_52_hypothesis_reasoning_gateway.py \
+            fap_research_frontier_chat.py \
+            fap_v87_53_research_frontier_gateway.py
       - name: Epistemic learning regression tests
-        run: python -m unittest -v tests.test_epistemic_learning tests.test_hypothesis_reasoning
+        run: python -m unittest -v tests.test_epistemic_learning tests.test_hypothesis_reasoning tests.test_research_frontier_chat
