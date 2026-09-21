@@ -1,0 +1,31 @@
+name: V87.23 Compact Offline Verify
+
+on:
+  push:
+    branches:
+      - v87.23-compact-offline-image
+      - main
+    paths:
+      - "releases/v87_23/**"
+      - ".github/workflows/v87-23-compact-offline-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_23/**"
+      - ".github/workflows/v87-23-compact-offline-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Run V87.23 tests
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_23/compact_offline
+        run: pytest -q releases/v87_23/compact_offline/tests
