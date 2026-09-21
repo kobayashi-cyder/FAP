@@ -9,6 +9,7 @@ from fap_epistemic_learning import EpistemicLedger, QuestionValueScorer
 from fap_inquiry_engine import InquiryEngine, InquiryQuestion
 from fap_scientific_modeling import ScientificModelComposer
 from fap_v87_49_scientific_modeling_gateway import FAPV8749Unified
+from fap_v87_50_recent_science_gateway import FAPV8750Unified
 
 
 class EpistemicLearningTests(unittest.TestCase):
@@ -132,6 +133,25 @@ class EpistemicLearningTests(unittest.TestCase):
         self.assertEqual(out["model_id"], "generic_fluid_dynamics")
         self.assertTrue(out["model_equations"])
         self.assertGreater(out["model_match_score"], 0.1)
+
+
+    def test_recent_science_is_attached_with_provenance(self):
+        core = FAPV8750Unified()
+        out = core.chat("大気の動き方を最新の科学見地も含めて解説して", "v8750-recent-science")
+        self.assertEqual(out["verdict"], "OK")
+        self.assertIn("scientific-model", out["route"])
+        recent = out["scientific_model"]["recent_science"]
+        self.assertTrue(recent)
+        self.assertTrue(any(x["as_of"].startswith("2026-") for x in recent))
+        self.assertTrue(all(x["source_url"].startswith("https://") for x in recent))
+        self.assertIn("最新の取得済み科学見地", out["reply"])
+
+    def test_science_snapshot_has_current_2026_evidence(self):
+        core = FAPV8750Unified()
+        updates = core.scientific_model.recent_science.updates
+        self.assertGreaterEqual(len(updates), 6)
+        self.assertTrue(any(u.as_of == "2026-05-12" and u.institution == "ECMWF" for u in updates))
+        self.assertTrue(any(u.institution == "WMO" for u in updates))
 
 
 if __name__ == "__main__":
