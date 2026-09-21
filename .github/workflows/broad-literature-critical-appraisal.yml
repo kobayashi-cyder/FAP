@@ -6,8 +6,10 @@ on:
     paths:
       - "fap_literature_review.py"
       - "fap_research_frontier.py"
+      - "fap_research_cycle.py"
       - "tests/test_literature_review.py"
       - "tests/test_research_frontier.py"
+      - "tests/test_research_cycle.py"
       - ".github/workflows/broad-literature-critical-appraisal.yml"
   schedule:
     - cron: "23 18 * * *"
@@ -36,8 +38,8 @@ jobs:
 
       - name: Compile and test review engine
         run: |
-          python -m py_compile fap_literature_review.py fap_research_frontier.py
-          python -m unittest -v tests.test_literature_review tests.test_research_frontier
+          python -m py_compile fap_literature_review.py fap_research_frontier.py fap_research_cycle.py
+          python -m unittest -v tests.test_literature_review tests.test_research_frontier tests.test_research_cycle
 
       - name: Determine review window
         id: cfg
@@ -65,12 +67,19 @@ jobs:
         run: |
           python fap_research_frontier.py             --reviews literature-review/reviews.jsonl             --output literature-review/research_frontier.json             --snapshot-output knowledge/research_frontier_latest.json             --snapshot-limit 50             --max-clusters 200             --min-papers 4
 
+      - name: Run targeted research cycles
+        env:
+          CROSSREF_MAILTO: ${{ secrets.CROSSREF_MAILTO }}
+        run: |
+          python fap_research_cycle.py             --frontier literature-review/research_frontier.json             --output literature-review/research_cycles.json             --snapshot-output knowledge/research_cycle_latest.json             --limit 30             --targeted-search             --days 365             --topics 20             --papers-per-topic 60
+
       - name: Print coverage summary
         run: |
           cat literature-review/summary.json
           python - <<'PY'
           import json
           p = json.load(open("literature-review/research_frontier.json", encoding="utf-8"))
+          r = json.load(open("literature-review/research_cycles.json", encoding="utf-8"))
           print(json.dumps({
               "papers_processed": p["papers_processed"],
               "cluster_count": p["cluster_count"],
@@ -84,27 +93,36 @@ jobs:
                   }
                   for x in p["frontier"][:10]
               ],
+              "research_cycles": [
+                  {
+                      "topic": x["topic"],
+                      "value_of_information": x["value_of_information"],
+                      "phase": x["phase"],
+                      "papers_screened": x["targeted_evidence"]["papers_screened"],
+                  }
+                  for x in r["cycles"][:10]
+              ],
           }, ensure_ascii=False, indent=2))
           PY
 
-      - name: Publish compact frontier snapshot
+      - name: Publish compact research snapshots
         shell: bash
         run: |
-          if git diff --quiet -- knowledge/research_frontier_latest.json; then
-            echo "Research frontier snapshot unchanged."
+          if git diff --quiet -- knowledge/research_frontier_latest.json knowledge/research_cycle_latest.json; then
+            echo "Research snapshots unchanged."
             exit 0
           fi
           git config user.name "fap-research-bot"
           git config user.email "fap-research-bot@users.noreply.github.com"
-          git add knowledge/research_frontier_latest.json
-          git commit -m "Update automated research frontier snapshot [skip ci]"
+          git add knowledge/research_frontier_latest.json knowledge/research_cycle_latest.json
+          git commit -m "Update automated research frontier and cycle snapshots [skip ci]"
           git fetch origin main
           git rebase origin/main || {
             git rebase --abort || true
-            echo "Snapshot rebase conflicted; artifact still contains the frontier."
+            echo "Snapshot rebase conflicted; artifact still contains both research outputs."
             exit 0
           }
-          git push || echo "Snapshot push skipped; artifact still contains the frontier."
+          git push || echo "Snapshot push skipped; artifact still contains both research outputs."
 
       - uses: actions/upload-artifact@v4
         with:
