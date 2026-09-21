@@ -57,6 +57,7 @@ class SemanticMemoryStore:
     def __init__(self, root: Path):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
+        self._cache: dict[str, dict[str, Any]] = {}
 
     @staticmethod
     def _safe(sid: str) -> str:
@@ -71,18 +72,28 @@ class SemanticMemoryStore:
         return {"version": 1, "entries": [], "updated_at": ""}
 
     def load(self, sid: str) -> dict[str, Any]:
+        key = self._safe(sid)
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+
         p = self.path(sid)
         if not p.exists():
-            return self._blank()
+            obj = self._blank()
+            self._cache[key] = obj
+            return obj
         try:
             obj = json.loads(p.read_text(encoding="utf-8"))
             if isinstance(obj, dict) and isinstance(obj.get("entries"), list):
                 obj.setdefault("version", 1)
                 obj.setdefault("updated_at", "")
+                self._cache[key] = obj
                 return obj
         except Exception:
             pass
-        return self._blank()
+        obj = self._blank()
+        self._cache[key] = obj
+        return obj
 
     @staticmethod
     def _slot(category: str, text: str) -> str:
@@ -210,17 +221,29 @@ class SemanticMemoryStore:
         state["entries"] = entries[: self.MAX_ENTRIES]
 
     def absorb_user(self, sid: str, text: str) -> dict[str, Any]:
-        state = self.load(sid)
         explicit = bool(re.search(r"(覚えて|記憶して|今後.*覚え)", str(text or "")))
+        classified = []
         for sentence in self._sentences(text):
             category = self._classify_sentence(sentence, explicit_remember=explicit)
             if category:
-                # Remove imperative memory wrapper for cleaner recall.
                 cleaned = re.sub(r"^(?:これを|このことを)?(?:覚えて|記憶して)[、,:：\s]*", "", sentence).strip()
-                self._upsert(state, category, cleaned or sentence, "user", True)
+                classified.append((category, cleaned or sentence))
+
+        # Most conversation turns carry no durable memory. Avoid both mutation
+        # and disk writes in that overwhelmingly common case.
+        state = self.load(sid)
+        if not classified:
+            return state
+
+        for category, value in classified:
+            self._upsert(state, category, value, "user", True)
         self._compact(state)
         state["updated_at"] = _now()
-        self.path(sid).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._cache[self._safe(sid)] = state
+        self.path(sid).write_text(
+            json.dumps(state, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
         return state
 
     def absorb_outcome(self, sid: str, text: str, ability: str, verdict: str, artifacts: list[Mapping[str, Any]] | None = None) -> None:
@@ -240,7 +263,11 @@ class SemanticMemoryStore:
         self._upsert(state, "experience", f"{family}: {ability} succeeded{tail}", "runtime", True)
         self._compact(state)
         state["updated_at"] = _now()
-        self.path(sid).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._cache[self._safe(sid)] = state
+        self.path(sid).write_text(
+            json.dumps(state, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
 
     def retrieve(self, sid: str, query: str, limit: int = 8) -> list[dict[str, Any]]:
         state = self.load(sid)
@@ -327,17 +354,23 @@ class AdaptiveRoutingLedger:
     def __init__(self, path: Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._cache: dict[str, Any] | None = None
 
     def load(self) -> dict[str, Any]:
+        if self._cache is not None:
+            return self._cache
         if not self.path.exists():
-            return {"version": 1, "families": {}, "updated_at": ""}
+            self._cache = {"version": 1, "families": {}, "updated_at": ""}
+            return self._cache
         try:
             obj = json.loads(self.path.read_text(encoding="utf-8"))
             if isinstance(obj, dict) and isinstance(obj.get("families"), dict):
+                self._cache = obj
                 return obj
         except Exception:
             pass
-        return {"version": 1, "families": {}, "updated_at": ""}
+        self._cache = {"version": 1, "families": {}, "updated_at": ""}
+        return self._cache
 
     def record(self, text: str, ability: str, verdict: str) -> dict[str, Any]:
         family = task_family(text)
@@ -352,7 +385,11 @@ class AdaptiveRoutingLedger:
         if len(state["families"]) > self.MAX_FAMILIES:
             keep = sorted(state["families"].items(), key=lambda kv: max((x.get("last", "") for x in kv[1].values()), default=""), reverse=True)[: self.MAX_FAMILIES]
             state["families"] = dict(keep)
-        self.path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._cache = state
+        self.path.write_text(
+            json.dumps(state, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
         return state
 
     @staticmethod
