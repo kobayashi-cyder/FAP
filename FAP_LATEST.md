@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.32 — Native Photo-Look Renderer**.
+Current mainline: **V87.32 — Native Photo-Look Renderer**.
 
 V87.32 builds on the V87.31 Scene Graph + Prompt Compliance Gate and targets
 the next visible problem: the scene was structurally correct but still looked
