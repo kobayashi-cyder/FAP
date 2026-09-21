@@ -1,104 +1,77 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.32 — Native Photo-Look Renderer**.
+Current mainline candidate: **V87.33 — Scene Object Registry**.
 
-V87.32 builds on the V87.31 Scene Graph + Prompt Compliance Gate and targets
-the next visible problem: the scene was structurally correct but still looked
-like flat CAD geometry.
+V87.33 fixes the object-coverage and UI-constraint problems exposed by the
+Media Lab prompt `鳥と犬`.
 
-V87.32 appearance path:
+Root causes:
+- V87.31/V87.32 could parse bird/cat/car/horse as required objects;
+- the actual supported set was hard-coded to human + dog only;
+- gray text in the Hard constraints box was HTML placeholder text, so it looked
+  active even though it was not submitted.
+
+V87.33 replaces the fixed pair with an Object Registry.
+
+Native object coverage:
+- human
+- dog
+- bird
+- cat
+- horse
+- car
+
+Exact screenshot-case verification:
 
 ```text
-prompt + hard constraints
-  -> V87.31 ScenePlan
-  -> human / dog geometry
-  -> V87.32 surface detail
-     - human eyes
-     - nose
-     - mouth
-     - ears
-     - hair
-  -> smooth vertex normals
-  -> palette-aware material response
-     - skin
-     - cloth
-     - fur
-     - eyes / nose
-     - shoes
-  -> key + fill + specular lighting
-  -> procedural micro-surface variation
-  -> soft contact shadows
-  -> studio background / floor
-  -> FXAA-like edge smoothing
-  -> filmic tone / vignette / fine grain
-  -> PNG
-  -> artifact integrity
-  -> object/layout/style verification
+Prompt: 鳥と犬
+Constraints actually entered:
+  被写体を中央に保つ
+  写真風
+
+required objects: bird, dog
+generated objects: bird, dog
+object score: 1.0
+layout score: 1.0
+requested style: photorealistic
+photo-look style sub-score: 0.58
+accepted: no
+reason: photorealism_not_yet_verified
 ```
 
-Visible result:
-- V87.31 comparison image: flat polygon/CAD appearance;
-- V87.32 comparison image: smoother surfaces, visible face/hair, softer edges,
-  richer dog/human materials, ground contact shadows and more photographic
-  studio lighting;
-- both human and dog remain present in the same verified scene.
+The bird is now explicit native geometry with body, head, beak, eye, wing,
+tail, legs and feet. The generated Actions sample was visually inspected and
+shows both dog and bird in the same scene.
 
-Style semantics:
-- active renderer: `photo-look-native`;
-- native photo-look capability marker: **0.58**;
-- learned refiner: **false**;
-- photorealistic verified: **false**.
-
-A `写真風` request therefore remains fail-closed:
-- object score: 1.0 when human/dog are present;
-- layout score: 1.0 when centered constraint is applied;
-- style sub-score: 0.58;
-- aggregate score: 0.0 because the existing CompositeCritic forces any fatal
-  unmet hard style requirement to zero;
-- status: **NOT ACCEPTED**;
-- rejection issue: `photorealism_not_yet_verified`.
-
-The 0.58 marker is an implementation-stage capability marker, not a claim of
-human-rated photorealism.
+UI correction:
+- constraint placeholder now explicitly says it is an example;
+- note states that only typed lines are submitted;
+- result panel shows `constraints sent` so the user can confirm what actually
+  reached the backend.
 
 Verification:
-- GitHub Actions **35603965696 — SUCCESS**;
-- Python 3.11: V87.32 focused tests PASS;
-- Python 3.12: V87.32 focused tests PASS;
-- V87.31 regression: PASS on both interpreters;
-- Actions-generated V87.31/V87.32 comparison was visually inspected and shows
-  a clear appearance improvement.
+- GitHub Actions V87.33 workflow PASS on Python 3.11 and 3.12;
+- exact bird+dog regression PASS;
+- all current registry categories build without unsupported gaps;
+- V87.32 regression PASS;
+- generated bird+dog sample visually inspected.
 
 Run:
 
 ```text
-RUN_FAP_V87_32_PHOTO_LOOK_LAB.cmd
+RUN_FAP_V87_33_OBJECT_REGISTRY_LAB.cmd
 ```
 
-Implementation:
-- `releases/v87_32/photo_look/fap_photo_look/renderer.py`
-- `releases/v87_32/photo_look/fap_photo_look/detail.py`
-- `releases/v87_32/photo_look/fap_photo_look/engine.py`
-- `releases/v87_32/photo_look/fap_photo_look/critic.py`
-- `releases/v87_32/photo_look/fap_photo_look/manager.py`
-- `releases/v87_32/photo_look/fap_photo_look/runtime.py`
-- `web/FAP_Media_Lab_V87_32.html`
-- `fap_v87_32_photo_look_lab.py`
-- `fap_v87_32_photo_look_demo.py`
-- `RUN_FAP_V87_32_PHOTO_LOOK_LAB.cmd`
-
 Boundary:
-- this is still native procedural/3D rendering, not a learned diffusion/photo
-  model;
-- anatomy, hair, cloth and fur are still simplified;
-- the next major jump is a **verified learned photo refiner** that takes the
-  stable V87.31/V87.32 scene and appearance buffers as conditioning rather than
-  inventing the whole scene from scratch.
+- object geometry is still native procedural geometry;
+- this release broadens semantic/object coverage, not photorealistic synthesis;
+- a real photo request remains fail-closed until a verified learned refiner is
+  available.
 
 Compatibility:
-- V87.31 Scene Graph and compliance gate remain;
+- V87.32 photo-look renderer remains underneath;
+- V87.31 Scene Graph and compliance logic remain;
 - V87.30 Human LBS remains;
 - V87.29 native raster remains;
-- V87.28 and earlier reasoning/physics paths remain;
 - chat-speed restoration remains;
 - Qwen is not used.
