@@ -100,6 +100,9 @@ FAP_EXPORT uint64_t fap_raster_subject(
     if (!rgb || !depth || !projected || !normals || !faces || !colors) return 0;
     if (width <= 0 || height <= 0 || face_count <= 0) return 0;
 
+    size_t depth_count = (size_t)width * (size_t)height;
+    for (size_t di = 0; di < depth_count; ++di) depth[di] = FLT_MAX;
+
     double lx = -0.48, ly = 0.78, lz = -0.72;
     double fx = 0.66, fy = 0.38, fz = -0.34;
     normalize3(&lx,&ly,&lz);
