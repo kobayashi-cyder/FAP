@@ -65,7 +65,7 @@ jobs:
         env:
           CROSSREF_MAILTO: ${{ secrets.CROSSREF_MAILTO }}
         run: |
-          python fap_research_cycle.py             --frontier literature-review/research_frontier.json             --output literature-review/research_cycles.json             --snapshot-output knowledge/research_cycle_latest.json             --limit 30             --targeted-search             --days 365             --topics 20             --papers-per-topic 60
+          python fap_research_cycle.py             --frontier literature-review/research_frontier.json             --output literature-review/research_cycles.json             --snapshot-output knowledge/research_cycle_latest.json             --limit 30             --targeted-search             --days 365             --topics 20             --papers-per-topic 60             --rounds 3             --saturation-threshold 0.08
 
       - name: Print coverage summary
         run: |

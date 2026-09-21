@@ -93,7 +93,9 @@ class ResearchCycleOrgan:
                 "   文献再検索: "
                 f"{int(ev.get('papers_screened',0) or 0)}件、"
                 f"該当評価項目あり {int(ev.get('question_kind_resolved_in',0) or 0)}件、"
-                f"未確認 {int(ev.get('question_kind_unresolved_in',0) or 0)}件"
+                f"未確認 {int(ev.get('question_kind_unresolved_in',0) or 0)}件、"
+                f"rounds={len(ev.get('rounds',[]) or [])}、"
+                f"stop={ev.get('stop_reason','')}"
             )
             hypotheses = row.get("hypotheses") or []
             for h in hypotheses[:2]:
