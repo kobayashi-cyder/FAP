@@ -24,6 +24,7 @@ from fap_factual_qa import FactualQAOrgan
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_inquiry_engine import InquiryEngine
 from fap_scientific_modeling import ScientificModelComposer
+from fap_hypothesis_engine import HypothesisEngine
 
 ROOT = Path(__file__).resolve().parent
 WEB_FILE = ROOT / "web" / "FAP_Chat.html"
@@ -429,6 +430,11 @@ class VerificationOrgan:
             if not result.get("model_id"):
                 return "PARTIAL", "科学モデル説明は生成されましたが、参照モデルを特定できません。"
             return "OK", f"構造化科学モデル {result.get('model_id')} に基づいて説明しています。"
+        if result.get("hypothesis_reasoning"):
+            n = int(result.get("generated_hypotheses", 0))
+            if n <= 0:
+                return "PARTIAL", "仮説推論を選択しましたが、競合仮説を生成できませんでした。"
+            return "OK", f"{n}件の競合仮説を生成し、予測・反証条件・次の観測を分離しました。仮説は検証済み事実へ自動昇格しません。"
         if result.get("inquiry_reasoning"):
             resolved = int(result.get("resolved_questions", 0))
             generated = int(result.get("generated_questions", 0))
@@ -470,6 +476,7 @@ class FAPV8710:
         self.factual = FactualQAOrgan()
         self.inquiry = InquiryEngine(ROOT)
         self.scientific_model = ScientificModelComposer(ROOT)
+        self.hypothesis = HypothesisEngine(ROOT)
         self.reflective = ReflectiveConversationOrgan()
         self.verify = VerificationOrgan()
         self.lock = threading.Lock()
@@ -484,6 +491,8 @@ class FAPV8710:
             "topic-followup-resolution", "generic-question-generation", "question-resolution-loop",
             "retrieval-grounded-inquiry", "data-driven-knowledge",
             "structured-scientific-models", "equation-grounded-explanation",
+            "generic-hypothesis-generation", "falsification-first-reasoning",
+            "competing-hypothesis-analysis", "provisional-hypothesis-memory",
         ]
         if self.image.available()[0]:
             caps.append("image-generation")
@@ -558,6 +567,13 @@ class FAPV8710:
         scientific_model = self.scientific_model.run(text, history)
         if scientific_model is not None:
             return scientific_model
+
+        # Abductive reasoning is triggered only for hypothesis/alternative/
+        # falsification language, so ordinary science explanations keep using
+        # the structured model path above.
+        hypothesis = self.hypothesis.run(text, history)
+        if hypothesis is not None:
+            return hypothesis
 
         # Generic inquiry is data-driven: retrieve local evidence, generate
         # epistemic subquestions, try to resolve them, then synthesize. Topic
