@@ -244,6 +244,8 @@ class FAPV8712(v11.FAPV8711):
                 route += ["scientific-model", str(result.get("model_mode", "overview"))]
             if result.get("hypothesis_reasoning"):
                 route += ["hypothesis-generate", "falsification-plan"]
+            if result.get("research_frontier"):
+                route += ["research-frontier", "gap-prioritize"]
             if result.get("inquiry_reasoning"):
                 route += [
                     "inquiry-retrieve",
@@ -345,6 +347,14 @@ class FAPV8712(v11.FAPV8711):
                 "limits": result.get("model_limits", []),
                 "science_snapshot_as_of": result.get("science_snapshot_as_of", ""),
                 "recent_science": result.get("recent_science", []),
+            },
+            "research_frontier": {
+                "enabled": bool(result.get("research_frontier")),
+                "snapshot_generated_at": result.get("snapshot_generated_at", ""),
+                "papers_processed": int(result.get("papers_processed", 0)),
+                "cluster_count": int(result.get("cluster_count", 0)),
+                "epistemic_status": result.get("epistemic_status", ""),
+                "selected": result.get("selected_frontier", []),
             },
             "hypothesis_reasoning": {
                 "enabled": bool(result.get("hypothesis_reasoning")),
