@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fap_benchmark_reasoning import StructuredMCQParser
-from fap_physics_knowledge import PhysicsKnowledgeReasoner, PhysicsKnowledgeStore
+from fap_physics_knowledge import PhysicsKnowledgeReasoner, PhysicsKnowledgeStore, validate_knowledge_patterns
 import fap_v87_26_scientific_reasoning_gateway as v26
 import fap_v87_27_physics_knowledge_gateway as gateway
 
@@ -10,6 +10,10 @@ def parse(s):
     t = StructuredMCQParser().parse(s)
     assert t is not None
     return t
+
+
+def test_all_knowledge_patterns_compile():
+    assert validate_knowledge_patterns() == []
 
 
 def test_store_has_broad_physics_areas():
