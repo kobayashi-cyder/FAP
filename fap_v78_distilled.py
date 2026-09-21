@@ -26,7 +26,11 @@ CIRCUITS: dict[str, dict] = {
     },
     "constraint_aware": {
         "priority": 0.938,
-        "detect": ["RAM", "メモリ", "速度", "精度", "安全", "制約", "条件", "容量", "圧縮"],
+        # Bare physical quantities such as "速度" or "精度" are not constraints.
+        # Require an actual limit/performance cue so factual questions such as
+        # "真空中の光速度は？" do not activate this procedural circuit.
+        "detect": ["RAM", "メモリ制約", "速度制約", "処理速度", "応答速度", "高速化", "低遅延",
+                   "精度要件", "安全要件", "制約", "条件", "容量制限", "容量上限", "圧縮"],
         "plan": ["制約を抽出", "核となる操作を最小化", "制約違反を確認", "冗長性を除去", "実行可能な形へ変換"],
         "principles": ["制約優先", "最小単位", "条件付き実行を明示", "再利用可能にする"],
     },
@@ -102,7 +106,11 @@ TEACHER_SHADOW = [
 STRUCTURAL = {
     "conversation_repair": re.compile(r"(違う|ではなく|じゃなく|訂正|修正|というより)"),
     "uncertainty": re.compile(r"(不明|不確実|仮説|未確認|分から|可能性|断定)"),
-    "constraint_aware": re.compile(r"(RAM|メモリ|速度|精度|安全|制約|条件|容量)", re.I),
+    "constraint_aware": re.compile(
+        r"(RAM|メモリ(?:制約|上限|容量)|速度(?:制約|要件)|処理速度|応答速度|高速化|低遅延|"
+        r"精度(?:要件|制約)|安全(?:要件|制約)|制約|条件|容量(?:制限|上限))",
+        re.I,
+    ),
     "decomposition": re.compile(r"(分解|サブゴール|段階|手順|タスク)"),
     "verification": re.compile(r"(検証|根拠|反例|矛盾|証拠)"),
     "planning": re.compile(r"(完了条件|逆算|再計画|途中失敗|計画|終わるまで)"),
