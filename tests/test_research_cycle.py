@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fap_research_cycle import build_cycles
+from fap_research_cycle import build_cycles, _query_variants
 from fap_research_cycle_chat import ResearchCycleOrgan
 
 
@@ -90,6 +90,19 @@ class ResearchCycleTests(unittest.TestCase):
             self.assertEqual(out["selected_cycles"][0]["topic"], "Atmospheric Science")
             self.assertIn("反証", out["reply"])
             self.assertIn("実証ではありません", out["reply"])
+
+    def test_query_refinement_is_generic_by_question_kind(self):
+        queries = _query_variants("Atmospheric Science", "validation", 3)
+        self.assertEqual(queries[0], "Atmospheric Science")
+        self.assertEqual(len(queries), 3)
+        self.assertTrue(any("external validation" in q for q in queries[1:]))
+
+    def test_cycle_has_recursive_search_fields(self):
+        out = build_cycles(self._frontier(), 10)
+        evidence = out["cycles"][0]["targeted_evidence"]
+        self.assertIn("rounds", evidence)
+        self.assertIn("saturation_ratio", evidence)
+        self.assertIn("stop_reason", evidence)
 
     def test_plain_science_explanation_is_not_hijacked(self):
         with tempfile.TemporaryDirectory() as td:
