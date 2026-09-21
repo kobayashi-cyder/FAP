@@ -164,11 +164,14 @@ class ReflectiveConversationOrgan:
 
     FOLLOWUP = re.compile(r"^(?:それ|これは|その点|では|じゃあ|もう少し|詳しく)?(?:について|に関して|は)?[？?。\s]*$")
 
-    def _match(self, text: str) -> tuple[Concept | None, float]:
-        scored = sorted(
+    def _rank(self, text: str) -> list[tuple[float, Concept]]:
+        return sorted(
             ((_topic_score(c, text), c) for c in CONCEPTS),
             key=lambda x: (-x[0], x[1].concept_id),
         )
+
+    def _match(self, text: str) -> tuple[Concept | None, float]:
+        scored = self._rank(text)
         if not scored or scored[0][0] <= 0:
             return None, 0.0
         return scored[0][1], scored[0][0]
@@ -200,6 +203,17 @@ class ReflectiveConversationOrgan:
     def _join_sentences(rows: tuple[str, ...], limit: int) -> str:
         return "".join(rows[:limit])
 
+    @staticmethod
+    def _render_compare(a: Concept, b: Concept) -> str:
+        a_mech = a.mechanisms[0] if a.mechanisms else a.summary
+        b_mech = b.mechanisms[0] if b.mechanisms else b.summary
+        return (
+            f"{a.summary}{b.summary}"
+            f"違いを短く言うと、前者は「{a_mech}」が中心で、"
+            f"後者は「{b_mech}」が中心です。"
+            "両者は独立とは限らず、同じ現象の中で同時に働く場合があります。"
+        )
+
     def _render(self, concept: Concept, text: str, *, followup: bool) -> str:
         mode = self._question_mode(text)
         if mode == "why":
@@ -226,7 +240,9 @@ class ReflectiveConversationOrgan:
         if not t:
             return None
 
-        concept, score = self._match(t)
+        ranked = self._rank(t)
+        concept = ranked[0][1] if ranked and ranked[0][0] > 0 else None
+        score = ranked[0][0] if ranked and ranked[0][0] > 0 else 0.0
         followup = False
         if concept is None and self.FOLLOWUP.match(t):
             concept = self._from_history(history)
@@ -236,7 +252,21 @@ class ReflectiveConversationOrgan:
         if concept is None:
             return None
 
-        reply = self._render(concept, t, followup=followup)
+        mode = self._question_mode(t)
+        second = None
+        if mode == "compare":
+            for s, candidate in ranked[1:]:
+                if s > 0 and candidate.concept_id != concept.concept_id:
+                    second = candidate
+                    break
+
+        if second is not None:
+            reply = self._render_compare(concept, second)
+            evidence_ids = [concept.concept_id, second.concept_id]
+        else:
+            reply = self._render(concept, t, followup=followup)
+            evidence_ids = [concept.concept_id]
+
         return {
             "ok": True,
             "reply": reply,
@@ -246,8 +276,8 @@ class ReflectiveConversationOrgan:
             "reflective_reasoning": True,
             "grounded": True,
             "topic_id": concept.concept_id,
-            "evidence_ids": [concept.concept_id],
-            "reasoning_mode": self._question_mode(t),
+            "evidence_ids": evidence_ids,
+            "reasoning_mode": mode,
             "followup_resolved": followup,
             "related_topics": list(concept.related),
         }
