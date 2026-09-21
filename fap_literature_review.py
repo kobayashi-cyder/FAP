@@ -20,6 +20,9 @@ _TAG = re.compile(r"<[^>]+>")
 _WS = re.compile(r"\s+")
 _SENT = re.compile(r"(?<=[.!?。！？])\s+|[\r\n]+")
 _DOI = re.compile(r"^10\.\d{4,9}/\S+$", re.I)
+_OPEN_HINT = re.compile(r"\b(remains? (?:unknown|unclear|unresolved)|not (?:known|understood)|open question|future (?:work|research)|further (?:study|studies|research)|warrants? further|needs? to be (?:tested|determined|clarified|investigated))\b|未解明|不明|明らかでない|今後の研究|追加研究|さらなる研究", re.I)
+_LIMIT_HINT = re.compile(r"\b(limitations?|caveat|may not|cannot|uncertain|bias|confound)\b|限界|注意点|不確実|バイアス|交絡", re.I)
+_CLAIM_HINT = re.compile(r"\b(we (?:find|found|show|demonstrate|report|observe)|results? (?:show|suggest|indicate)|our findings|associated with|increased|decreased|improved|reduced)\b|示した|認めた|関連した|増加した|減少した|改善した", re.I)
 
 APPRAISAL_SPECS: tuple[tuple[str, str, re.Pattern], ...] = (
     ("question", "研究質問・目的は明示されているか？", re.compile(r"\b(objective|aim|purpose|we (?:test|investigate|examine|assess|evaluate|study))\b|目的|検討|評価", re.I)),
@@ -84,6 +87,18 @@ def _sentences(text: str) -> list[str]:
     return [x.strip() for x in _SENT.split(_clean(text)) if len(x.strip()) >= 12]
 
 
+def _hint_sentences(text: str, pattern: re.Pattern, limit: int = 2) -> list[str]:
+    out = []
+    for sentence in _sentences(text):
+        if pattern.search(sentence):
+            value = sentence[:280]
+            if value not in out:
+                out.append(value)
+        if len(out) >= limit:
+            break
+    return out
+
+
 @dataclass
 class ReviewQuestion:
     kind: str
@@ -114,6 +129,9 @@ class PaperReview:
     unresolved_questions: int
     resolution_rate: float
     review_questions: list[dict]
+    open_question_hints: list[str]
+    limitation_hints: list[str]
+    claim_hints: list[str]
     abstract: str = ""
 
 
@@ -208,6 +226,9 @@ class CriticalAppraiser:
             unresolved_questions=len(questions) - resolved,
             resolution_rate=round(resolved / max(1, len(questions)), 4),
             review_questions=[asdict(q) for q in questions],
+            open_question_hints=_hint_sentences(abstract, _OPEN_HINT),
+            limitation_hints=_hint_sentences(abstract, _LIMIT_HINT),
+            claim_hints=_hint_sentences(abstract, _CLAIM_HINT),
             abstract=abstract if store_abstract else "",
         )
 
@@ -340,7 +361,14 @@ def run_review(
                     "publisher": review.publisher,
                     "subjects": review.subjects,
                     "screening_status": review.screening_status,
+                    "abstract_available": review.abstract_available,
+                    "author_count": review.author_count,
+                    "reference_count": review.reference_count,
+                    "cited_by_count": review.cited_by_count,
                     "update_flags": review.update_flags,
+                    "open_question_hints": review.open_question_hints,
+                    "limitation_hints": review.limitation_hints,
+                    "claim_hints": review.claim_hints,
                     "generated_questions": review.generated_questions,
                     "resolved_questions": review.resolved_questions,
                     "unresolved_questions": review.unresolved_questions,
