@@ -133,6 +133,16 @@ def test_manager_accepts_structural_scene_but_rejects_photo_claim(tmp_path: Path
     )
     assert not photo.result.accepted
     assert photo.result.best_candidate is not None
-    assert photo.result.best_candidate.critique.score == 0.58
+    # CompositeCritic is fail-closed: any fatal issue forces the aggregate
+    # score to zero even though the style sub-critic reports measurable
+    # photo-look progress.
+    assert photo.result.best_candidate.critique.score == 0.0
+    evidence = photo.result.best_candidate.critique.evidence
+    quality = next(
+        value for value in evidence.values()
+        if isinstance(value, dict) and value.get("kind") == "photo-look-quality"
+    )
+    assert quality["style_score"] == 0.58
+    assert quality["photo_look_capability"] == 0.58
     codes = {x.code for x in photo.result.best_candidate.critique.issues}
     assert "photorealism_not_yet_verified" in codes
