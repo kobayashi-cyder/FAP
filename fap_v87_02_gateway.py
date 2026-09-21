@@ -454,14 +454,26 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         print("[FAP WEB] " + (fmt % args))
 
+    def cors_headers(self) -> None:
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+
     def send_json(self, obj: Any, code: int = 200) -> None:
         raw = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(raw)))
         self.send_header("Cache-Control", "no-store")
+        self.cors_headers()
         self.end_headers()
         self.wfile.write(raw)
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.cors_headers()
+        self.end_headers()
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
@@ -474,6 +486,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(raw)))
             self.send_header("Cache-Control", "no-store")
+            self.cors_headers()
             self.end_headers()
             self.wfile.write(raw)
             return
@@ -494,6 +507,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(raw)))
+            self.cors_headers()
             self.end_headers()
             self.wfile.write(raw)
             return
