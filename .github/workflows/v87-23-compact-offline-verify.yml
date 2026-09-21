@@ -7,10 +7,14 @@ on:
       - main
     paths:
       - "releases/v87_23/**"
+      - "fap_v87_23_compact_offline_media_lab.py"
+      - "RUN_FAP_V87_23_COMPACT_OFFLINE_MEDIA_LAB.cmd"
       - ".github/workflows/v87-23-compact-offline-verify.yml"
   pull_request:
     paths:
       - "releases/v87_23/**"
+      - "fap_v87_23_compact_offline_media_lab.py"
+      - "RUN_FAP_V87_23_COMPACT_OFFLINE_MEDIA_LAB.cmd"
       - ".github/workflows/v87-23-compact-offline-verify.yml"
 
 jobs:
@@ -27,5 +31,5 @@ jobs:
       - run: python -m pip install --upgrade pip pytest
       - name: Run V87.23 tests
         env:
-          PYTHONPATH: releases/v87_13/media_generation:releases/v87_23/compact_offline
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_23/compact_offline
         run: pytest -q releases/v87_23/compact_offline/tests
