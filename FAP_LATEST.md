@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.30 — Human Rig + Linear Blend Skinning**.
+Current mainline: **V87.30 — Human Rig + Linear Blend Skinning**.
 
 V87.30 extends the FAP-native image generation path with a geometric 3D/CAD-like
 human substrate. Instead of painting a human directly in 2D, FAP now constructs
