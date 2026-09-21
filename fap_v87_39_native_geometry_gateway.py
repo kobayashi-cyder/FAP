@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import urllib.parse
 from http.server import ThreadingHTTPServer
 
 import fap_v87_38_native_unified_chat_gateway as v38
@@ -95,6 +96,21 @@ base.VERSION=VERSION
 
 class Handler(v38.Handler):
     server_version="FAPV87.39NativeGeometry"
+
+    def do_GET(self):
+        # Startup/readiness probes must not build the full recursive status
+        # payload. On Windows the old 1-second /api/v1/status probe could abort
+        # the socket while CORE.status() was still serializing, creating
+        # WinError 10053 and making a healthy server look unready.
+        path = urllib.parse.urlparse(self.path).path
+        if path == "/api/v1/ready":
+            self.send_json({
+                "version": VERSION,
+                "mainline_version": "87.39",
+                "state": "ready",
+            })
+            return
+        super().do_GET()
 
 def main():
     from fap_native_geometry import native_geometry_status
