@@ -14,7 +14,6 @@ class Concept:
     boundaries: tuple[str, ...] = ()
     related: tuple[str, ...] = ()
     plain: str = ""
-    open_questions: tuple[str, ...] = ()
 
 
 CONCEPTS: tuple[Concept, ...] = (
@@ -32,14 +31,8 @@ CONCEPTS: tuple[Concept, ...] = (
             "支配的な力は空間・時間スケールで変わります。台風、ジェット気流、海陸風、積乱雲では同じ大気運動でも力のバランスが異なります。",
             "コリオリ効果は赤道付近や非常に小さいスケールでは弱く、局地的な流れでは摩擦や浮力が相対的に重要になります。",
         ),
-        ("pressure_gradient", "coriolis", "convection", "typhoon_track"),
+        ("pressure_gradient", "coriolis", "convection"),
         "要するに、空気は場所ごとの気圧や温度の違いで動き始め、その流れを地球の自転や地面との摩擦が曲げたり弱めたりします。上昇・下降には浮力や加熱・冷却も効きます。",
-        (
-            "実際の大気状態は観測が有限で、初期値には必ず誤差があります。",
-            "雲・降水・乱流など小さいスケールの過程を完全には直接計算できず、近似やパラメタリゼーションが必要です。",
-            "複数の力が同時に働くため、どの効果が支配的かは場所・高度・時間スケールで変わります。",
-            "したがって『仕組みを知っている』ことと『任意の将来状態を即時・完全に予測できる』ことは別です。",
-        ),
     ),
     Concept(
         "pressure_gradient",
@@ -72,28 +65,6 @@ CONCEPTS: tuple[Concept, ...] = (
             "大気では水蒸気の凝結に伴う潜熱放出も浮力を強め、積乱雲などの発達に効きます。",
         ),
         ("安定成層では鉛直運動が抑えられ、不安定成層では対流が成長しやすくなります。",),
-    ),
-    Concept(
-        "typhoon_track",
-        ("台風", "台風の進路", "台風進路", "進路予測", "台風予測", "typhoon track", "tropical cyclone track", "hurricane track"),
-        "台風の進路は、台風自身が単独で決めるのではなく、周囲の大規模な風の流れに強く運ばれて決まります。",
-        (
-            "特に対流圏の広い高度範囲の平均的な風が『 steering flow（指向流）』として台風を運びます。",
-            "太平洋高気圧の張り出し、偏西風や気圧の谷の位置が変わると、進路も曲がったり加速したりします。",
-            "台風の強さや鉛直構造によって、どの高度の風に強く流されるかが変わることがあります。",
-            "実際の予報では衛星・レーダー・地上・航空機などの観測を数値予報モデルへ取り込み、複数の初期値やモデルを走らせるアンサンブル予報で進路の幅を評価します。",
-        ),
-        (
-            "予報時間が先になるほど初期値誤差とモデル誤差が増幅するため、進路は一本の線ではなく確率的な幅として見る必要があります。",
-            "特定の台風の現在位置や最新進路を答えるには、リアルタイム観測と最新の予報データが必要です。",
-        ),
-        ("atmospheric_motion", "pressure_gradient", "coriolis"),
-        "要するに、台風は周囲の大きな風の流れに乗って移動します。高気圧や偏西風の位置が変われば進路も変わるので、最新観測を使った数値予報を何通りも走らせて進路の幅を見ます。",
-        (
-            "どの指向流が支配的になるかは、その時々の高気圧・気圧の谷・台風の構造に依存します。",
-            "数日先ほど進路誤差は広がり、単一の決め打ちよりアンサンブルのばらつきが重要になります。",
-            "急な進路変化を完全に事前確定することはできません。",
-        ),
     ),
     Concept(
         "wave",
@@ -201,15 +172,6 @@ class ReflectiveConversationOrgan:
         r"(?:わか|分か|理解)(?:ります|できます|できる).*(?:か|？|\?))",
         re.I,
     )
-    EPISTEMIC_QUERY = re.compile(
-        r"(疑問点|わからない点|分からない点|未解明|不明な点|不確実|限界|"
-        r"何が分から|何がわから|知らないこと|問題点|課題)",
-        re.I,
-    )
-    LIVE_FORECAST_QUERY = re.compile(
-        r"(最新|現在|今|今日|明日|何号|\d+号|どこへ|どこに|いつ上陸|上陸(?:する|しそう)|現在地)",
-        re.I,
-    )
     PREMISE_REASONING = re.compile(
         r"(どう思う|どう考える|妥当|仮説|もし|仮に|とすると|としたら|"
         r"という見方|という考え|捉えると|観点|本質|前提|何が欠損|"
@@ -263,10 +225,9 @@ class ReflectiveConversationOrgan:
             "外部知識が必要な部分は、ローカル根拠がない限り事実として補いません。"
         )
 
-    def _question_mode(self, text: str) -> str:
+    @staticmethod
+    def _question_mode(text: str) -> str:
         t = str(text or "")
-        if self.EPISTEMIC_QUERY.search(t):
-            return "uncertainty"
         if re.search(r"(なぜ|どうして|理由|原因|why)", t, re.I):
             return "why"
         if re.search(r"(どういうこと|どういう意味|つまり|要するに|簡単に|かみ砕)", t, re.I):
@@ -296,18 +257,7 @@ class ReflectiveConversationOrgan:
 
     def _render(self, concept: Concept, text: str, *, followup: bool) -> str:
         mode = self._question_mode(text)
-        if mode == "uncertainty":
-            rows = concept.open_questions or concept.boundaries
-            if rows:
-                reply = "あります。" + "".join(f"{i+1}. {x}" for i, x in enumerate(rows[:4]))
-            else:
-                reply = (
-                    "あります。既知の仕組みだけで任意の条件を完全に予測できるとは限りません。"
-                    "適用範囲、観測誤差、モデル近似、未知の条件を分けて扱う必要があります。"
-                )
-            if re.search(r"(全問|即値|即答|何でも|完全|必ず)", text):
-                reply += "したがって、疑問点が無いことを前提に『後の質問へ全問即時に正答できる』とはみなしません。知識の理解と、個別条件の予測・最新情報の取得は別問題です。"
-        elif mode == "why":
+        if mode == "why":
             body = self._join_sentences(concept.mechanisms, 3)
             reply = concept.summary + body
         elif mode == "clarify":
@@ -371,32 +321,6 @@ class ReflectiveConversationOrgan:
             return None
 
         mode = self._question_mode(t)
-
-        # A current named typhoon forecast is a live-data request, not a static
-        # science explanation. Keep the boundary explicit rather than inventing
-        # a track from textbook knowledge.
-        if concept.concept_id == "typhoon_track" and self.LIVE_FORECAST_QUERY.search(t):
-            return {
-                "ok": True,
-                "reply": (
-                    "台風進路の仕組みは説明できますが、その質問は最新の実測・予報データが必要です。"
-                    "このローカル知識だけから現在の進路を作ることはしません。"
-                    "最新の中心位置、予報円、アンサンブルなどの実況データを取得できる経路が必要です。"
-                ),
-                "confidence": 0.94,
-                "needs_teacher": False,
-                "needs_live_data": True,
-                "local": True,
-                "reflective_reasoning": True,
-                "grounded": True,
-                "topic_id": concept.concept_id,
-                "evidence_ids": [concept.concept_id],
-                "reasoning_mode": "live-data-boundary",
-                "followup_resolved": followup,
-                "contextual_followup": bool(followup and contextual_followup),
-                "related_topics": list(concept.related),
-            }
-
         second = None
         if mode == "compare":
             for s, candidate in ranked[1:]:
