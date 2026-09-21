@@ -424,6 +424,8 @@ class VerificationOrgan:
                 return "NG", "事実質問を検出しましたが、直接回答がありません。"
             return "OK", "事実質問に対してローカル知識から直接回答しています。"
         if result.get("reflective_reasoning"):
+            if result.get("needs_live_data"):
+                return "PARTIAL", "仕組みは説明できますが、この質問の確定回答には最新の観測・予報データが必要です。"
             if not result.get("grounded") or not result.get("evidence_ids"):
                 return "PARTIAL", "会話推論は動作しましたが、ローカル根拠へ接続できていません。"
             return "OK", "ローカル知識へ接続し、質問形式に合わせて説明を組み立てています。"
