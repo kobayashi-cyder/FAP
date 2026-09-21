@@ -1,6 +1,6 @@
 # FAP latest development snapshot
 
-Current mainline candidate: **V87.36 — Scientific Geometry: DNA + V87.35 Cat Morphology**.
+Current mainline: **V87.36 — Scientific Geometry: DNA + V87.35 Cat Morphology**.
 
 V87.35 adds composable cat appearance traits:
 - 三毛 / calico;
