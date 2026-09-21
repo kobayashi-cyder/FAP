@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import csv, io, json, random, re, statistics, sys, time, urllib.request
+import csv, io, json, random, re, statistics, sys, time, urllib.request, hashlib
 from collections import Counter
 from pathlib import Path
 
@@ -35,6 +35,15 @@ def pred(core, prompt, sid):
     m = ANSWER_RE.search(str(out.get("reply","")))
     return (m.group(1).upper() if m else None), out
 
+STOP = {"which","what","when","where","there","their","about","from","with","that","this","into","does","would","could","following","statement","correct","most","likely","given","have","has","been","were","will","than","then","only","each","between","under","using","such","these","those","because","while","whose","respect","system","systems"}
+
+def split_of(question):
+    return "dev" if hashlib.sha256(question.encode("utf-8")).digest()[0] % 2 == 0 else "holdout"
+
+def topic_terms(question):
+    words=[w.lower() for w in re.findall(r"[A-Za-z][A-Za-z0-9+\-]{2,}", question)]
+    return [w for w in words if w not in STOP]
+
 def main():
     rows = load_rows()
     rng = random.Random(0)
@@ -47,6 +56,11 @@ def main():
     total = len(prepared)
     base_correct = cand_correct = parse = 0
     physics_total = physics_base = physics_cand = 0
+    split_stats = {
+        "dev": Counter(),
+        "holdout": Counter(),
+    }
+    dev_physics_terms = Counter()
     changed = changed_to_correct = changed_to_wrong = 0
     sources = Counter()
     physics_used = 0
@@ -70,10 +84,21 @@ def main():
         pk = meta.get("physics_knowledge") or {}
         physics_used += int(bool(pk.get("used")))
 
+        split = split_of(row["Question"])
+        split_stats[split]["trials"] += 1
+        split_stats[split]["base_correct"] += int(bpred == correct)
+        split_stats[split]["cand_correct"] += int(cpred == correct)
+
         if domain == "physics":
             physics_total += 1
             physics_base += int(bpred == correct)
             physics_cand += int(cpred == correct)
+            split_stats[split]["physics_trials"] += 1
+            split_stats[split]["physics_base_correct"] += int(bpred == correct)
+            split_stats[split]["physics_cand_correct"] += int(cpred == correct)
+            split_stats[split]["physics_used"] += int(bool(pk.get("used")))
+            if split == "dev":
+                dev_physics_terms.update(topic_terms(row["Question"]))
 
         if bpred != cpred:
             changed += 1
@@ -100,6 +125,17 @@ def main():
       "changed_to_correct":changed_to_correct,
       "changed_to_wrong":changed_to_wrong,
       "decision_sources":dict(sources),
+      "split_stats": {
+        name: {
+          **dict(stats),
+          "accuracy_base": stats["base_correct"]/stats["trials"] if stats["trials"] else 0,
+          "accuracy_candidate": stats["cand_correct"]/stats["trials"] if stats["trials"] else 0,
+          "physics_accuracy_base": stats["physics_base_correct"]/stats["physics_trials"] if stats["physics_trials"] else 0,
+          "physics_accuracy_candidate": stats["physics_cand_correct"]/stats["physics_trials"] if stats["physics_trials"] else 0,
+        }
+        for name,stats in split_stats.items()
+      },
+      "dev_physics_topic_terms": dev_physics_terms.most_common(60),
       "median_latency_s":statistics.median(latencies),
       "mean_latency_s":statistics.mean(latencies),
     }
