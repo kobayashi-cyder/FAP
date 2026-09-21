@@ -551,6 +551,21 @@ K: tuple[PhysicsKnowledgeEntry, ...] = (
 )
 
 
+def validate_knowledge_patterns() -> list[str]:
+    errors: list[str] = []
+    for entry in K:
+        for kind, patterns in (
+            ("support", entry.support_patterns),
+            ("contradiction", entry.contradiction_patterns),
+        ):
+            for pattern in patterns:
+                try:
+                    re.compile(pattern, re.I)
+                except re.error as exc:
+                    errors.append(f"{entry.knowledge_id}:{kind}:{pattern!r}:{exc}")
+    return errors
+
+
 class PhysicsKnowledgeStore:
     MAX_RETRIEVAL = 12
 
