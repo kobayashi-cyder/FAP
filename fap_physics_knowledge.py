@@ -561,6 +561,217 @@ K: tuple[PhysicsKnowledgeEntry, ...] = (
 )
 
 
+K = K + (
+    PhysicsKnowledgeEntry(
+        "photon_energy_wavelength","quantum",
+        ("photon","energy","frequency","wavelength"),("planck relation","photon wavelength"),
+        ("Photon energy is E = h nu = hc/lambda, so shorter wavelength means higher photon energy.",),
+        ("At fixed propagation medium, longer wavelength means higher photon energy.",),
+        ("E = h nu","E = hc/lambda"),(),
+        (r"photon.{0,100}(h.?nu|h.?c.?/.?lambda|shorter wavelength.{0,40}higher energy)",),
+        (r"photon.{0,100}longer wavelength.{0,40}higher energy",)
+    ),
+    PhysicsKnowledgeEntry(
+        "quantum_angular_momentum","quantum",
+        ("angular momentum","quantum number","projection"),("j quantum number","magnetic quantum number"),
+        ("For angular momentum quantum number j, J^2 has eigenvalue hbar^2 j(j+1), and a component has eigenvalues m hbar with m from -j to j.",),
+        ("The magnitude of quantum angular momentum is generally j hbar exactly for every j.",),
+        ("J^2 = hbar^2 j(j+1)","Jz = m hbar"),(),
+        (r"angular momentum.{0,120}(j.?\(j.?\+.?1\)|m.?hbar|m.{0,40}-?j)",),
+        (r"angular momentum.{0,100}magnitude.{0,30}j.?hbar exactly",)
+    ),
+    PhysicsKnowledgeEntry(
+        "angular_momentum_addition","quantum",
+        ("angular momentum","addition","coupling"),("spin coupling","total j","clebsch gordan"),
+        ("Adding angular momenta j1 and j2 gives total j values from |j1-j2| through j1+j2 in integer steps.",),
+        ("Two spin-1/2 particles can only form total spin 1/2.",),
+        ("j = |j1-j2|,...,j1+j2",),(),
+        (r"(angular momentum|spin).{0,100}(coupl|addition|total).{0,100}(j1|j2|integer steps|singlet|triplet)",),
+        (r"two spin.?1/2.{0,80}only.{0,30}total spin.?1/2",)
+    ),
+    PhysicsKnowledgeEntry(
+        "spin_half_projection","quantum",
+        ("spin","spin-1/2","projection"),("spin half","m_s"),
+        ("A spin-1/2 particle has spin projection quantum numbers +1/2 and -1/2 along a chosen axis.",),
+        ("A spin-1/2 particle has three spin projections -1, 0, +1.",),
+        ("m_s = +/- 1/2",),(),
+        (r"spin.?1/2.{0,100}(\+.?1/2|-.?1/2|two projections)",),
+        (r"spin.?1/2.{0,100}(-?1.{0,20}0.{0,20}\+?1|three projections)",)
+    ),
+    PhysicsKnowledgeEntry(
+        "hydrogen_levels","quantum",
+        ("hydrogen","energy level","principal quantum number"),("bohr energy","hydrogen spectrum"),
+        ("Ignoring fine structure, hydrogen bound-state energies scale as -13.6 eV/n^2.",),
+        ("Hydrogen bound-state energy grows linearly and positively with principal quantum number n.",),
+        ("E_n = -13.6 eV/n^2",),("nonrelativistic hydrogenic atom with Z=1",),
+        (r"hydrogen.{0,100}(-?13\.6|1.?/.?n\^?2|energy level)",),
+        (r"hydrogen.{0,100}energy.{0,50}linear.{0,30}principal quantum",)
+    ),
+    PhysicsKnowledgeEntry(
+        "spectral_transition","quantum",
+        ("spectrum","transition","photon","energy level"),("spectral line","transition energy"),
+        ("A transition between stationary energy levels emits or absorbs a photon with energy equal to the level-energy difference.",),
+        ("The photon energy in a transition is unrelated to the difference between the initial and final energy levels.",),
+        ("Delta E = h nu = hc/lambda",),(),
+        (r"(transition|spectrum).{0,100}(delta.?e|energy difference).{0,80}(photon|frequency|wavelength)",),
+        (r"transition.{0,100}photon energy.{0,50}unrelated.{0,50}energy level",)
+    ),
+    PhysicsKnowledgeEntry(
+        "selection_rule_dipole","quantum",
+        ("selection rule","electric dipole","angular momentum"),("dipole transition","delta l"),
+        ("For ordinary electric-dipole atomic transitions, the orbital angular momentum rule is Delta l = +/-1, with corresponding magnetic selection rules.",),
+        ("An electric-dipole atomic transition generically requires Delta l = 0 only.",),
+        ("Delta l = +/-1",),("electric dipole approximation",),
+        (r"(electric dipole|selection rule).{0,100}(delta.?l|\+.?/?-.?1)",),
+        (r"electric dipole.{0,100}delta.?l.{0,30}=.?0 only",)
+    ),
+    PhysicsKnowledgeEntry(
+        "zeeman_effect","quantum",
+        ("zeeman","magnetic field","energy level"),("magnetic splitting","spectral line"),
+        ("The Zeeman effect is the splitting or shifting of atomic energy levels in an external magnetic field.",),
+        ("The Zeeman effect is caused by a static electric field rather than a magnetic field.",),
+        (),(),
+        (r"zeeman.{0,80}(magnetic field|splitting|energy level)",),
+        (r"zeeman.{0,80}electric field",)
+    ),
+    PhysicsKnowledgeEntry(
+        "stark_effect","quantum",
+        ("stark","electric field","energy level"),("electric splitting","spectral line"),
+        ("The Stark effect is the shifting or splitting of energy levels due to an external electric field.",),
+        ("The Stark effect is specifically magnetic-field splitting.",),
+        (),(),
+        (r"stark.{0,80}(electric field|splitting|energy level)",),
+        (r"stark.{0,80}magnetic field",)
+    ),
+    PhysicsKnowledgeEntry(
+        "relativistic_gamma","relativity",
+        ("gamma factor","velocity","relativity"),("lorentz factor","relativistic velocity"),
+        ("The Lorentz factor is gamma = 1/sqrt(1-v^2/c^2), and increases as speed approaches c.",),
+        ("The Lorentz factor decreases below one for ordinary subluminal speeds.",),
+        ("gamma = 1/sqrt(1-v^2/c^2)",),("0 <= v < c",),
+        (r"(lorentz factor|gamma).{0,100}(1.?/.?sqrt|approach.{0,20}c|greater than 1)",),
+        (r"(lorentz factor|gamma).{0,80}(below one|less than 1).{0,40}subluminal",)
+    ),
+    PhysicsKnowledgeEntry(
+        "relativistic_kinetic_energy","relativity",
+        ("kinetic energy","gamma","relativity"),("relativistic kinetic energy",),
+        ("Relativistic kinetic energy is K = (gamma-1)mc^2.",),
+        ("Relativistic kinetic energy is always exactly (1/2)mv^2 at any speed.",),
+        ("K = (gamma-1)mc^2",),(),
+        (r"relativistic.{0,80}kinetic energy.{0,80}(gamma.?-.?1|mc\^?2)",),
+        (r"relativistic.{0,80}kinetic energy.{0,80}always.{0,40}1/2.?m.?v\^?2",)
+    ),
+    PhysicsKnowledgeEntry(
+        "center_of_mass_energy","particle",
+        ("center of mass","collision","energy"),("center-of-momentum","invariant mass","s"),
+        ("For collisions, the invariant center-of-mass energy is characterized by s = (total four-momentum)^2; available production energy depends on center-of-mass energy, not just lab energy.",),
+        ("In a fixed-target collision, all projectile lab energy is generally available as new-particle rest mass.",),
+        ("s = P_total^2",),(),
+        (r"(center.of.mass|invariant).{0,100}(energy|four.momentum|s\b)",),
+        (r"fixed.target.{0,100}all.{0,30}lab energy.{0,60}(rest mass|production)",)
+    ),
+    PhysicsKnowledgeEntry(
+        "decay_q_value","nuclear",
+        ("decay","q value","mass"),("Q-value","mass difference"),
+        ("The Q-value of a decay or reaction is the decrease in total rest-mass energy between initial and final states; positive Q permits energy release.",),
+        ("A negative Q-value means an isolated spontaneous decay has extra energy available without another source.",),
+        ("Q = (M_initial - M_final)c^2",),(),
+        (r"(q.?value|decay).{0,100}(mass difference|m_initial|energy release)",),
+        (r"negative q.?value.{0,80}(spontaneous|extra energy available)",)
+    ),
+    PhysicsKnowledgeEntry(
+        "compton_scattering","quantum",
+        ("compton","photon","wavelength","electron"),("compton shift","scattering"),
+        ("In Compton scattering from a free electron, the photon wavelength shift is proportional to 1-cos(theta).",),
+        ("Compton scattering leaves photon wavelength unchanged for every nonzero scattering angle.",),
+        ("Delta lambda = h/(m_e c) (1-cos theta)",),(),
+        (r"compton.{0,100}(wavelength|1.?-.?cos|electron)",),
+        (r"compton.{0,100}wavelength.{0,40}unchanged.{0,40}every",)
+    ),
+    PhysicsKnowledgeEntry(
+        "blackbody_planck","astrophysics",
+        ("blackbody","temperature","spectrum"),("planck spectrum","thermal radiation"),
+        ("A blackbody spectrum is set by temperature; hotter blackbodies peak at shorter wavelength and radiate more total power per area.",),
+        ("A hotter blackbody peaks at a longer wavelength than a cooler one.",),
+        ("lambda_max T = constant","F = sigma T^4"),(),
+        (r"blackbody.{0,100}(temperature|shorter wavelength|planck|sigma.?t\^?4)",),
+        (r"hotter blackbody.{0,80}longer wavelength",)
+    ),
+    PhysicsKnowledgeEntry(
+        "inverse_square_flux","astrophysics",
+        ("luminosity","flux","distance"),("inverse square law","stellar flux"),
+        ("For isotropic emission without absorption, observed flux is luminosity divided by 4 pi distance squared.",),
+        ("Observed flux from an isotropic source falls only as one over distance.",),
+        ("F = L/(4 pi d^2)",),(),
+        (r"(flux|luminosity).{0,100}(distance squared|inverse square|4.?pi.?d\^?2)",),
+        (r"flux.{0,80}(1.?/.?d\b|inverse distance\b)",)
+    ),
+    PhysicsKnowledgeEntry(
+        "hubble_law","astrophysics",
+        ("hubble","redshift","distance","universe"),("cosmic expansion","recession velocity"),
+        ("At sufficiently low cosmological redshift, recession velocity is approximately H0 times distance.",),
+        ("Hubble expansion implies gravitationally bound objects such as atoms expand in direct proportion to H0.",),
+        ("v = H0 d",),("low-redshift large-scale cosmology",),
+        (r"hubble.{0,100}(velocity|redshift|distance|h0)",),
+        (r"hubble.{0,100}(atoms|bound objects).{0,50}expand",)
+    ),
+    PhysicsKnowledgeEntry(
+        "cosmological_redshift","astrophysics",
+        ("redshift","scale factor","universe"),("cosmological redshift","expansion"),
+        ("Cosmological redshift satisfies 1+z = a_now/a_emit in an expanding FLRW universe.",),
+        ("Cosmological redshift requires photons to lose energy by ordinary friction with space.",),
+        ("1+z = a0/a_emit",),(),
+        (r"cosmological redshift.{0,100}(scale factor|1.?\+.?z|expansion)",),
+        (r"cosmological redshift.{0,100}(friction|tired light)",)
+    ),
+    PhysicsKnowledgeEntry(
+        "schwarzschild_radius","astrophysics",
+        ("black hole","schwarzschild","mass"),("event horizon","schwarzschild radius"),
+        ("For a nonrotating uncharged black hole, the Schwarzschild radius is 2GM/c^2.",),
+        ("The Schwarzschild radius decreases as black-hole mass increases.",),
+        ("r_s = 2GM/c^2",),("nonrotating uncharged black hole",),
+        (r"(schwarzschild|black hole).{0,100}(2.?g.?m.?/.?c\^?2|radius.{0,40}mass)",),
+        (r"schwarzschild radius.{0,80}decrease.{0,40}mass increase",)
+    ),
+    PhysicsKnowledgeEntry(
+        "gravitational_redshift","relativity",
+        ("gravitational redshift","gravity","frequency"),("general relativity","clock rate"),
+        ("Light climbing out of a gravitational potential well is redshifted relative to a distant observer; clocks deeper in a gravitational potential run slower in the standard static comparison.",),
+        ("A deeper gravitational potential makes a stationary clock run faster than a distant one.",),
+        (),("static gravitational field comparison",),
+        (r"gravitational.{0,100}(redshift|clock).{0,100}(slower|potential)",),
+        (r"deeper gravitational potential.{0,80}clock.{0,40}faster",)
+    ),
+    PhysicsKnowledgeEntry(
+        "stellar_hydrostatic","astrophysics",
+        ("star","hydrostatic equilibrium","gravity","pressure"),("stellar structure","pressure support"),
+        ("A stable star approximately balances inward gravity with outward pressure gradients in hydrostatic equilibrium.",),
+        ("Hydrostatic equilibrium in a star means both gravity and pressure gradient vanish separately.",),
+        (),(),
+        (r"star.{0,100}(hydrostatic|pressure).{0,80}(gravity|balance)",),
+        (r"hydrostatic.{0,80}star.{0,80}(gravity|pressure gradient).{0,30}vanish separately",)
+    ),
+    PhysicsKnowledgeEntry(
+        "stellar_fusion","astrophysics",
+        ("star","fusion","hydrogen","helium"),("stellar energy","nuclear fusion"),
+        ("Main-sequence stars are powered primarily by nuclear fusion converting hydrogen into helium, releasing binding energy.",),
+        ("Main-sequence stellar luminosity is powered primarily by chemical combustion.",),
+        (),("main-sequence stars",),
+        (r"(main.sequence|star).{0,100}(fusion|hydrogen|helium|nuclear)",),
+        (r"main.sequence.{0,100}(chemical combustion|burning coal)",)
+    ),
+    PhysicsKnowledgeEntry(
+        "virial_theorem","mechanics",
+        ("virial","bound system","kinetic","potential"),("virial theorem","gravitational system"),
+        ("For a stable bound system with an inverse-square gravitational potential, the time-averaged relation is 2<K> = -<U>.",),
+        ("A virialized self-gravitating system has zero kinetic energy.",),
+        ("2<K> = -<U>",),("stable time-averaged self-gravitating system",),
+        (r"virial.{0,100}(2.?k|potential|bound|gravit)",),
+        (r"virial.{0,100}zero kinetic energy",)
+    ),
+)
+
+
 def validate_knowledge_patterns() -> list[str]:
     errors: list[str] = []
     for entry in K:
