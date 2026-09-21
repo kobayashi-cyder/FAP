@@ -19,8 +19,12 @@ FAP: 大気の運動は、空間的な気圧・密度・温度の差から生じ
 The first knowledge set covers atmospheric motion, pressure-gradient force,
 Coriolis effect, convection, waves, energy, entropy, natural selection, gene
 expression, acid/base chemistry and algorithmic complexity. It also supports
-two-concept comparisons and topic follow-ups. Unknown factual topics still fall
-through to the conservative unresolved path instead of being fabricated.
+two-concept comparisons and topic follow-ups. It also has a premise-reasoning
+lane for open-ended prompts such as hypotheses, "どう思う？", "もし〜なら",
+or conceptual frames: it separates premise, consequence, alternative
+explanation, counterexample and possible test without inventing missing external
+facts. Unknown factual topics still fall through to the conservative unresolved
+path instead of being fabricated.
 
 The lightweight status endpoint now reports the descendant version correctly,
 so V87.42/V87.43 no longer appear as V87.41 in the browser header.
