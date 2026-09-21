@@ -250,7 +250,9 @@ class EpistemicLedger:
         confidence: float,
     ) -> dict:
         evidence = tuple(dict.fromkeys(str(x) for x in evidence_ids if str(x)))
-        if not evidence or len(str(answer).strip()) < 16 or float(value_score) < 0.45:
+        # Japanese factual conclusions can be short but still complete. Use a
+        # small minimum while keeping evidence and value gates mandatory.
+        if not evidence or len(str(answer).strip()) < 8 or float(value_score) < 0.45:
             return {"status": "skipped", "reason": "promotion-gate"}
 
         with self._lock:
