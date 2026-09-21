@@ -35,7 +35,7 @@ def pred(core, prompt, sid):
     m = ANSWER_RE.search(str(out.get("reply","")))
     return (m.group(1).upper() if m else None), out
 
-STOP = {"which","what","when","where","there","their","about","from","with","that","this","into","does","would","could","following","statement","correct","most","likely","given","have","has","been","were","will","than","then","only","each","between","under","using","such","these","those","because","while","whose","respect","system","systems"}
+STOP = {"the","and","are","not","can","for","you","your","one","two","left","right","find","value","consider","along","total","which","what","when","where","there","their","about","from","with","that","this","into","does","would","could","following","statement","correct","most","likely","given","have","has","been","were","will","than","then","only","each","between","under","using","such","these","those","because","while","whose","respect","system","systems"}
 
 def split_of(question):
     return "dev" if hashlib.sha256(question.encode("utf-8")).digest()[0] % 2 == 0 else "holdout"
@@ -64,6 +64,11 @@ def main():
     changed = changed_to_correct = changed_to_wrong = 0
     sources = Counter()
     physics_used = 0
+    retrieval_nonempty = 0
+    evidence_nonzero = 0
+    max_abs_scores = []
+    evidence_margins = []
+    retrieval_ids = Counter()
     latencies = []
 
     for i,(row,choices,correct) in enumerate(prepared):
@@ -97,6 +102,19 @@ def main():
             split_stats[split]["physics_base_correct"] += int(bpred == correct)
             split_stats[split]["physics_cand_correct"] += int(cpred == correct)
             split_stats[split]["physics_used"] += int(bool(pk.get("used")))
+            retrieved = pk.get("retrieved") or []
+            opts = pk.get("options") or []
+            retrieval_nonempty += int(bool(retrieved))
+            for item in retrieved:
+                if item.get("knowledge_id"):
+                    retrieval_ids[str(item.get("knowledge_id"))] += 1
+            if opts:
+                scores = [float(x.get("score", 0.0)) for x in opts]
+                if scores:
+                    max_abs_scores.append(max(abs(x) for x in scores))
+                    ordered = sorted(scores, reverse=True)
+                    evidence_margins.append(ordered[0] - ordered[1] if len(ordered) >= 2 else 0.0)
+                    evidence_nonzero += int(any(abs(x) > 1e-9 for x in scores))
             if split == "dev":
                 dev_physics_terms.update(topic_terms(row["Question"]))
 
@@ -125,6 +143,15 @@ def main():
       "changed_to_correct":changed_to_correct,
       "changed_to_wrong":changed_to_wrong,
       "decision_sources":dict(sources),
+      "physics_retrieval_diagnostics": {
+        "retrieval_nonempty": retrieval_nonempty,
+        "evidence_nonzero": evidence_nonzero,
+        "max_abs_score_max": max(max_abs_scores) if max_abs_scores else 0,
+        "max_abs_score_median": statistics.median(max_abs_scores) if max_abs_scores else 0,
+        "margin_max": max(evidence_margins) if evidence_margins else 0,
+        "margin_median": statistics.median(evidence_margins) if evidence_margins else 0,
+        "top_retrieved_ids": retrieval_ids.most_common(30),
+      },
       "split_stats": {
         name: {
           **dict(stats),
