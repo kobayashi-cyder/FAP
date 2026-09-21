@@ -310,29 +310,37 @@ def render_scientific_fast_png(
     return data, sparse
 
 
-def activate_sparse_renderers() -> dict:
-    """Patch current V87 organ engine boundaries, leaving old release code intact."""
+def activate_sparse_renderers(targets=("scene_graph2", "morphology", "scientific_dna")) -> dict:
+    """Patch only requested current-organ engine boundaries.
+
+    Keeping targets explicit preserves lazy organ loading: loading the scene
+    organ does not import morphology or scientific-DNA modules.
+    """
+    wanted = set(targets)
     patched = []
 
-    try:
-        import fap_scene_graph2.engine as module
-        module.render_photo_look_png = render_sparse_photo_look_png
-        patched.append("scene_graph2")
-    except ImportError:
-        pass
+    if "scene_graph2" in wanted:
+        try:
+            import fap_scene_graph2.engine as module
+            module.render_photo_look_png = render_sparse_photo_look_png
+            patched.append("scene_graph2")
+        except ImportError:
+            pass
 
-    try:
-        import fap_morphology.engine as module
-        module.render_photo_look_png = render_sparse_photo_look_png
-        patched.append("morphology")
-    except ImportError:
-        pass
+    if "morphology" in wanted:
+        try:
+            import fap_morphology.engine as module
+            module.render_photo_look_png = render_sparse_photo_look_png
+            patched.append("morphology")
+        except ImportError:
+            pass
 
-    try:
-        import fap_scientific_geometry.engine as module
-        module.render_photo_look_png = render_scientific_fast_png
-        patched.append("scientific_dna")
-    except ImportError:
-        pass
+    if "scientific_dna" in wanted:
+        try:
+            import fap_scientific_geometry.engine as module
+            module.render_photo_look_png = render_scientific_fast_png
+            patched.append("scientific_dna")
+        except ImportError:
+            pass
 
     return {"patched": patched}
