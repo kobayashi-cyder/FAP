@@ -1,0 +1,64 @@
+name: V87.25 Structured Reasoning Verify
+
+on:
+  push:
+    branches:
+      - v87.25-structured-reasoning
+      - main
+    paths:
+      - "fap_benchmark_reasoning.py"
+      - "fap_v87_25_structured_reasoning_gateway.py"
+      - "RUN_FAP_V87_25_STRUCTURED_REASONING.cmd"
+      - "releases/v87_25/**"
+      - ".github/workflows/v87-25-structured-reasoning-verify.yml"
+  pull_request:
+    paths:
+      - "fap_benchmark_reasoning.py"
+      - "fap_v87_25_structured_reasoning_gateway.py"
+      - "RUN_FAP_V87_25_STRUCTURED_REASONING.cmd"
+      - "releases/v87_25/**"
+      - ".github/workflows/v87-25-structured-reasoning-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+
+      - name: Run V87.25 focused tests
+        run: pytest -q releases/v87_25/structured_reasoning/tests
+
+      - name: Run inherited V87.02-V87.12 text regression suite
+        run: >
+          pytest -q
+          tests/test_v87_02_gateway.py
+          tests/test_v87_03_distilled_gateway.py
+          tests/test_v87_03_local_distilled.py
+          tests/test_v87_04_builder.py
+          tests/test_v87_05_generic_builder.py
+          tests/test_v87_06_concept_builder.py
+          tests/test_v87_07_spec_compiler.py
+          tests/test_v87_08_code_generator.py
+          tests/test_v87_09_compositional_codegen.py
+          tests/test_v87_10_program_synth.py
+          tests/test_v87_11_sol_gap.py
+          tests/test_v87_12_semantic_adaptive.py
+
+      - name: Run V87.22 offline-media regression suite
+        env:
+          PYTHONPATH: .:releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_22/offline_native
+        run: pytest -q releases/v87_22/offline_native/tests
+
+      - name: Run V87.24 offline-bundle regression suite
+        env:
+          PYTHONPATH: .:releases/v87_24/offline_bundle
+        run: pytest -q releases/v87_24/offline_bundle/tests
