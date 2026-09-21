@@ -1,6 +1,38 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.51 — Broad Literature Critical Appraisal**.
+Current mainline: **V87.52 — Hypothesis + Falsification Reasoning**.
+
+V87.52 adds a generic abductive-reasoning layer above the existing scientific
+models, inquiry engine and epistemic ledger.
+
+For prompts asking for hypotheses, possible causes, alternative explanations,
+or falsification plans, FAP now:
+
+- retrieves relevant local evidence and a structured scientific model when one
+  exists;
+- generates multiple **competing** hypotheses rather than one preferred story;
+- derives an observable prediction for each hypothesis;
+- derives an explicit falsifier / failure condition for each hypothesis;
+- identifies the next observation or experiment that would discriminate among
+  alternatives;
+- scores hypotheses by evidence support, novelty, falsifiability and parsimony;
+- stores hypotheses in a separate provisional ledger under
+  `runtime/hypotheses/ledger.json`;
+- never promotes a generated hypothesis to verified fact merely because it was
+  generated repeatedly.
+
+The hypothesis engine is topic-generic. Scientific domains grow through the
+existing knowledge/model data rather than through new per-topic chat branches.
+
+Example route:
+
+```text
+YOU: 大気の運動について競合仮説と反証条件を出して
+route: hypothesis-generate → falsification-plan
+```
+
+V87.51 literature appraisal, V87.50 dated recent science, V87.49 scientific
+modeling and V87.48 epistemic learning remain underneath V87.52.
 
 V87.51 adds a broad recent-literature screening pipeline on top of the dated
 science snapshot. It can page through recent Crossref journal-article metadata,
