@@ -1,6 +1,30 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.47 — Mass Inquiry Burst**.
+Current mainline: **V87.48 — Epistemic Learning**.
+
+V87.48 changes the inquiry loop from "ask many questions" into a more selective
+learning system:
+
+- every generated question receives an epistemic value score; falsification,
+  uncertainty, failure modes, evidence and validation are prioritized over
+  repetitive definitions;
+- verified answers are persisted locally with their original evidence IDs;
+- repeated compatible answers reinforce an existing conclusion instead of
+  duplicating it;
+- conflicting conclusions are quarantined in a contradiction ledger instead of
+  silently overwriting prior knowledge;
+- high-value unresolved questions persist as the next-session frontier;
+- later sessions can recall previously verified conclusions without treating the
+  stored conclusion as new independent evidence;
+- 2048-question burst mode remains available, but only the strongest verified
+  conclusions are promoted to long-term epistemic memory.
+
+The persistent ledger is stored under `runtime/epistemic/ledger.json`. The
+chat API exposes question value, attempts, recall state, learning counts and
+ledger statistics. This keeps knowledge growth data-driven and avoids adding
+topic-specific routing branches.
+
+V87.47 mass inquiry remains underneath V87.48.
 
 V87.47 raises the generic inquiry volume substantially:
 
