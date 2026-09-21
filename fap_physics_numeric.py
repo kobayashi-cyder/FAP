@@ -368,8 +368,6 @@ class PhysicsNumericSolver:
         )
 
     def solve(self, task: MCQTask) -> PhysicsNumericResult | None:
-        if task.domain != "physics":
-            return None
         for solver in (
             self._solve_photon_energy_from_wavelength,
             self._solve_lorentz_gamma,
