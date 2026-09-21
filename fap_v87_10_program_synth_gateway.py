@@ -62,30 +62,79 @@ def safe_session(value: str) -> str:
 
 
 class SessionMemory:
+    """Bounded session memory with a hot in-process cache.
+
+    The old implementation re-read and rewrote the complete JSON history for
+    every single message. A normal turn therefore did two full read/modify/write
+    cycles, and latency grew with conversation length. Keep the same on-disk
+    format, but cache the bounded history and allow a whole turn to be committed
+    with one write.
+    """
+
+    def __init__(self):
+        self._cache: dict[str, list[dict]] = {}
+
     def path(self, sid: str) -> Path:
         return SESSIONS / f"{safe_session(sid)}.json"
 
+    def _key(self, sid: str) -> str:
+        return safe_session(sid)
+
     def load(self, sid: str) -> list[dict]:
+        key = self._key(sid)
+        cached = self._cache.get(key)
+        if cached is not None:
+            return list(cached[-MAX_HISTORY:])
+
         p = self.path(sid)
         if not p.exists():
+            self._cache[key] = []
             return []
         try:
             rows = json.loads(p.read_text(encoding="utf-8"))
-            return rows[-MAX_HISTORY:] if isinstance(rows, list) else []
+            rows = rows[-MAX_HISTORY:] if isinstance(rows, list) else []
         except Exception:
-            return []
+            rows = []
+        self._cache[key] = list(rows)
+        return list(rows)
+
+    def append_many(self, sid: str, rows_to_add) -> None:
+        rows = self.load(sid)
+        now = dt.datetime.now().astimezone().isoformat(timespec="seconds")
+        for item in rows_to_add:
+            role, text, meta = item
+            rows.append({
+                "role": str(role),
+                "text": str(text),
+                "meta": meta or {},
+                "ts": now,
+            })
+        rows = rows[-MAX_HISTORY:]
+        self._cache[self._key(sid)] = list(rows)
+        # Compact JSON materially reduces bytes written on Windows while
+        # retaining exact compatibility with existing session files.
+        self.path(sid).write_text(
+            json.dumps(rows, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
 
     def append(self, sid: str, role: str, text: str, meta: dict | None = None) -> None:
-        rows = self.load(sid)
-        rows.append({
-            "role": role,
-            "text": str(text),
-            "meta": meta or {},
-            "ts": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-        })
-        self.path(sid).write_text(
-            json.dumps(rows[-MAX_HISTORY:], ensure_ascii=False, indent=2),
-            encoding="utf-8",
+        self.append_many(sid, ((role, text, meta or {}),))
+
+    def append_exchange(
+        self,
+        sid: str,
+        user_text: str,
+        assistant_text: str,
+        user_meta: dict | None = None,
+        assistant_meta: dict | None = None,
+    ) -> None:
+        self.append_many(
+            sid,
+            (
+                ("user", user_text, user_meta or {}),
+                ("assistant", assistant_text, assistant_meta or {}),
+            ),
         )
 
 

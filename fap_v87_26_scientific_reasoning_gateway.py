@@ -58,12 +58,25 @@ class FAPV8726(v25.FAPV8725):
         reply = str(result.get("reply", "")).strip()
         confidence = float(result.get("confidence", 0.25))
 
-        base.MEMORY.append(sid, "user", text, {"intent": "structured_mcq"})
-        base.MEMORY.append(sid, "assistant", reply, {
-            "intent": "structured_mcq",
-            "verdict": verdict,
-            "decision_source": result.get("decision_source"),
-        })
+        if hasattr(base.MEMORY, "append_exchange"):
+            base.MEMORY.append_exchange(
+                sid,
+                text,
+                reply,
+                {"intent": "structured_mcq"},
+                {
+                    "intent": "structured_mcq",
+                    "verdict": verdict,
+                    "decision_source": result.get("decision_source"),
+                },
+            )
+        else:
+            base.MEMORY.append(sid, "user", text, {"intent": "structured_mcq"})
+            base.MEMORY.append(sid, "assistant", reply, {
+                "intent": "structured_mcq",
+                "verdict": verdict,
+                "decision_source": result.get("decision_source"),
+            })
 
         event = {
             "ts": dt.datetime.now().astimezone().isoformat(timespec="seconds"),

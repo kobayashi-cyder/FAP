@@ -56,17 +56,30 @@ class FAPV8728(v27.FAPV8727):
         confidence = float(solved.get("confidence", 0.25))
         history_intent = "structured_mcq"
 
-        base.MEMORY.append(sid, "user", text, {"intent": history_intent})
-        base.MEMORY.append(
-            sid,
-            "assistant",
-            reply,
-            {
-                "intent": history_intent,
-                "verdict": verdict,
-                "decision_source": solved.get("decision_source"),
-            },
-        )
+        if hasattr(base.MEMORY, "append_exchange"):
+            base.MEMORY.append_exchange(
+                sid,
+                text,
+                reply,
+                {"intent": history_intent},
+                {
+                    "intent": history_intent,
+                    "verdict": verdict,
+                    "decision_source": solved.get("decision_source"),
+                },
+            )
+        else:
+            base.MEMORY.append(sid, "user", text, {"intent": history_intent})
+            base.MEMORY.append(
+                sid,
+                "assistant",
+                reply,
+                {
+                    "intent": history_intent,
+                    "verdict": verdict,
+                    "decision_source": solved.get("decision_source"),
+                },
+            )
 
         shadow_intent = self.intent.classify(text)
         event = {

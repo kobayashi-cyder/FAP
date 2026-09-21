@@ -109,6 +109,34 @@ class FAPV8712(v11.FAPV8711):
             "semantic_memory": True,
         }
 
+    @staticmethod
+    def _needs_deliberation(text: str, intent, state: dict, tools) -> bool:
+        """Keep plan scoring off the hot path unless it can add diagnostic value.
+
+        Deliberation metadata does not choose the actual route in V87.12, so
+        paying for distilled circuit activation on every greeting or short
+        direct request only adds latency.
+        """
+        if tools:
+            return True
+        if len(str(text or "")) >= 240:
+            return True
+        if state.get("open_goal") and re.search(r"(続き|次|どうする|進め|それ|このまま)", str(text or "")):
+            return True
+        if re.search(r"(計画|比較|検討|設計|分析|理由|なぜ|どうすれば|改善|最適|戦略|手順)", str(text or "")):
+            return True
+        return getattr(intent, "name", "chat") in {"builder"} and len(str(text or "")) >= 140
+
+    @staticmethod
+    def _direct_deliberation(state: dict) -> dict:
+        return {
+            "candidates": [],
+            "selected": "direct",
+            "goal_present": bool(state.get("open_goal")),
+            "constraint_count": len(state.get("constraints", [])),
+            "skipped": "latency-fast-path",
+        }
+
     def _route_adapted(self, intent, adaptation: dict, text: str, history: list[dict]) -> tuple[dict, str, object]:
         selected = adaptation.get("selected", intent.name)
         effective = intent
@@ -133,9 +161,20 @@ class FAPV8712(v11.FAPV8711):
         state = self.goal_state.load(sid) if (semantic_query or is_goal_summary) else self.goal_state.update(sid, text)
 
         intent = self.intent.classify(text)
-        deliberation = self.deliberation.plan(text, history, state)
         tools = self.multi.detect(text)
-        adaptation = self.adaptive.suggest(text, intent)
+        deliberation = (
+            self.deliberation.plan(text, history, state)
+            if self._needs_deliberation(text, intent, state, tools)
+            else self._direct_deliberation(state)
+        )
+        adaptation = {
+            "family": "deferred",
+            "base": intent.name,
+            "selected": intent.name,
+            "applied": False,
+            "reason": "not needed on this route",
+            "evidence": {},
+        }
 
         if is_goal_summary:
             semantic_rows = self.semantic.retrieve(sid, text, 6)
@@ -169,11 +208,24 @@ class FAPV8712(v11.FAPV8711):
             effective_intent = base.Intent("chat", 0.95, [("multi", 0.95)])
             route = ["decompose"] + [x.name for x in tools] + ["verify", "integrate"]
         else:
-            # Vague follow-ups still inherit persistent goal state. Semantic memory
-            # contributes relevant preferences/constraints without replaying raw chat.
-            semantic_rows = self.semantic.retrieve(sid, text, 4)
-            semantic_context = " / ".join(str(x.get("text", "")) for x in semantic_rows if x.get("category") in {"preference", "constraint", "goal"})
-            if intent.name == "chat" and state.get("open_goal") and re.search(r"(続き|次|どうする|進め|やって|それ|このまま)", text):
+            # Adaptive routing is needed only for the ordinary routing branch.
+            # Summary/memory/multi requests no longer pay for ledger inspection.
+            adaptation = self.adaptive.suggest(text, intent)
+
+            # Semantic retrieval is only consumed by vague goal-followups. The old
+            # path performed a full semantic scan on every normal chat turn.
+            followup = bool(
+                intent.name == "chat"
+                and state.get("open_goal")
+                and re.search(r"(続き|次|どうする|進め|やって|それ|このまま)", text)
+            )
+            if followup:
+                semantic_rows = self.semantic.retrieve(sid, text, 4)
+                semantic_context = " / ".join(
+                    str(x.get("text", ""))
+                    for x in semantic_rows
+                    if x.get("category") in {"preference", "constraint", "goal"}
+                )
                 enriched = f"目標: {state['open_goal']}\n制約: {' / '.join(state.get('constraints', [])[-8:])}"
                 if semantic_context:
                     enriched += f"\n長期意味記憶: {semantic_context}"
@@ -213,12 +265,22 @@ class FAPV8712(v11.FAPV8711):
         if ability not in {"chat", "multi", "memory"}:
             confidence = min(confidence, float(getattr(effective_intent, "confidence", intent.confidence)))
 
-        base.MEMORY.append(sid, "user", text, {"intent": ability})
-        base.MEMORY.append(sid, "assistant", reply, {"intent": ability, "verdict": verdict})
+        if hasattr(base.MEMORY, "append_exchange"):
+            base.MEMORY.append_exchange(
+                sid,
+                text,
+                reply,
+                {"intent": ability},
+                {"intent": ability, "verdict": verdict},
+            )
+        else:
+            base.MEMORY.append(sid, "user", text, {"intent": ability})
+            base.MEMORY.append(sid, "assistant", reply, {"intent": ability, "verdict": verdict})
 
         # Learn only after verification. This is outcome learning, not self-modifying code.
         self.adaptive.record(text, ability, verdict)
         self.semantic.absorb_outcome(sid, text, ability, verdict, result.get("artifacts", []))
+        semantic_stats = self.semantic.stats(sid)
 
         event = {
             "ts": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -232,7 +294,7 @@ class FAPV8712(v11.FAPV8711):
             "confidence": confidence,
             "selected_plan": deliberation.get("selected"),
             "replan_count": replan_count,
-            "semantic_entries": self.semantic.stats(sid).get("entries", 0),
+            "semantic_entries": semantic_stats.get("entries", 0),
         }
         with self.lock:
             with base.EVAL_LOG.open("a", encoding="utf-8") as f:
@@ -252,7 +314,7 @@ class FAPV8712(v11.FAPV8711):
             "coverage": coverage,
             "replan_count": replan_count,
             "adaptive_routing": adaptation,
-            "semantic_memory": self.semantic.stats(sid),
+            "semantic_memory": semantic_stats,
             "goal_state": {
                 "open_goal": state.get("open_goal", ""),
                 "constraints": state.get("constraints", [])[-8:],
