@@ -1,52 +1,63 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.27 — Physics Knowledge Substrate**.
+Current mainline: **V87.28 — Expanded Deterministic Physics Solvers**.
 
-V87.27 starts the native physics expansion on top of V87.26 without replacing existing routing.
+V87.28 extends the verified V87.27 physics substrate with additional equation-based solvers while preserving all prior routing and media paths.
 
 Default physics path:
 
 ```text
 explicit A-D MCQ
-  -> deterministic physics solver (strict semantic/unit guards)
-  -> if unresolved: physics knowledge retrieval (advisory-only)
+  -> V87.28 deterministic physics equation solvers
+  -> if unresolved: V87.27 deterministic physics solvers
+  -> advisory physics knowledge retrieval
   -> inherited V87.26 structured science path
   -> answer contract verification
 ```
 
-What is new:
-- structured physics knowledge covering quantum mechanics, particle physics, mechanics, electromagnetism, thermodynamics/statistical physics, relativity, nuclear physics, optics and condensed matter;
-- concepts, aliases, canonical claims, misconceptions, formulas and applicability conditions;
-- retrieval traces per answer option;
-- general deterministic solvers for photon energy from wavelength, Lorentz gamma, Hubble recession velocity, Schwarzschild radius, and classical kinetic energy;
-- deterministic solvers run before broad domain routing, so a physics problem mislabeled as `general` can still be solved.
+New deterministic solver families:
+- Newton's second law;
+- linear momentum;
+- gravitational potential energy;
+- centripetal acceleration;
+- wave speed;
+- electromagnetic frequency from wavelength;
+- de Broglie wavelength;
+- Coulomb force;
+- ideal-gas pressure;
+- Wien peak wavelength;
+- Stefan-Boltzmann flux;
+- radioactive half-life;
+- Ohm's law;
+- electric power.
 
 Safety / anti-overfit boundary:
-- heuristic physics retrieval is **advisory-only** and cannot independently override the inherited answer;
-- two narrow research solvers that produced dev-only gains are quarantined behind `FAP_EXPERIMENTAL_NARROW_PHYSICS=1`;
-- those dev-only gains are excluded from the default runtime and benchmark claim;
-- no GPQA answer table is embedded;
+- each solver requires explicit semantic cues, required variables, compatible units, and a unique close answer choice;
+- unresolved inputs delegate to V87.27 unchanged;
+- no benchmark-specific question text or answer keys are embedded;
 - Qwen is not used.
 
 Verification:
-- branch Actions **35595452457 — SUCCESS** on Python 3.11 and 3.12;
-- per interpreter: V87.27 focused **12/12**, V87.26 focused **5/5**, V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS.
+- branch Actions **35596410727 — SUCCESS** on Python 3.11 and 3.12;
+- per interpreter: V87.28 focused **10/10**, V87.27 focused **12/12**, V87.26 focused **5/5**, V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS.
 
-Default GPQA Diamond:
-- Actions **35595452463 — SUCCESS**;
-- V87.26: **208/792 = 26.26%**;
-- V87.27 default: **208/792 = 26.26%**;
+GPQA Diamond comparison:
+- Actions **35596419295 — SUCCESS**;
+- V87.27: **208/792 = 26.26%**;
+- V87.28: **208/792 = 26.26%**;
 - parse rate: **100%**;
-- changed predictions: **0**.
+- changed predictions: **0**;
+- changed-to-correct: **0**;
+- changed-to-wrong: **0**;
+- V87.28 solver activations on GPQA: **0**.
 
-During development, two narrow deterministic solvers changed 8 dev-split trials and solved all 8 correctly, but they had **zero holdout coverage**. They are therefore not enabled by default and are not counted as evidence of general reasoning improvement.
+The benchmark score is unchanged. V87.28 is therefore a verified general-physics capability expansion, not a GPQA accuracy improvement.
 
 Implementation:
-- `fap_physics_knowledge.py`
-- `fap_physics_numeric.py`
-- `fap_v87_27_physics_knowledge_gateway.py`
-- `RUN_FAP_V87_27_PHYSICS_KNOWLEDGE.cmd`
-- `releases/v87_27/`
-- `benchmarks/sol_gpqa_v8727.py`
+- `fap_physics_solver_v2.py`
+- `fap_v87_28_physics_solver_gateway.py`
+- `RUN_FAP_V87_28_PHYSICS_SOLVERS.cmd`
+- `releases/v87_28/`
+- `benchmarks/sol_gpqa_v8728.py`
 
-V87.26 and all prior verified functionality remain underneath this release.
+V87.27 and all prior verified functionality remain underneath this release.
