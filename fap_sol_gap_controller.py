@@ -75,8 +75,16 @@ class PersistentGoalState:
     def _extract_constraints(text: str) -> list[str]:
         t = re.sub(r"\s+", " ", str(text or "")).strip()
         out: list[str] = []
-        # Numeric / dimensional constraints.
-        for m in re.finditer(r"\b\d+(?:\.\d+)?\s*(?:×\s*\d+(?:\.\d+)?)?\s*(?:ms|秒|分|時間|KB|MB|GB|個|件|回|文字|行|%|％|x|×)?", t, re.I):
+        # Numeric / dimensional constraints. Bare numbers are intentionally
+        # excluded: ordinary numbered chat ("メモ1", "案2") must not become
+        # persistent constraints and trigger disk writes.
+        numeric_constraint = (
+            r"\b\d+(?:\.\d+)?(?:"
+            r"\s*[x×]\s*\d+(?:\.\d+)?"
+            r"|\s*(?:ms|秒|分|時間|KB|MB|GB|個|件|回|文字|行|%|％)"
+            r")"
+        )
+        for m in re.finditer(numeric_constraint, t, re.I):
             v = m.group(0).strip()
             if v and len(v) <= 40:
                 out.append(v)
@@ -108,17 +116,44 @@ class PersistentGoalState:
         return out[:8]
 
     def update(self, sid: str, text: str) -> dict[str, Any]:
-        state = self.load(sid)
+        # Parse first. Ordinary chat usually contains no persistent state update,
+        # so avoid rewriting the goal JSON when nothing can change.
         goal = self._extract_goal(text)
+        constraints = self._extract_constraints(text)
+        facts = self._extract_facts(text)
+        state = self.load(sid)
+
+        if not goal and not constraints and not facts:
+            return state
+
+        before = (
+            state.get("open_goal", ""),
+            tuple(state.get("goals", [])),
+            tuple(state.get("constraints", [])),
+            tuple(state.get("facts", [])),
+        )
         if goal:
             state["open_goal"] = goal
             state["goals"] = self._append_unique(state["goals"], goal, 20)
-        for c in self._extract_constraints(text):
-            state["constraints"] = self._append_unique(state["constraints"], c, 40)
-        for f in self._extract_facts(text):
-            state["facts"] = self._append_unique(state["facts"], f, 40)
+        for item in constraints:
+            state["constraints"] = self._append_unique(state["constraints"], item, 40)
+        for item in facts:
+            state["facts"] = self._append_unique(state["facts"], item, 40)
+
+        after = (
+            state.get("open_goal", ""),
+            tuple(state.get("goals", [])),
+            tuple(state.get("constraints", [])),
+            tuple(state.get("facts", [])),
+        )
+        if after == before:
+            return state
+
         state["updated_at"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-        self.path(sid).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.path(sid).write_text(
+            json.dumps(state, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
         return state
 
     def summary(self, sid: str) -> str:
