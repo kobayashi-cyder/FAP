@@ -1,6 +1,34 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.49 — Structured Scientific Modeling**.
+Current mainline: **V87.50 — Dated Recent Science**.
+
+V87.50 adds a dated, source-provenanced recent-science evidence layer on top of
+the structured scientific models. The snapshot is current to **2026-09-22** and
+is stored as data in `knowledge/latest_science_2026.jsonl`, not as
+topic-specific routing logic.
+
+For atmospheric science, the current evidence pack includes:
+- ECMWF IFS Cycle 50r1 (12 May 2026): fully coupled atmosphere-ocean-sea-ice
+  data assimilation and improved convective-precipitation representation;
+- ECMWF AIFS Single v2 / AIFS ENS v2 (12 May 2026): operational data-driven
+  deterministic and ensemble forecasting alongside the physics-based IFS;
+- operational ensemble uncertainty handling and documented ML limitations,
+  including smoothing of small-scale fields and tropical-cyclone intensity
+  underprediction;
+- WMO State of the Global Climate 2025 (23 March 2026): the latest global
+  observational context, including record Earth energy imbalance.
+
+Scientific-model answers can attach the most relevant recent evidence together
+with its date, institution, source title and source URL. The chat API exposes the
+same provenance under `scientific_model.recent_science`. The endpoint
+`/api/v1/science-snapshot` lists the installed science snapshot.
+
+This is a static verified snapshot, not an automatic live literature feed. New
+science is added by appending dated evidence records rather than changing chat
+routing code.
+
+V87.49 structured scientific modeling and V87.48 epistemic learning remain
+underneath V87.50.
 
 V87.49 adds a generic structured scientific-model layer on top of V87.48.
 Scientific coverage is now data-driven: a model record can provide variables,
