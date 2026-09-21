@@ -13,6 +13,7 @@ from fap_v87_44_context_followup_gateway import FAPV8744Unified
 from fap_inquiry_engine import InquiryEngine
 from fap_v87_45_inquiry_loop_gateway import FAPV8745Unified
 from fap_v87_46_mass_inquiry_gateway import FAPV8746Unified
+from fap_v87_47_mass_inquiry_burst_gateway import FAPV8747Unified
 
 
 class FactualChatRegressionTests(unittest.TestCase):
@@ -226,6 +227,19 @@ class FactualChatRegressionTests(unittest.TestCase):
             out["resolved_questions"] + out["unresolved_questions"],
         )
         self.assertIn("resolution_rate", out)
+
+
+    def test_mass_inquiry_default_is_256(self):
+        core = FAPV8747Unified()
+        out = core.chat("大気の運動について疑問点を出して", "v8747-default-256")
+        self.assertGreaterEqual(out["inquiry"]["generated"], 256)
+
+    def test_mass_inquiry_burst_phrase_requests_2048(self):
+        engine = InquiryEngine(base.ROOT)
+        out = engine.run("大気の運動について問い出しと問い潰しをとにかく増やして", [])
+        self.assertIsNotNone(out)
+        self.assertEqual(out["target_questions"], 2048)
+        self.assertGreaterEqual(out["generated_questions"], 2048)
 
 
 if __name__ == "__main__":
