@@ -654,56 +654,53 @@ Dataset Distillation
 
 ## 10. 起動
 
-各バージョンには基本的に、
+現在の統合Chatは次のランチャーを使います。
+
+Windows:
 
 ```text
-fap_vXX.py
-RUN_VXX.bat
+RUN_FAP_CHAT_LATEST.cmd
 ```
 
-の2ファイルがあります。
-
-Windowsでは:
-
-```text
-RUN_V53.bat
-```
-
-などをダブルクリックして起動できます。
-
-Pythonから直接起動する場合:
+Debian / Linux / Android proot:
 
 ```bash
-python fap_v53.py
+git pull --ff-only
+chmod +x RUN_FAP_CHAT_LATEST.sh
+./RUN_FAP_CHAT_LATEST.sh
 ```
 
-または:
+Linuxランチャーは利用可能なローカルポートを選び、V87.39統合Chatを
+バックグラウンド起動して、開くべきURLを表示します。Cコンパイラが
+利用できればV87.38/V87.39のネイティブライブラリも自動ビルドします。
 
-```bash
-py -3 fap_v53.py
-```
+旧バージョンは引き続き `fap_vXX.py` / `RUN_VXX.bat` から直接起動できます。
 
 ---
 
 ## 11. 動作環境
 
-主対象:
+統合Chatの対象:
 
 ```text
 Windows 10 / 11
+Debian / Linux
+Android上のDebian/proot環境
 Python 3
 ```
 
 設計上、外部Pythonパッケージへの依存は極力減らしています。
+V87.38/V87.39のC99ネイティブ部分はLinux/ARM64でもビルド可能な構成です。
+ネイティブビルドが利用できない場合は既存のPythonフォールバックを使います。
 
-音声機能はWindowsの:
+音声機能の一部はWindowsの:
 
 ```text
 System.Speech
 PowerShell
 ```
 
-を利用します。
+を利用するため、Linuxでは同じ音声機能は保証されません。
 
 ---
 
