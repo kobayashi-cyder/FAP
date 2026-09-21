@@ -1,6 +1,38 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.44 — Natural Context Follow-Up**.
+Current mainline: **V87.46 — Mass Inquiry Loop**.
+
+V87.46 increases self-question generation from the earlier five-question audit
+to a high-volume generic inquiry loop.
+
+Default behavior:
+
+```text
+retrieve local evidence
+→ generate 96 epistemic questions
+→ answer what the evidence supports
+→ use resolved answers to discover related concepts
+→ generate follow-up questions from those answers
+→ retry unresolved questions for up to 5 rounds
+→ keep unsupported questions explicitly unresolved
+```
+
+An explicit request such as `128問` raises the target, up to 256 questions.
+`FAP_INQUIRY_TARGET`, `FAP_INQUIRY_ROUNDS`, and
+`FAP_INQUIRY_DISPLAY` can tune the defaults without changing code.
+
+The question dimensions are generic (mechanism, conditions, uncertainty,
+evidence, counterfactuals, validation, scale, failure modes, etc.). New subject
+matter is added under `knowledge/*.jsonl`; it does not require new
+topic-specific routing branches.
+
+The chat API exposes every generated question together with resolution state,
+evidence IDs, generation depth, total generated/resolved/unresolved counts and
+resolution rate. The browser only prints a bounded subset so a 96-256 question
+audit does not make the UI unusable.
+
+V87.45 generic retrieval/inquiry and V87.44 context follow-up remain underneath
+V87.46.
 
 V87.44 fixes a failure where a known topic was explained correctly but a natural
 clarification such as:
