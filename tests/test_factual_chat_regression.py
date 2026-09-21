@@ -42,5 +42,19 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertIn("直接回答", note)
 
 
+    def test_latency_feedback_is_conversational(self):
+        result = DistilledFAPOrgan().run("20秒程度応答にかかりました。", [])
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["needs_teacher"])
+        self.assertIn("応答遅延", result["reply"])
+        self.assertNotIn("確定回答できません", result["reply"])
+
+    def test_chat_status_is_lightweight_shape(self):
+        st = base.FAPV8710().chat_status()
+        self.assertEqual(st["state"], "ready")
+        self.assertIn("version", st)
+        self.assertNotIn("teacher_available", st)
+
+
 if __name__ == "__main__":
     unittest.main()
