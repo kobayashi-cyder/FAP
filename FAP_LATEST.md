@@ -1,6 +1,36 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.50 — Dated Recent Science**.
+Current mainline: **V87.51 — Broad Literature Critical Appraisal**.
+
+V87.51 adds a broad recent-literature screening pipeline on top of the dated
+science snapshot. It can page through recent Crossref journal-article metadata,
+generate a fixed epistemic appraisal grid for each paper, resolve only what the
+metadata/abstract actually supports, and preserve unresolved questions instead
+of inventing answers.
+
+The appraisal grid checks research question, design, sample, intervention or
+input conditions, outcomes, methods, controls, uncertainty, effect size,
+statistics, assumptions, confounding, bias, missing data, robustness,
+validation, reproducibility, mechanism, causality, generalization, limitations,
+contradictions, extreme conditions, scale dependence, prospective prediction,
+data provenance, ethics/funding, correction or retraction signals, novelty,
+practical significance, future tests and remaining open questions.
+
+The rolling GitHub workflow
+`.github/workflows/broad-literature-critical-appraisal.yml` performs an
+initial seven-day broad screening (up to 50,000 journal articles) and then a
+daily rolling screen (up to 50,000 per run). Results are stored as workflow
+artifacts; the compact output does not copy full abstracts into the public
+repository.
+
+Important boundary: this is automated **critical appraisal**, not formal
+independent expert peer review. A Crossref `journal-article` record also does
+not by itself prove that a particular article completed peer review. Full-text
+methodological review remains impossible when only bibliographic metadata or an
+abstract is available.
+
+V87.50 dated recent science, V87.49 scientific modeling and V87.48 epistemic
+learning remain underneath V87.51.
 
 V87.50 adds a dated, source-provenanced recent-science evidence layer on top of
 the structured scientific models. The snapshot is current to **2026-09-22** and
