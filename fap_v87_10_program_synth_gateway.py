@@ -456,6 +456,18 @@ class FAPV8710:
             caps.append("optional-teacher:gemma4:e2b")
         return caps
 
+    def chat_status(self) -> dict:
+        # Chat responses only need a small liveness/version snapshot. The full
+        # status tree probes optional local services and recursively assembles
+        # capability metadata, which can add many seconds on Windows when those
+        # services are absent or slow.
+        return {
+            "name": "FAP",
+            "version": VERSION,
+            "state": "ready",
+            "protocol": "1.0",
+        }
+
     def status(self) -> dict:
         teacher = self.e2b.available()
         return {
@@ -552,7 +564,7 @@ class FAPV8710:
             "verdict": verdict,
             "artifacts": result.get("artifacts", []),
             "intent_candidates": intent.candidates,
-            "status": self.status(),
+            "status": self.chat_status(),
         }
 
 

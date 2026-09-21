@@ -122,7 +122,7 @@ class FAPV8726(v25.FAPV8725):
                 "answer_contract": "Answer: $LETTER",
                 "option_assessments": result.get("option_assessments", []),
             },
-            "status": self.status(),
+            "status": self.chat_status(),
         }
 
 

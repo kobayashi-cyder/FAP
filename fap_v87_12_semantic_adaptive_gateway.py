@@ -321,7 +321,7 @@ class FAPV8712(v11.FAPV8711):
                 "open_goal": state.get("open_goal", ""),
                 "constraints": state.get("constraints", [])[-8:],
             },
-            "status": self.status(),
+            "status": self.chat_status(),
         }
 
 
