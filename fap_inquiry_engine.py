@@ -141,8 +141,8 @@ class InquiryEngine:
 
     def __init__(self, root: Path):
         self.index = RepositoryKnowledgeIndex(root)
-        self.default_target = _env_int("FAP_INQUIRY_TARGET", 96, 24, 256)
-        self.max_rounds = _env_int("FAP_INQUIRY_ROUNDS", 5, 1, 10)
+        self.default_target = _env_int("FAP_INQUIRY_TARGET", 256, 32, 2048)
+        self.max_rounds = _env_int("FAP_INQUIRY_ROUNDS", 8, 1, 16)
         self.display_limit = _env_int("FAP_INQUIRY_DISPLAY", 32, 8, 96)
 
     @staticmethod
@@ -155,9 +155,9 @@ class InquiryEngine:
     def _target_from_text(self, text: str) -> int:
         m = COUNT_CUES.search(str(text or ""))
         if m:
-            return max(12, min(256, int(m.group(1))))
-        if re.search(r"(とにかく増|大量|できるだけ多|最大限|徹底的)", str(text or "")):
-            return max(self.default_target, 128)
+            return max(16, min(2048, int(m.group(1))))
+        if re.search(r"(とにかく増|大量|できるだけ多|最大限|徹底的|限界まで|可能な限り)", str(text or "")):
+            return 2048
         return self.default_target
 
     @staticmethod
