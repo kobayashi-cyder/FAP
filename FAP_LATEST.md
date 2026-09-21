@@ -1,36 +1,34 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.14 — Temporal Consistency Critic**.
+Current mainline: **V87.15 — Observed Media Refinement Host**.
 
-V87.14 extends V87.13's bounded iterative media generation with independent video-temporal verification.
+V87.15 closes the generation-to-observation wiring gap across image/video refinement.
 
 Current media loop:
 
-`request -> generate -> observe actual artifact -> temporal critic -> defect-scoped repair -> regenerate -> quality gate`
+`request -> generate -> observe actual artifact -> digest-bind evidence -> critics -> defect-scoped repair -> regenerate -> quality gate`
 
-V87.14 detects:
-- subject identity / appearance drift across sampled frames;
-- implausible frame-to-frame motion jumps;
-- expected-subject dropout;
-- large adjacent-frame luminance flicker;
-- malformed, dimension-changing, or non-monotonic temporal evidence.
-
-Fail-closed behavior:
-- video output without actual temporal evidence is not accepted by the temporal critic;
-- invalid time evidence becomes a fatal critique;
-- temporal defects are converted to bounded repair hints that V87.13 can feed back to a connected video generator.
+New in V87.15:
+- every generated artifact is observed before critique;
+- observer evidence is bound to the exact generated artifact digest;
+- stale or cross-artifact evidence fails closed;
+- observers can be scoped independently to image or video artifacts;
+- multiple critics compose fail-closed using the minimum score;
+- a strong aesthetic score cannot hide a fatal temporal/structural critic;
+- original generator metadata is preserved alongside observation evidence.
 
 Verification:
-- V87.14 focused tests: **8/8 PASS on Python 3.11**
-- V87.14 focused tests: **8/8 PASS on Python 3.12**
-- GitHub Actions run: **35586419196 — SUCCESS**
-- V87.13 media-generation tests remain the preceding verified layer.
+- V87.15 focused tests: **8/8 PASS on Python 3.11**
+- V87.15 focused tests: **8/8 PASS on Python 3.12**
+- GitHub Actions run: **35586649662 — SUCCESS**
+- V87.14 temporal critic tests: **8/8 PASS on Python 3.11/3.12**
 - prior V87.12 runtime suite: **91/91 PASS**
 
-V87.14 does **not** claim native text-to-video synthesis, video decoding, optical flow, or face recognition. Those remain replaceable generator/observer backends. The new capability is independent temporal consistency verification and repair signaling.
+V87.15 does **not** claim a native photorealistic image generator, native text-to-video generator, video decoder, optical-flow model, or identity model. Those remain replaceable organs. The new capability is a verified host that forces each generation attempt through observation and digest-bound evidence before acceptance.
 
 Implementation:
 - `releases/v87_13/media_generation/`
 - `releases/v87_14/video_temporal/`
+- `releases/v87_15/observed_media/`
 
-Promotion history is intentionally sequential through V87.14. Qwen is not used.
+Promotion history is intentionally sequential through V87.15. Qwen is not used.
