@@ -53,6 +53,16 @@ def terms(text: str) -> set[str]:
     return {x for x in out if len(x) >= 2}
 
 
+def sentences(text: str) -> list[str]:
+    parts = re.split(r"(?<=[。！？!?])\s+|[\r\n]+", str(text or ""))
+    out = []
+    for part in parts:
+        value = re.sub(r"\s+", " ", part).strip(" \t-•")
+        if len(value) >= 8:
+            out.append(value)
+    return out or ([str(text).strip()] if str(text).strip() else [])
+
+
 class RepositoryKnowledgeIndex:
     """Generic local retrieval over data files in the knowledge directory."""
 

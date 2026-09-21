@@ -240,6 +240,13 @@ class FAPV8712(v11.FAPV8711):
                 route += ["self-capability"]
             if result.get("factual_qa"):
                 route += ["factual-qa"]
+            if result.get("inquiry_reasoning"):
+                route += [
+                    "inquiry-retrieve",
+                    "question-generate",
+                    "question-resolve",
+                    f"resolved:{result.get('resolved_questions', 0)}/{result.get('generated_questions', 0)}",
+                ]
             if result.get("reflective_reasoning"):
                 route += ["reflective-chat", str(result.get("reasoning_mode", "overview"))]
                 if result.get("contextual_followup"):
