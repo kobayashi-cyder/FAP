@@ -108,17 +108,44 @@ class PersistentGoalState:
         return out[:8]
 
     def update(self, sid: str, text: str) -> dict[str, Any]:
-        state = self.load(sid)
+        # Parse first. Ordinary chat usually contains no persistent state update,
+        # so avoid rewriting the goal JSON when nothing can change.
         goal = self._extract_goal(text)
+        constraints = self._extract_constraints(text)
+        facts = self._extract_facts(text)
+        state = self.load(sid)
+
+        if not goal and not constraints and not facts:
+            return state
+
+        before = (
+            state.get("open_goal", ""),
+            tuple(state.get("goals", [])),
+            tuple(state.get("constraints", [])),
+            tuple(state.get("facts", [])),
+        )
         if goal:
             state["open_goal"] = goal
             state["goals"] = self._append_unique(state["goals"], goal, 20)
-        for c in self._extract_constraints(text):
-            state["constraints"] = self._append_unique(state["constraints"], c, 40)
-        for f in self._extract_facts(text):
-            state["facts"] = self._append_unique(state["facts"], f, 40)
+        for item in constraints:
+            state["constraints"] = self._append_unique(state["constraints"], item, 40)
+        for item in facts:
+            state["facts"] = self._append_unique(state["facts"], item, 40)
+
+        after = (
+            state.get("open_goal", ""),
+            tuple(state.get("goals", [])),
+            tuple(state.get("constraints", [])),
+            tuple(state.get("facts", [])),
+        )
+        if after == before:
+            return state
+
         state["updated_at"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-        self.path(sid).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        self.path(sid).write_text(
+            json.dumps(state, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
         return state
 
     def summary(self, sid: str) -> str:
