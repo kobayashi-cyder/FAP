@@ -52,6 +52,23 @@ D) It has no quantum statistics
     assert r["reply"].splitlines()[-1] == "Answer: $B"
 
 
+
+def test_stem_fact_does_not_leak_equal_evidence_to_all_options():
+    t = parse("""Answer the following multiple choice question.
+For photons, E = hc/lambda. Which conclusion is correct?
+
+A) Shorter wavelength means higher photon energy
+B) Longer wavelength means higher photon energy
+C) Photon energy is independent of wavelength
+D) Every wavelength has zero energy
+""")
+    rows, retrieved = PhysicsKnowledgeStore().evaluate_options(t)
+    scores = {x.letter: x.score for x in rows}
+    assert retrieved
+    assert scores["A"] > scores["B"]
+    assert len(set(scores.values())) > 1
+
+
 def test_nonphysics_delegates_to_v8726_path():
     t = parse("""Answer the following multiple choice question.
 Which statement about DNA is correct?
