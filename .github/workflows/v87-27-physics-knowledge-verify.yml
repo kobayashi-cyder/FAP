@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - "fap_physics_knowledge.py"
+      - "fap_physics_numeric.py"
       - "fap_v87_27_physics_knowledge_gateway.py"
       - "RUN_FAP_V87_27_PHYSICS_KNOWLEDGE.cmd"
       - "releases/v87_27/**"
