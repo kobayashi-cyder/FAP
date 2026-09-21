@@ -75,8 +75,16 @@ class PersistentGoalState:
     def _extract_constraints(text: str) -> list[str]:
         t = re.sub(r"\s+", " ", str(text or "")).strip()
         out: list[str] = []
-        # Numeric / dimensional constraints.
-        for m in re.finditer(r"\b\d+(?:\.\d+)?\s*(?:×\s*\d+(?:\.\d+)?)?\s*(?:ms|秒|分|時間|KB|MB|GB|個|件|回|文字|行|%|％|x|×)?", t, re.I):
+        # Numeric / dimensional constraints. Bare numbers are intentionally
+        # excluded: ordinary numbered chat ("メモ1", "案2") must not become
+        # persistent constraints and trigger disk writes.
+        numeric_constraint = (
+            r"\b\d+(?:\.\d+)?(?:"
+            r"\s*[x×]\s*\d+(?:\.\d+)?"
+            r"|\s*(?:ms|秒|分|時間|KB|MB|GB|個|件|回|文字|行|%|％)"
+            r")"
+        )
+        for m in re.finditer(numeric_constraint, t, re.I):
             v = m.group(0).strip()
             if v and len(v) <= 40:
                 out.append(v)
