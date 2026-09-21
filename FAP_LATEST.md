@@ -1,11 +1,11 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.06 — Concept-to-Mechanism Builder**.
+Current mainline: **V87.07 — Specification Compiler**.
 
-Adds concept resolution from names or descriptions into mechanisms and primitives, including Minesweeper, 2048, and memory matching.
+Extracts explicit constraints from natural language into structured specifications and compiles novel grid-game behavior without re-asking information already present.
 
-Verified runtime test suite: **31/31 PASS**.
+Verified runtime test suite: **39/39 PASS**.
 
-Runtime snapshot: `releases/runtime_packages/FAP_V87_06_CONCEPT_BUILDER_RUNTIME.zip`.
+Runtime snapshot: `releases/runtime_packages/FAP_V87_07_SPEC_COMPILER_RUNTIME.zip`.
 
-Promotion history is intentionally sequential through V87.06. Qwen is not used.
+Promotion history is intentionally sequential through V87.07. Qwen is not used.
