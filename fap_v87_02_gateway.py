@@ -203,7 +203,9 @@ class WeatherOrgan:
             m = pat.search(text)
             if m:
                 loc = m.group(1).strip(" 、。?？")
-                loc = re.sub(r"^(今日|明日|現在)", "", loc).strip()
+                loc = re.sub(r"^(今日|明日|現在|きょう|あした)", "", loc).strip()
+                if loc in {"今日","明日","現在","きょう","あした","今","本日"}:
+                    loc = ""
                 if loc:
                     return loc
         return DEFAULT_LOCATION
