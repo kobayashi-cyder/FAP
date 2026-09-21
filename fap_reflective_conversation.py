@@ -263,8 +263,7 @@ class ReflectiveConversationOrgan:
             "外部知識が必要な部分は、ローカル根拠がない限り事実として補いません。"
         )
 
-    @staticmethod
-    def _question_mode(text: str) -> str:
+    def _question_mode(self, text: str) -> str:
         t = str(text or "")
         if self.EPISTEMIC_QUERY.search(t):
             return "uncertainty"
