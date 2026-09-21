@@ -6,6 +6,7 @@ import fap_v87_10_program_synth_gateway as base
 from fap_factual_qa import FactualQAOrgan
 from fap_v78_distilled import DistilledFAPOrgan
 from fap_v87_12_semantic_adaptive_gateway import FAPV8712
+from fap_v87_42_science_capability_gateway import FAPV8742Unified
 
 
 class FactualChatRegressionTests(unittest.TestCase):
@@ -54,6 +55,29 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertEqual(st["state"], "ready")
         self.assertIn("version", st)
         self.assertNotIn("teacher_available", st)
+
+
+    def test_science_capability_question_is_answered(self):
+        core = FAPV8742Unified()
+        out = core.chat("科学的な質問に答えられますか？", "v8742-science-capability")
+        self.assertEqual(out["verdict"], "OK")
+        self.assertIn("科学的な質問に答えられます", out["reply"])
+        self.assertIn("物理定数", out["reply"])
+        self.assertIn("self-capability", out["route"])
+        self.assertGreaterEqual(out["confidence"], 0.95)
+
+    def test_unresolved_chat_is_not_verified_ok(self):
+        result = {
+            "ok": True,
+            "reply": "その内容は現在の蒸留回路だけでは確定回答できません。",
+            "needs_teacher": True,
+        }
+        verdict, note = base.VerificationOrgan().verify(
+            base.Intent("chat", 0.6, [("chat", 0.6)]),
+            result,
+        )
+        self.assertEqual(verdict, "PARTIAL")
+        self.assertIn("確定回答", note)
 
 
 if __name__ == "__main__":
