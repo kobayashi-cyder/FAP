@@ -117,5 +117,26 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertEqual(st["mainline_version"], "87.43")
 
 
+    def test_open_ended_premise_is_discussed_without_fake_facts(self):
+        organ = ReflectiveConversationOrgan()
+        out = organ.run("仮に物理を情報圧縮として捉えると、何が欠損する？", [])
+        self.assertIsNotNone(out)
+        self.assertEqual(out["reasoning_mode"], "premise")
+        self.assertEqual(out["grounding"], "user-premise")
+        self.assertIn("検証可能な議論", out["reply"])
+        self.assertNotIn("確定回答できません", out["reply"])
+
+    def test_short_opinion_followup_uses_previous_user_premise(self):
+        organ = ReflectiveConversationOrgan()
+        history = [
+            {"role": "user", "text": "複雑な現象を圧縮して扱うという見方は有効だと思う。"},
+            {"role": "assistant", "text": "仮説として整理できます。"},
+        ]
+        out = organ.run("それはどう思う？", history)
+        self.assertIsNotNone(out)
+        self.assertTrue(out["followup_resolved"])
+        self.assertIn("複雑な現象を圧縮", out["reply"])
+
+
 if __name__ == "__main__":
     unittest.main()
