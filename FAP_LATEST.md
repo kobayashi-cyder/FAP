@@ -1,11 +1,11 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.07 — Specification Compiler**.
+Current mainline: **V87.08 — General Code Generator Stage 1**.
 
-Extracts explicit constraints from natural language into structured specifications and compiles novel grid-game behavior without re-asking information already present.
+Adds CodeSpec generation for Python, HTML/CSS/JavaScript, JSON, and Markdown with validation, self-tests, bounded repair, and artifact promotion.
 
-Verified runtime test suite: **39/39 PASS**.
+Verified runtime test suite: **51/51 PASS**.
 
-Runtime snapshot: `releases/runtime_packages/FAP_V87_07_SPEC_COMPILER_RUNTIME.zip`.
+Runtime snapshot: `releases/runtime_packages/FAP_V87_08_CODE_GENERATOR_RUNTIME.zip`.
 
-Promotion history is intentionally sequential through V87.07. Qwen is not used.
+Promotion history is intentionally sequential through V87.08. Qwen is not used.
