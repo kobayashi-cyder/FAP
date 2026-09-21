@@ -10,6 +10,8 @@ from fap_v87_42_science_capability_gateway import FAPV8742Unified
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_v87_43_reflective_chat_gateway import FAPV8743Unified
 from fap_v87_44_context_followup_gateway import FAPV8744Unified
+from fap_inquiry_engine import InquiryEngine
+from fap_v87_45_inquiry_loop_gateway import FAPV8745Unified
 
 
 class FactualChatRegressionTests(unittest.TestCase):
@@ -164,6 +166,40 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertTrue(out["followup_resolved"])
         self.assertTrue(out["contextual_followup"])
         self.assertEqual(out["reasoning_mode"], "clarify")
+
+
+    def test_generic_inquiry_generates_and_resolves_questions(self):
+        engine = InquiryEngine(base.ROOT)
+        out = engine.run("大気の運動について疑問点はありますか？", [])
+        self.assertIsNotNone(out)
+        self.assertTrue(out["inquiry_reasoning"])
+        self.assertTrue(out["audit_mode"])
+        self.assertEqual(out["generated_questions"], 5)
+        self.assertGreaterEqual(out["resolved_questions"], 2)
+        self.assertIn("Q:", out["reply"])
+        self.assertIn("解消:", out["reply"])
+
+    def test_inquiry_route_is_visible_in_latest_chat(self):
+        core = FAPV8745Unified()
+        out = core.chat("大気の運動について疑問点はありますか？", "v8745-inquiry-route")
+        self.assertIn("question-generate", out["route"])
+        self.assertIn("question-resolve", out["route"])
+        self.assertNotIn("確定回答できません", out["reply"])
+
+    def test_followup_topic_can_be_retrieved_from_data_not_router_branch(self):
+        core = FAPV8745Unified()
+        sid = "v8745-data-followup"
+        core.chat("大気の運動について", sid)
+        out = core.chat("では、台風の進路予測は？", sid)
+        self.assertIn("inquiry-retrieve", out["route"])
+        self.assertTrue("台風" in out["reply"] or "指向流" in out["reply"])
+        self.assertNotIn("現在の蒸留回路だけでは確定回答できません", out["reply"])
+
+    def test_current_forecast_keeps_live_data_boundary(self):
+        core = FAPV8745Unified()
+        out = core.chat("現在の台風3号の進路は？", "v8745-live-boundary")
+        self.assertEqual(out["verdict"], "PARTIAL")
+        self.assertIn("最新データ", out["critic"])
 
 
 if __name__ == "__main__":

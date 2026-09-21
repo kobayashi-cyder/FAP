@@ -330,6 +330,15 @@ class FAPV8712(v11.FAPV8711):
             "replan_count": replan_count,
             "adaptive_routing": adaptation,
             "semantic_memory": semantic_stats,
+            "inquiry": {
+                "enabled": bool(result.get("inquiry_reasoning")),
+                "rounds": int(result.get("inquiry_rounds", 0)),
+                "generated": int(result.get("generated_questions", 0)),
+                "resolved": int(result.get("resolved_questions", 0)),
+                "unresolved": int(result.get("unresolved_questions", 0)),
+                "questions": result.get("questions", []),
+                "evidence": result.get("evidence", []),
+            },
             "goal_state": {
                 "open_goal": state.get("open_goal", ""),
                 "constraints": state.get("constraints", [])[-8:],
