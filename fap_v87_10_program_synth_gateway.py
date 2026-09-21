@@ -522,6 +522,8 @@ class FAPV8710:
             "name": "FAP",
             "version": VERSION,
             "state": "ready",
+            "builder": {"stage": 4, "local": True},
+            "code_generator": {"stage": 3, "local": True},
             "protocol": "1.0",
         }
 
