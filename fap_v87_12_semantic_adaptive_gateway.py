@@ -240,6 +240,8 @@ class FAPV8712(v11.FAPV8711):
                 route += ["self-capability"]
             if result.get("factual_qa"):
                 route += ["factual-qa"]
+            if result.get("reflective_reasoning"):
+                route += ["reflective-chat", str(result.get("reasoning_mode", "overview"))]
             if adaptation.get("applied"):
                 route += ["adaptive-route", ability]
             route += ["deliberate", "semantic-context", "verify", "integrate"]

@@ -21,6 +21,7 @@ from fap_spec_builder import SpecificationCompilerBuilder, BuilderError
 from fap_code_generator import CodeGenerationError
 from fap_program_synth import ProgramSynthesizer
 from fap_factual_qa import FactualQAOrgan
+from fap_reflective_conversation import ReflectiveConversationOrgan
 
 ROOT = Path(__file__).resolve().parent
 WEB_FILE = ROOT / "web" / "FAP_Chat.html"
@@ -422,6 +423,10 @@ class VerificationOrgan:
             if not result.get("answer_coverage"):
                 return "NG", "事実質問を検出しましたが、直接回答がありません。"
             return "OK", "事実質問に対してローカル知識から直接回答しています。"
+        if result.get("reflective_reasoning"):
+            if not result.get("grounded") or not result.get("evidence_ids"):
+                return "PARTIAL", "会話推論は動作しましたが、ローカル根拠へ接続できていません。"
+            return "OK", "ローカル知識へ接続し、質問形式に合わせて説明を組み立てています。"
         if result.get("needs_teacher") or "確定回答できません" in reply or "分からない内容を作らず" in reply:
             return "PARTIAL", "ローカル経路だけでは質問への確定回答に到達していません。"
         if ok:
@@ -442,6 +447,7 @@ class FAPV8710:
         self.e2b = E2BOrgan()
         self.memory = MemoryOrgan()
         self.factual = FactualQAOrgan()
+        self.reflective = ReflectiveConversationOrgan()
         self.verify = VerificationOrgan()
         self.lock = threading.Lock()
 
@@ -451,6 +457,8 @@ class FAPV8710:
             "distilled-v78-local-chat", "behavior-circuits:10", "teacher-shadow:22",
             "builder-stage4", "builder:spec-compiler", "code-generator-stage3", "codegen:program-ir", "codegen:primitive-composition", "codegen:python", "codegen:html", "codegen:json", "codegen:markdown", "codegen:self-test", "codegen:repair-loop", "builder:constraint-extractor", "builder:generic-grid-composer", "builder:concept-resolver", "builder:mechanism-decomposition", "builder:generic-intent", "builder:composition", "builder:single-html", "builder:tetris", "builder:breakout", "builder:pong", "builder:snake", "builder:minesweeper", "builder:2048", "builder:memory-match", "builder:json",
             "weather", "image-routing", "local-factual-qa", "direct-fact-routing",
+            "reflective-local-chat", "knowledge-grounded-conversation", "causal-explanation",
+            "topic-followup-resolution",
         ]
         if self.image.available()[0]:
             caps.append("image-generation")
@@ -519,6 +527,14 @@ class FAPV8710:
         factual = self.factual.run(text)
         if factual is not None:
             return factual
+
+        # Broader local conversation still stays knowledge-grounded. The
+        # reflective organ can explain mechanisms, causes, boundaries and
+        # context follow-ups for topics it explicitly knows. Unknown topics fall
+        # through rather than being fabricated.
+        reflective = self.reflective.run(text, history)
+        if reflective is not None:
+            return reflective
 
         # General conversation is local-first. Gemma4:E2B is an optional teacher, not a dependency.
         local = self.distilled.run(text, history)
