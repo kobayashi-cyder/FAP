@@ -428,11 +428,15 @@ class VerificationOrgan:
             resolved = int(result.get("resolved_questions", 0))
             generated = int(result.get("generated_questions", 0))
             unresolved = int(result.get("unresolved_questions", 0))
+            learning = result.get("epistemic_learning") or {}
+            conflicts = int(learning.get("conflicts", 0))
+            if conflicts:
+                return "PARTIAL", f"自己質問 {resolved}/{generated} を解消しましたが、{conflicts}件の知識矛盾を隔離しました。"
             if result.get("needs_live_data"):
                 return "PARTIAL", f"自己質問 {resolved}/{generated} を解消しましたが、確定には最新データが必要です。"
             if result.get("audit_mode") and unresolved:
                 return "PARTIAL", f"自己質問 {resolved}/{generated} を根拠付きで解消し、{unresolved}件を未解決として保持しています。"
-            return "OK", f"自己質問を生成し、{resolved}/{generated}件を根拠付きで解消して回答を構成しました。"
+            return "OK", f"自己質問を価値順に処理し、{resolved}/{generated}件を根拠付きで解消して回答を構成しました。"
         if result.get("reflective_reasoning"):
             if result.get("needs_live_data"):
                 return "PARTIAL", "仕組みは説明できますが、この質問の確定回答には最新の観測・予報データが必要です。"

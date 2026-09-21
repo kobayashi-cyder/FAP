@@ -336,8 +336,12 @@ class FAPV8712(v11.FAPV8711):
                 "generated": int(result.get("generated_questions", 0)),
                 "resolved": int(result.get("resolved_questions", 0)),
                 "unresolved": int(result.get("unresolved_questions", 0)),
+                "resolution_rate": float(result.get("resolution_rate", 0.0)),
+                "question_value_ranking": bool(result.get("question_value_ranking")),
+                "persistent_learning": bool(result.get("persistent_epistemic_learning")),
                 "questions": result.get("questions", []),
                 "evidence": result.get("evidence", []),
+                "learning": result.get("epistemic_learning", {}),
             },
             "goal_state": {
                 "open_goal": state.get("open_goal", ""),
