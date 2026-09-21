@@ -250,7 +250,9 @@ class EpistemicLedger:
         confidence: float,
     ) -> dict:
         evidence = tuple(dict.fromkeys(str(x) for x in evidence_ids if str(x)))
-        if not evidence or len(str(answer).strip()) < 16 or float(value_score) < 0.45:
+        # Japanese factual conclusions can be short but still complete. Use a
+        # small minimum while keeping evidence and value gates mandatory.
+        if not evidence or len(str(answer).strip()) < 8 or float(value_score) < 0.45:
             return {"status": "skipped", "reason": "promotion-gate"}
 
         with self._lock:
@@ -258,7 +260,24 @@ class EpistemicLedger:
             similar = self._find_similar(topic, question)
 
             for existing in similar:
-                reason = _contradiction_reason(str(existing.get("answer", "")), answer)
+                existing_answer = str(existing.get("answer", ""))
+                qsim = _jaccard(question, str(existing.get("question", "")))
+                reason = _contradiction_reason(existing_answer, answer)
+
+                # For effectively the same question, opposite polarity is a
+                # contradiction even when short Japanese phrasing makes answer
+                # token overlap look modest.
+                if not reason and qsim >= 0.82:
+                    neg_old = bool(NEGATION.search(existing_answer))
+                    neg_new = bool(NEGATION.search(answer))
+                    if neg_old != neg_new:
+                        reason = "same-question-polarity-mismatch"
+                    else:
+                        nums_old = _numeric_signature(existing_answer)
+                        nums_new = _numeric_signature(answer)
+                        if nums_old and nums_new and nums_old != nums_new:
+                            reason = "same-question-numeric-mismatch"
+
                 if reason:
                     conflict = {
                         "ts": _now(),
