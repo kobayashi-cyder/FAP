@@ -52,6 +52,11 @@ button{border:0;border-radius:13px;background:#e7efe7;color:#06110f;font-weight:
 'use strict';
 const $=s=>document.querySelector(s);
 const log=$('#log'), input=$('#input'), send=$('#send'), empty=$('#empty');
+// Transport only: when downloaded/opened as content:// or file://, talk to the loopback FAP Core.
+// FAP abilities remain entirely on the Core side.
+const LOCAL_DOCUMENT = !/^https?:$/.test(location.protocol);
+const API_BASE = LOCAL_DOCUMENT ? 'http://127.0.0.1:11439' : '';
+const api = path => API_BASE + path;
 const SESSION_KEY='fap.chat.session.v1';
 let session=localStorage.getItem(SESSION_KEY);
 if(!session){session='s_'+crypto.getRandomValues(new Uint32Array(2)).join('_');localStorage.setItem(SESSION_KEY,session)}
@@ -62,7 +67,8 @@ function setState(text,kind='warn'){const e=$('#state');e.textContent=text;e.cla
 function renderArtifact(a){
   if(!a||!a.type)return;
   const box=document.createElement('div');box.className='artifact';
-  const src=a.src||a.url||'';
+  const rawSrc=a.src||a.url||'';
+  const src=(LOCAL_DOCUMENT&&rawSrc.startsWith('/'))?API_BASE+rawSrc:rawSrc;
   if(a.type==='image'&&src){const x=document.createElement('img');x.src=src;x.alt=a.name||'generated image';box.append(x)}
   else if(a.type==='audio'&&src){const x=document.createElement('audio');x.controls=true;x.src=src;box.append(x)}
   else if(a.type==='video'&&src){const x=document.createElement('video');x.controls=true;x.src=src;box.append(x)}
@@ -88,21 +94,21 @@ async function jsonFetch(url,opt={}){
 async function status(){
   setState('CONNECTING','warn');
   try{
-    const s=await jsonFetch('/api/v1/status',{method:'GET'});
+    const s=await jsonFetch(api('/api/v1/status'),{method:'GET'});
     $('#version').textContent='v'+(s.version||'?');
     setState((s.state||'READY').toUpperCase(),s.state==='degraded'?'warn':'ready');
     if(Array.isArray(s.capabilities)) $('#ability').textContent='abilities: '+s.capabilities.length;
   }catch(e){
     setState('CORE OFFLINE','bad');
     $('#version').textContent='version ?';
-    add('fap','FAP Coreへ接続できません。HTML内には推論能力を持たせていないため、Coreを起動してください。',{error:e.message});
+    add('fap','FAP Coreへ接続できません。Coreを起動し、Android接続時はADB reverseを有効にしてください。HTML側には推論能力を置いていません。',{endpoint:api('/api/v1/status'),error:e.message});
   }
 }
 async function submit(text){
   text=String(text||'').trim();if(!text)return;
   add('user',text);input.value='';resize();send.disabled=true;
   try{
-    const d=await jsonFetch('/api/v1/chat',{method:'POST',body:JSON.stringify({text,session,client:{name:'FAP_Chat',protocol:'1.0'}})});
+    const d=await jsonFetch(api('/api/v1/chat'),{method:'POST',body:JSON.stringify({text,session,client:{name:'FAP_Chat',protocol:'1.0'}})});
     $('#ability').textContent='ability: '+(d.ability||'chat');
     $('#confidence').textContent='confidence: '+(typeof d.confidence==='number'?d.confidence.toFixed(2):'—');
     add('fap',d.reply||'',{ability:d.ability,route:Array.isArray(d.route)?d.route.join(' → '):d.route},d.artifacts||[]);
