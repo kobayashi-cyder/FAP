@@ -242,6 +242,8 @@ class FAPV8712(v11.FAPV8711):
                 route += ["factual-qa"]
             if result.get("scientific_model"):
                 route += ["scientific-model", str(result.get("model_mode", "overview"))]
+            if result.get("hypothesis_reasoning"):
+                route += ["hypothesis-generate", "falsification-plan"]
             if result.get("inquiry_reasoning"):
                 route += [
                     "inquiry-retrieve",
@@ -343,6 +345,15 @@ class FAPV8712(v11.FAPV8711):
                 "limits": result.get("model_limits", []),
                 "science_snapshot_as_of": result.get("science_snapshot_as_of", ""),
                 "recent_science": result.get("recent_science", []),
+            },
+            "hypothesis_reasoning": {
+                "enabled": bool(result.get("hypothesis_reasoning")),
+                "topic": result.get("topic"),
+                "model_id": result.get("scientific_model_id"),
+                "generated": int(result.get("generated_hypotheses", 0)),
+                "verified_fact_promotion": bool(result.get("verified_fact_promotion")),
+                "memory": result.get("hypothesis_memory", {}),
+                "hypotheses": result.get("hypotheses", []),
             },
             "inquiry": {
                 "enabled": bool(result.get("inquiry_reasoning")),
