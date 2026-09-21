@@ -1,6 +1,20 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.46 — Mass Inquiry Loop**.
+Current mainline: **V87.47 — Mass Inquiry Burst**.
+
+V87.47 raises the generic inquiry volume substantially:
+
+- default target: 256 self-questions
+- burst target: 2048 self-questions for phrases such as `とにかく増やして`,
+  `最大限`, `限界まで`, or `可能な限り`
+- resolution retry budget: up to 8 rounds
+- explicit numeric requests remain supported up to 2048 questions
+
+The engine still uses the same generic dimensions and answer-to-question
+expansion. It does not add topic-specific routing branches just to reach the
+higher counts.
+
+V87.46 and V87.45 remain underneath V87.47.
 
 V87.46 increases self-question generation from the earlier five-question audit
 to a high-volume generic inquiry loop.
