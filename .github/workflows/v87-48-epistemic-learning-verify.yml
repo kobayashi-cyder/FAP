@@ -1,4 +1,4 @@
-name: v87-55-mainline-verify
+name: v87-56-mainline-verify
 
 on:
   push:
@@ -22,6 +22,9 @@ on:
       - "fap_research_cycle_chat.py"
       - "fap_v87_54_research_cycle_gateway.py"
       - "fap_v87_55_recursive_research_gateway.py"
+      - "fap_image_orchestrator.py"
+      - "fap_v87_56_image_orchestrator_gateway.py"
+      - "tests/test_image_orchestrator.py"
       - "tests/test_research_frontier_chat.py"
       - "tests/test_research_cycle.py"
       - "tests/test_hypothesis_reasoning.py"
@@ -47,6 +50,12 @@ jobs:
             fap_hypothesis_engine.py \
             fap_v87_52_hypothesis_reasoning_gateway.py \
             fap_research_frontier_chat.py \
-            fap_v87_53_research_frontier_gateway.py
+            fap_v87_53_research_frontier_gateway.py \
+            fap_research_cycle.py \
+            fap_research_cycle_chat.py \
+            fap_v87_54_research_cycle_gateway.py \
+            fap_v87_55_recursive_research_gateway.py \
+            fap_image_orchestrator.py \
+            fap_v87_56_image_orchestrator_gateway.py
       - name: Epistemic learning regression tests
-        run: python -m unittest -v tests.test_epistemic_learning tests.test_hypothesis_reasoning tests.test_research_frontier_chat tests.test_research_cycle
+        run: python -m unittest -v tests.test_epistemic_learning tests.test_hypothesis_reasoning tests.test_research_frontier_chat tests.test_research_cycle tests.test_image_orchestrator
