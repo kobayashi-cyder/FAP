@@ -75,9 +75,9 @@ def parse_dna_request(prompt: str, constraints: Sequence[str] = ()) -> DNAReques
     comp = "".join(COMPLEMENT[b] for b in seq)
 
     form = "B-DNA"
-    if re.search(r"\bA[- ]?DNA\b", text, re.I):
+    if re.search(r"A[- ]?DNA", text, re.I):
         form = "A-DNA"
-    elif re.search(r"\bZ[- ]?DNA\b", text, re.I):
+    elif re.search(r"Z[- ]?DNA", text, re.I):
         form = "Z-DNA"
 
     # V87.36 renders verified B-DNA only; other forms stay explicit in metadata
