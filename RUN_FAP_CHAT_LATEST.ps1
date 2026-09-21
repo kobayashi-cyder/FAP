@@ -16,6 +16,13 @@ $StderrLog = Join-Path $Runtime 'fap_chat_latest.stderr.log'
 function Get-PythonCommand {
     $py = Get-Command py.exe -ErrorAction SilentlyContinue
     if ($py) {
+        try {
+            $real = (& $py.Source -3 -c "import sys; print(sys.executable)" 2>$null | Select-Object -First 1).Trim()
+            if ($LASTEXITCODE -eq 0 -and $real -and (Test-Path $real)) {
+                return [pscustomobject]@{ Exe = $real; Prefix = @() }
+            }
+        } catch {
+        }
         return [pscustomobject]@{ Exe = $py.Source; Prefix = @('-3') }
     }
     $python = Get-Command python.exe -ErrorAction SilentlyContinue
@@ -25,13 +32,23 @@ function Get-PythonCommand {
     throw 'Python 3 not found. Install Python 3 and ensure py.exe or python.exe is on PATH.'
 }
 
-function Get-FapVersion([int]$Port) {
+function Get-FapVersion([int]$Port, [bool]$AllowLegacyStatus = $true) {
     try {
-        $s = Invoke-RestMethod -TimeoutSec 1 -Uri ("http://127.0.0.1:{0}/api/v1/status" -f $Port)
-        return [string]$s.version
+        $s = Invoke-RestMethod -TimeoutSec 2 -Uri ("http://127.0.0.1:{0}/api/v1/ready" -f $Port)
+        if ($s.version) {
+            return [string]$s.version
+        }
     } catch {
-        return ''
     }
+
+    if ($AllowLegacyStatus) {
+        try {
+            $s = Invoke-RestMethod -TimeoutSec 2 -Uri ("http://127.0.0.1:{0}/api/v1/status" -f $Port)
+            return [string]$s.version
+        } catch {
+        }
+    }
+    return ''
 }
 
 function Get-Listener([int]$Port) {
@@ -178,7 +195,7 @@ try {
     do {
         Start-Sleep -Milliseconds 100
 
-        $version = Get-FapVersion $Port
+        $version = Get-FapVersion $Port $false
         if ($version -eq $LatestVersion) {
             $url = "http://127.0.0.1:$Port/"
             Write-Host "[OK] FAP CHAT is now $LatestVersion on port $Port."
