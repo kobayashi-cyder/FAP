@@ -51,13 +51,13 @@ Qwen is not used.
 
 ## Verification
 
-GitHub Actions run **35590574347 — SUCCESS** on Python 3.11 and 3.12.
+Comprehensive GitHub Actions run **35590686139 — SUCCESS** on Python 3.11 and 3.12.
 
 Per interpreter:
 - V87.25 focused tests: **6/6 PASS**;
 - inherited V87.02-V87.12 text regression suite: **96/96 PASS**;
-- V87.22 offline-media regression suite: **6/6 PASS**;
-- V87.24 offline-bundle regression suite: **5/5 PASS**.
+- V87.13-V87.24 media/offline regression suite: **79/79 PASS**;
+- total: **181/181 PASS**.
 
 GPQA Diamond run **35590580662 — SUCCESS**:
 - questions: 198;
