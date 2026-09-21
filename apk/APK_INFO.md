@@ -1,10 +1,10 @@
 # FAP Android APK
 
-- FAP release packaged: `V87_23`
+- FAP release packaged: `V87_24`
 - Runtime core source: `./fap_v87_23_compact_offline_media_lab.py`
-- Source main commit: `12798d94def7dec8967542797c5cf3a223368bd5`
-- Android branch commit before APK commit: `44bef35c1885f63ee8d697cd29e8c1f8fb202002`
-- Built at UTC: `2026-09-21T10:42:27Z`
+- Source main commit: `a9ac7223c77fb19233953e5507c9cf5bfdd225a3`
+- Android branch commit before APK commit: `6913f15535282fee4e759f1415e630c589b7fe63`
+- Built at UTC: `2026-09-21T10:45:36Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `41d2f4eecf7e8e823367b70999ff64c2ad97c792ac39d6b6a5660aa7b78397ad`
+- SHA-256: `cb9a0d118677f3c051e2490ac14b884b3976a607780db627d396d13659c4d77b`
 - Build: debug APK
