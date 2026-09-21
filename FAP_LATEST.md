@@ -1,63 +1,75 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.28 — Expanded Deterministic Physics Solvers**.
+Current mainline candidate: **V87.30 — Human Rig + Linear Blend Skinning**.
 
-V87.28 extends the verified V87.27 physics substrate with additional equation-based solvers while preserving all prior routing and media paths.
+V87.30 extends the FAP-native image generation path with a geometric 3D/CAD-like
+human substrate. Instead of painting a human directly in 2D, FAP now constructs
+an articulated body, deforms it in 3D and renders the resulting surface.
 
-Default physics path:
+Native human image path:
 
 ```text
-explicit A-D MCQ
-  -> V87.28 deterministic physics equation solvers
-  -> if unresolved: V87.27 deterministic physics solvers
-  -> advisory physics knowledge retrieval
-  -> inherited V87.26 structured science path
-  -> answer contract verification
+prompt
+  -> pose / view interpretation
+  -> 21-bone hierarchical skeleton
+  -> bind pose + inverse-bind transforms
+  -> connected body mesh
+  -> per-vertex bone weights
+  -> Linear Blend Skinning (LBS)
+  -> perspective projection
+  -> triangle rasterization + z-buffer
+  -> Lambert-style shading
+  -> native PNG bytes
+  -> existing FAP artifact-integrity verification
 ```
 
-New deterministic solver families:
-- Newton's second law;
-- linear momentum;
-- gravitational potential energy;
-- centripetal acceleration;
-- wave speed;
-- electromagnetic frequency from wavelength;
-- de Broglie wavelength;
-- Coulomb force;
-- ideal-gas pressure;
-- Wien peak wavelength;
-- Stefan-Boltzmann flux;
-- radioactive half-life;
-- Ohm's law;
-- electric power.
-
-Safety / anti-overfit boundary:
-- each solver requires explicit semantic cues, required variables, compatible units, and a unique close answer choice;
-- unresolved inputs delegate to V87.27 unchanged;
-- no benchmark-specific question text or answer keys are embedded;
-- Qwen is not used.
+Implemented in V87.30:
+- pelvis/spine/chest/neck/head hierarchy;
+- bilateral shoulder/elbow/wrist/hand chains;
+- bilateral hip/knee/ankle/foot chains;
+- XYZ joint limits;
+- bind and inverse-bind transforms;
+- multi-bone vertex weighting near joints;
+- standard LBS deformation;
+- connected ring-based torso and limb surfaces;
+- weighted head/hands/feet geometry;
+- prompt-driven arm, elbow, walking, sitting and head poses;
+- front, oblique, side and back camera views;
+- pure-Python software 3D rendering with a depth buffer;
+- PNG generation without an external image checkpoint;
+- Media Lab integration and Windows launchers.
 
 Verification:
-- branch Actions **35596410727 — SUCCESS** on Python 3.11 and 3.12;
-- per interpreter: V87.28 focused **10/10**, V87.27 focused **12/12**, V87.26 focused **5/5**, V87.25 focused **6/6**, inherited V87.02-V87.12 text **96/96**, V87.13-V87.24 media/offline **79/79** PASS.
+- GitHub Actions **35599407955 — SUCCESS**;
+- Python 3.11: **7/7 PASS**;
+- Python 3.12: **7/7 PASS**;
+- verified descendant motion under parent-bone rotation;
+- verified multi-bone weights;
+- verified non-trivial LBS surface deformation;
+- verified PNG dimensions/signature;
+- verified prompt-dependent pose/view output;
+- verified Media Lab artifact-integrity acceptance.
 
-GPQA Diamond comparison:
-- Actions **35596419295 — SUCCESS**;
-- V87.27: **208/792 = 26.26%**;
-- V87.28: **208/792 = 26.26%**;
-- parse rate: **100%**;
-- changed predictions: **0**;
-- changed-to-correct: **0**;
-- changed-to-wrong: **0**;
-- V87.28 solver activations on GPQA: **0**.
+Boundary:
+- this is a geometric/stylized human renderer, not photorealistic synthesis;
+- face, hands, hair, cloth and soft-tissue anatomy remain coarse;
+- there is no learned texture/material synthesis yet;
+- the next deformation-quality step is corrective shapes or dual-quaternion
+  skinning around difficult joints.
 
-The benchmark score is unchanged. V87.28 is therefore a verified general-physics capability expansion, not a GPQA accuracy improvement.
+Compatibility:
+- V87.29 native prompt-to-raster generation remains available;
+- V87.28 deterministic physics and earlier verified reasoning/media paths remain;
+- no external image API or pretrained image checkpoint is required for V87.30;
+- Qwen is not used.
 
 Implementation:
-- `fap_physics_solver_v2.py`
-- `fap_v87_28_physics_solver_gateway.py`
-- `RUN_FAP_V87_28_PHYSICS_SOLVERS.cmd`
-- `releases/v87_28/`
-- `benchmarks/sol_gpqa_v8728.py`
+- `releases/v87_30/human_lbs/fap_human_lbs/core.py`
+- `releases/v87_30/human_lbs/fap_human_lbs/engine.py`
+- `releases/v87_30/human_lbs/fap_human_lbs/manager.py`
+- `fap_v87_30_lbs_image_lab.py`
+- `fap_v87_30_lbs_demo.py`
+- `RUN_FAP_V87_30_LBS_IMAGE_LAB.cmd`
+- `RUN_FAP_V87_30_LBS_DEMO.cmd`
 
-V87.27 and all prior verified functionality remain underneath this release.
+V87.29 and all prior functionality remain underneath this release.
