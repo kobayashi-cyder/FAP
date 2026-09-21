@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>FAP Media Lab V87.32</title>
+<style>
+:root{--panel:#0d1a17;--line:#223a34;--text:#eef7f3;--muted:#8fa79f;--ok:#47df8d;--warn:#f0bb4d;--bad:#ff7474}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#173a30 0,#07110f 40%,#030806 100%);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Noto Sans JP",sans-serif}
+main{max-width:1240px;margin:auto;padding:18px 16px 50px}.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.brand{font-size:20px;font-weight:850;letter-spacing:.08em}.badge{border:1px solid var(--line);border-radius:999px;padding:4px 9px;color:var(--muted)}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.grid{display:grid;grid-template-columns:minmax(320px,410px) 1fr;gap:16px}@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:rgba(13,26,23,.93);border:1px solid var(--line);border-radius:18px;padding:16px}label{display:block;color:var(--muted);margin:0 0 6px}
+textarea,input{width:100%;background:#07110f;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;outline:none}textarea{min-height:128px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.field{margin-top:12px}
+button{width:100%;margin-top:16px;border:0;border-radius:13px;padding:12px 16px;background:#e7f3eb;color:#06100d;font-weight:850;cursor:pointer}button:disabled{opacity:.45}
+.preview{min-height:430px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:15px;overflow:hidden;background:#050b09}.preview img{display:block;max-width:100%;max-height:72vh}.empty{color:var(--muted);text-align:center;padding:35px}
+.meta{margin-top:13px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.kv{background:#08130f;border:1px solid var(--line);border-radius:11px;padding:9px}.k{color:var(--muted);font-size:11px}.v{overflow-wrap:anywhere;margin-top:2px}
+.notice{margin-top:12px;padding:10px;border-radius:12px;background:#111913;color:#b9c9c3}.engine{margin-top:8px;padding:8px;border-left:2px solid var(--line);color:var(--muted)}.error{color:#ff9a9a;white-space:pre-wrap}.issues{margin-top:10px}.issue{border:1px solid #5b3535;background:#1b1111;border-radius:10px;padding:8px;margin-top:6px;color:#ffb0b0}small{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><div class="brand">FAP MEDIA LAB</div><div id="version" class="badge">V--</div><div id="state" class="badge warn">CHECKING</div></div>
+<div class="grid">
+<section class="card">
+<div class="field"><label for="prompt">Prompt</label><textarea id="prompt" placeholder="例: 人と犬"></textarea></div>
+<div class="row"><div><label>最大試行</label><input id="attempts" type="number" min="1" max="8" value="2"></div><div><label>Width</label><input id="width" type="number" min="64" max="4096" value="1024"></div></div>
+<div class="row"><div><label>Height</label><input id="height" type="number" min="64" max="4096" value="1024"></div><div></div></div>
+<div class="field"><label for="constraints">Hard constraints（1行1件）</label><textarea id="constraints" style="min-height:82px" placeholder="被写体を中央に保つ&#10;写真風"></textarea></div>
+<button id="generate">FAPで生成</button>
+<div id="error" class="error"></div>
+<div class="notice">V87.32はV87.31のScene Graphを維持したまま、スムース法線・材質別反射・微細表面変化・接地影・FXAA・フィルム調仕上げを追加します。写真らしさは前進していますが、学習型フォトリアル生成ではないため「写真風」はまだ自動合格しません。</div>
+<div class="field"><label>接続エンジン</label><div id="engines"><small>確認中...</small></div></div>
+</section>
+<section class="card">
+<div id="preview" class="preview"><div class="empty">生成結果がここに表示されます。</div></div>
+<div id="meta" class="meta"></div><div id="issues" class="issues"></div>
+</section>
+</div>
+</main>
+<script>
+(()=>{
+const $=s=>document.querySelector(s), state=$('#state'), err=$('#error'), button=$('#generate');
+function setState(text,kind){state.textContent=text;state.className='badge '+(kind||'warn')}
+async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={error:t}}if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}
+function meta(k,v){const d=document.createElement('div');d.className='kv';d.innerHTML='<div class="k"></div><div class="v"></div>';d.children[0].textContent=k;d.children[1].textContent=Array.isArray(v)?v.join(', '):String(v??'—');return d}
+function renderEngines(s){const b=$('#engines');b.innerHTML='';for(const x of s.skills||[]){const d=document.createElement('div');d.className='engine';d.textContent=x.media_type+' · '+x.engine_id+' · '+x.stage+' · style '+x.render_style+' · photo-look '+x.photo_look_capability+' · learned '+x.learned_refiner;b.append(d)}}
+async function refresh(){try{const s=await api('/api/v1/status');$('#version').textContent='V'+s.version;renderEngines(s);setState(s.state==='ready'?'READY':'NEEDS ENGINE',s.state==='ready'?'ok':'warn')}catch(e){setState('OFFLINE','bad');err.textContent=e.message}}
+button.addEventListener('click',async()=>{
+err.textContent='';button.disabled=true;button.textContent='生成中...';
+const payload={prompt:$('#prompt').value,media_type:'image',width:+$('#width').value,height:+$('#height').value,max_attempts:+$('#attempts').value,constraints:$('#constraints').value};
+try{
+const d=await api('/api/v1/generate',{method:'POST',body:JSON.stringify(payload)}),a=d.artifact,p=$('#preview');p.innerHTML='';
+if(a){const x=document.createElement('img');x.src=a.url+'?t='+Date.now();x.alt='FAP generated image';p.append(x)}else p.innerHTML='<div class="empty">Artifactは返りませんでした。</div>';
+const m=$('#meta');m.innerHTML='';
+[['status',d.status],['backend',a?.backend_id],['integrity',a?.integrity_score],['objects',a?.object_score],['layout',a?.layout_score],['style score',a?.style_score],['photo-look capability',a?.photo_look_capability],['photorealistic verified',a?.photorealistic_verified],['required objects',a?.required_objects],['generated objects',a?.generated_objects],['requested style',a?.requested_styles],['render style',a?.render_style],['features',a?.photo_look_features],['composite score',a?.verification_score]].forEach(([k,v])=>m.append(meta(k,v)));
+const ib=$('#issues');ib.innerHTML='';for(const i of a?.issues||[]){const q=document.createElement('div');q.className='issue';q.textContent=i.code+' ['+i.severity+'] '+i.detail;ib.append(q)}
+setState(d.accepted?'ACCEPTED':'NOT ACCEPTED',d.accepted?'ok':'bad');
+}catch(e){err.textContent=e.message;setState('ERROR','bad')}finally{button.disabled=false;button.textContent='FAPで生成'}
+});
+refresh();
+})();
+</script>
+</body>
+</html>
