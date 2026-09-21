@@ -1,0 +1,22 @@
+[
+  {
+    "engine_id": "image-engine-01",
+    "media_type": "image",
+    "endpoint": "https://your-image-engine.example/generate",
+    "token_env": "FAP_IMAGE_ENGINE_TOKEN",
+    "timeout_s": 120,
+    "max_bytes": 67108864,
+    "max_polls": 40,
+    "poll_interval_s": 0.5
+  },
+  {
+    "engine_id": "video-engine-01",
+    "media_type": "video",
+    "endpoint": "https://your-video-engine.example/generate",
+    "token_env": "FAP_VIDEO_ENGINE_TOKEN",
+    "timeout_s": 300,
+    "max_bytes": 268435456,
+    "max_polls": 120,
+    "poll_interval_s": 1.0
+  }
+]
