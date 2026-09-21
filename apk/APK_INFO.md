@@ -2,9 +2,9 @@
 
 - FAP release packaged: `V87_39`
 - Runtime core source: `./fap_v87_39_native_geometry_gateway.py`
-- Source main commit: `020ce437e37615955a3b424fa20169b174e791d8`
-- Android branch commit before APK commit: `66e373ba19b38171c2475b785712db840ec3bd12`
-- Built at UTC: `2026-09-21T20:25:51Z`
+- Source main commit: `cba23b4d864915055aed23d832fb95c292c58559`
+- Android branch commit before APK commit: `870256869c3e1ca51dee3d4b7106e13a978b68e8`
+- Built at UTC: `2026-09-21T20:32:15Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `f90680d4443da6a4d0ceff63fc1f16a2e3a9f0b42a6f0d2483d9b8517f286de3`
+- SHA-256: `7e2ec150efb916ef197073a24efbe21a121df070a316f88174722861d86dff91`
 - Build: debug APK
