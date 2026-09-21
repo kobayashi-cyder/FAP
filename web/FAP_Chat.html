@@ -52,8 +52,6 @@ button{border:0;border-radius:13px;background:#e7efe7;color:#06110f;font-weight:
 'use strict';
 const $=s=>document.querySelector(s);
 const log=$('#log'), input=$('#input'), send=$('#send'), empty=$('#empty');
-// Transport only: when downloaded/opened as content:// or file://, talk to the loopback FAP Core.
-// FAP abilities remain entirely on the Core side.
 const LOCAL_DOCUMENT = !/^https?:$/.test(location.protocol);
 const API_BASE = LOCAL_DOCUMENT ? 'http://127.0.0.1:11439' : '';
 const api = path => API_BASE + path;
