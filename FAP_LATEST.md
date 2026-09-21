@@ -1,11 +1,11 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.04 — Builder Stage 1**.
+Current mainline: **V87.05 — Generic Composition Builder**.
 
-Adds the first artifact-building organ with verified single-HTML generation, validation, and artifact delivery. The initial concrete build target includes Tetris.
+Routes creation requests into the builder and composes game primitives for Tetris, Breakout, PONG, Snake, generic single HTML, and JSON settings.
 
-Verified runtime test suite: **16/16 PASS**.
+Verified runtime test suite: **23/23 PASS**.
 
-Runtime snapshot: `releases/runtime_packages/FAP_V87_04_BUILDER_RUNTIME.zip`.
+Runtime snapshot: `releases/runtime_packages/FAP_V87_05_GENERIC_BUILDER_RUNTIME.zip`.
 
-Promotion history is intentionally sequential: V87.02 → V87.03 → V87.04.
+Promotion history is intentionally sequential through V87.05. Qwen is not used.
