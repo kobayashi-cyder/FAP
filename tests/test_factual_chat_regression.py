@@ -9,6 +9,7 @@ from fap_v87_12_semantic_adaptive_gateway import FAPV8712
 from fap_v87_42_science_capability_gateway import FAPV8742Unified
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_v87_43_reflective_chat_gateway import FAPV8743Unified
+from fap_v87_44_context_followup_gateway import FAPV8744Unified
 
 
 class FactualChatRegressionTests(unittest.TestCase):
@@ -136,6 +137,33 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertIsNotNone(out)
         self.assertTrue(out["followup_resolved"])
         self.assertIn("複雑な現象を圧縮", out["reply"])
+
+
+    def test_natural_clarification_followup_uses_recent_atmosphere_topic(self):
+        core = FAPV8744Unified()
+        sid = "v8744-natural-followup"
+        first = core.chat("大気の運動について", sid)
+        self.assertEqual(first["verdict"], "OK")
+        out = core.chat("どういうことなのかわかりますか？", sid)
+        self.assertEqual(out["verdict"], "OK")
+        self.assertIn("要するに", out["reply"])
+        self.assertIn("気圧", out["reply"])
+        self.assertIn("reflective-chat", out["route"])
+        self.assertIn("clarify", out["route"])
+        self.assertIn("context-followup", out["route"])
+        self.assertNotIn("確定回答できません", out["reply"])
+
+    def test_understanding_question_resolves_recent_known_topic(self):
+        organ = ReflectiveConversationOrgan()
+        history = [
+            {"role": "user", "text": "大気の運動について"},
+            {"role": "assistant", "text": "大気の運動は気圧傾度力などで決まります。"},
+        ]
+        out = organ.run("これが何を意味するかわかりますか？", history)
+        self.assertIsNotNone(out)
+        self.assertTrue(out["followup_resolved"])
+        self.assertTrue(out["contextual_followup"])
+        self.assertEqual(out["reasoning_mode"], "clarify")
 
 
 if __name__ == "__main__":
