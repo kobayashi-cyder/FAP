@@ -951,27 +951,20 @@ class PhysicsKnowledgeReasoner:
         margin = ub - ur
         has_evidence = bool(best.evidence or best.contradictions)
 
-        if abs(best.score) >= self.MIN_ABS_SCORE and margin >= self.MIN_MARGIN and has_evidence:
-            decision = MCQDecision(
-                best.letter,
-                "physics_knowledge_retrieval",
-                min(0.90, 0.62 + min(0.25, margin / 4.0)),
-                f"physics retrieval score={best.score:.3f}; margin={margin:.3f}",
-            )
-            result = {
-                "ok": True,
-                "reply": decision.rationale + "\nAnswer: $" + decision.letter,
-                "confidence": decision.confidence,
-                "decision_source": decision.source,
-                "domain": task.domain,
-                "forced_choice": False,
-                "needs_teacher": False,
-            }
-        else:
-            result = self.fallback.run(task, history, teacher_allowed=teacher_allowed)
+        # V87.27 keeps retrieval advisory-only. The current lexical/pattern
+        # evidence is useful for exposing relevant laws and misconceptions, but
+        # GPQA evaluation showed that letting it choose answers independently can
+        # move between wrong options without improving correctness. Deterministic
+        # equation solvers above may answer; otherwise the inherited V87.26 path
+        # remains authoritative until retrieval gains an independent verifier.
+        result = self.fallback.run(task, history, teacher_allowed=teacher_allowed)
 
         result["physics_knowledge"] = {
-            "used": result.get("decision_source") == "physics_knowledge_retrieval",
+            "used": False,
+            "advisory_only": True,
+            "candidate_letter": best.letter if has_evidence else None,
+            "candidate_score": best.score if has_evidence else 0.0,
+            "candidate_margin": margin if has_evidence else 0.0,
             "retrieved": [
                 {"knowledge_id": x.entry.knowledge_id, "area": x.entry.area, "score": x.retrieval_score}
                 for x in retrieved
