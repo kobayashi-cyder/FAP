@@ -1,24 +1,33 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.40 — Direct Factual Chat**.
+Current mainline: **V87.41 — Low-Latency Conversational Chat**.
 
-V87.40 fixes ordinary factual questions being misrouted into procedural distilled
-circuits. High-precision local fact answers now run before the procedural V78
-circuits, and bare physical quantities such as "speed" no longer count as
-performance constraints by themselves.
+V87.41 removes the expensive recursive status tree from the hot chat path.
+Normal chat responses now return only a lightweight version/state snapshot, and
+the web UI uses a lightweight `/api/v1/status`. Full diagnostics remain
+available explicitly at `/api/v1/status/full`.
 
-Regression case:
+It also treats latency reports such as:
+
+```text
+20秒程度応答にかかりました。
+```
+
+as conversation feedback instead of falling into the generic unknown-answer
+response.
+
+V87.40 direct factual routing is preserved underneath V87.41. For example:
 
 ```text
 YOU: 真空中の光速度は？
 FAP: 真空中の光速度 c は 299,792,458 m/s です。
 ```
 
-The factual path is deliberately fail-closed: only explicit local entries are
-answered directly; unknown facts continue through the existing reasoning /
-optional-teacher paths rather than inventing a value.
+The factual path remains fail-closed: only explicit local entries are answered
+directly; unknown facts continue through the existing reasoning / optional-
+teacher paths rather than inventing a value.
 
-V87.39 remains the media/geometry foundation underneath V87.40.
+V87.39 remains the media/geometry foundation underneath V87.40/V87.41.
 
 V87.39 extends the V87.38 native boundary upward from screen-space raster work
 into geometry preparation, morphology and skeletal deformation.
