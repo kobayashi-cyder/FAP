@@ -24,6 +24,12 @@ def _tokens(text: str) -> set[str]:
     return {w.lower() for w in _WORD.findall(str(text or "")) if len(w) > 1 and w.lower() not in _STOP}
 
 
+def _as_patterns(value) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,)
+    return tuple(value or ())
+
+
 def _overlap(a: str, b: str) -> float:
     ta, tb = _tokens(a), _tokens(b)
     if not ta or not tb:
@@ -555,8 +561,8 @@ def validate_knowledge_patterns() -> list[str]:
     errors: list[str] = []
     for entry in K:
         for kind, patterns in (
-            ("support", entry.support_patterns),
-            ("contradiction", entry.contradiction_patterns),
+            ("support", _as_patterns(entry.support_patterns)),
+            ("contradiction", _as_patterns(entry.contradiction_patterns)),
         ):
             for pattern in patterns:
                 try:
@@ -601,11 +607,11 @@ class PhysicsKnowledgeStore:
         contra: list[str] = []
         score = 0.0
 
-        for pat in entry.support_patterns:
+        for pat in _as_patterns(entry.support_patterns):
             if re.search(pat, combined, re.I):
                 score += 1.25
                 evidence.append(entry.knowledge_id + ":pattern")
-        for pat in entry.contradiction_patterns:
+        for pat in _as_patterns(entry.contradiction_patterns):
             if re.search(pat, combined, re.I):
                 score -= 1.35
                 contra.append(entry.knowledge_id + ":pattern")
