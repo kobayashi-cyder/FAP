@@ -1,0 +1,70 @@
+name: broad-literature-critical-appraisal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "fap_literature_review.py"
+      - "tests/test_literature_review.py"
+      - ".github/workflows/broad-literature-critical-appraisal.yml"
+  schedule:
+    - cron: "23 18 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Publication window in days"
+        required: false
+        default: "1"
+      max_works:
+        description: "Maximum journal articles to screen (0 = uncapped)"
+        required: false
+        default: "50000"
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile and test review engine
+        run: |
+          python -m py_compile fap_literature_review.py
+          python -m unittest -v tests.test_literature_review
+
+      - name: Determine review window
+        id: cfg
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "days=7" >> "$GITHUB_OUTPUT"
+            echo "max_works=50000" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "days=${{ inputs.days }}" >> "$GITHUB_OUTPUT"
+            echo "max_works=${{ inputs.max_works }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "days=1" >> "$GITHUB_OUTPUT"
+            echo "max_works=50000" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Screen recent Crossref journal articles
+        env:
+          CROSSREF_MAILTO: ${{ secrets.CROSSREF_MAILTO }}
+        run: |
+          mkdir -p literature-review
+          python fap_literature_review.py             --days "${{ steps.cfg.outputs.days }}"             --max-works "${{ steps.cfg.outputs.max_works }}"             --date-mode pub             --compact             --output literature-review/reviews.jsonl             --summary literature-review/summary.json
+
+      - name: Print coverage summary
+        run: cat literature-review/summary.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: literature-review-${{ github.run_id }}
+          path: literature-review/
+          retention-days: 14
+          compression-level: 9

@@ -238,20 +238,27 @@ class CrossrefHarvester:
         until_date: str,
         max_works: int = 0,
         query: str = "",
+        date_mode: str = "pub",
     ) -> Iterable[dict]:
         cursor = "*"
         seen = 0
         while True:
-            filters = [
-                f"from-index-date:{from_date}",
-                f"until-index-date:{until_date}",
-                "type:journal-article",
-            ]
+            date_mode = "index" if date_mode == "index" else "pub"
+            if date_mode == "index":
+                date_filters = [
+                    f"from-index-date:{from_date}",
+                    f"until-index-date:{until_date}",
+                ]
+            else:
+                date_filters = [
+                    f"from-pub-date:{from_date}",
+                    f"until-pub-date:{until_date}",
+                ]
+            filters = date_filters + ["type:journal-article"]
             params = {
                 "filter": ",".join(filters),
                 "rows": self.rows,
                 "cursor": cursor,
-                "cursor-max": self.rows,
             }
             if self.mailto:
                 params["mailto"] = self.mailto
@@ -285,6 +292,8 @@ def run_review(
     query: str,
     store_abstract: bool,
     mailto: str,
+    date_mode: str = "pub",
+    compact: bool = False,
 ) -> dict:
     output.parent.mkdir(parents=True, exist_ok=True)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -297,7 +306,13 @@ def run_review(
     resolved_kinds = Counter()
 
     with output.open("w", encoding="utf-8") as fh:
-        for item in harvester.iter_works(from_date, until_date, max_works=max_works, query=query):
+        for item in harvester.iter_works(
+            from_date,
+            until_date,
+            max_works=max_works,
+            query=query,
+            date_mode=date_mode,
+        ):
             review = appraiser.review(item, store_abstract=store_abstract)
             totals["works"] += 1
             totals["questions"] += review.generated_questions
@@ -312,12 +327,36 @@ def run_review(
                     resolved_kinds[q["kind"]] += 1
                 else:
                     unresolved_kinds[q["kind"]] += 1
-            fh.write(json.dumps(asdict(review), ensure_ascii=False) + "\n")
+            if compact:
+                resolved_names = [q["kind"] for q in review.review_questions if q["resolved"]]
+                unresolved_names = [q["kind"] for q in review.review_questions if not q["resolved"]]
+                row = {
+                    "doi": review.doi,
+                    "title": review.title,
+                    "journal": review.journal,
+                    "published": review.published,
+                    "indexed": review.indexed,
+                    "url": review.url,
+                    "publisher": review.publisher,
+                    "subjects": review.subjects,
+                    "screening_status": review.screening_status,
+                    "update_flags": review.update_flags,
+                    "generated_questions": review.generated_questions,
+                    "resolved_questions": review.resolved_questions,
+                    "unresolved_questions": review.unresolved_questions,
+                    "resolution_rate": review.resolution_rate,
+                    "resolved_kinds": resolved_names,
+                    "unresolved_kinds": unresolved_names,
+                }
+            else:
+                row = asdict(review)
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     summary = {
         "provider": "Crossref REST API",
-        "from_index_date": from_date,
-        "until_index_date": until_date,
+        "date_mode": date_mode,
+        "from_date": from_date,
+        "until_date": until_date,
         "query": query,
         "max_works": max_works,
         "screening_scope": "journal-article metadata; abstract critical appraisal where abstract metadata is present",
@@ -345,10 +384,12 @@ def main() -> int:
     ap.add_argument("--until-date", default="")
     ap.add_argument("--days", type=int, default=1)
     ap.add_argument("--max-works", type=int, default=10000, help="0 = no explicit cap")
+    ap.add_argument("--date-mode", choices=("pub", "index"), default="pub")
     ap.add_argument("--query", default="")
     ap.add_argument("--output", default="runtime/literature/latest_reviews.jsonl")
     ap.add_argument("--summary", default="runtime/literature/latest_summary.json")
     ap.add_argument("--store-abstract", action="store_true")
+    ap.add_argument("--compact", action="store_true", help="Store per-paper resolution summaries instead of all appraisal evidence.")
     ap.add_argument("--mailto", default=os.environ.get("CROSSREF_MAILTO", ""))
     args = ap.parse_args()
 
@@ -366,6 +407,8 @@ def main() -> int:
             query=args.query,
             store_abstract=args.store_abstract,
             mailto=args.mailto,
+            date_mode=args.date_mode,
+            compact=args.compact,
         )
     except Exception as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
