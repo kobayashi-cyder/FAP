@@ -48,9 +48,9 @@ C) It is a gluon
 D) It has no quantum statistics
 """)
     r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
-    print("PHYSICS_OPTIONS", r.get("physics_knowledge", {}).get("options"))
-    assert r["decision_source"] == "physics_knowledge_retrieval", r.get("physics_knowledge")
     assert r["reply"].splitlines()[-1] == "Answer: $B"
+    assert r["physics_knowledge"]["advisory_only"] is True
+    assert r["physics_knowledge"]["used"] is False
 
 
 
@@ -89,3 +89,73 @@ def test_normal_chat_delegates_to_v8726(monkeypatch):
     monkeypatch.setattr(v26.FAPV8726, "chat", old)
     core = gateway.FAPV8727()
     assert core.chat("米子市の今日の天気は？", "x") is sentinel
+
+
+def test_numeric_solver_photon_energy():
+    t = parse("""Answer the following multiple choice question.
+A photon has wavelength 620 nm. What is its energy?
+
+A) 0.50 eV
+B) 2.00 eV
+C) 5.00 eV
+D) 20.0 eV
+""")
+    r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
+    assert r["decision_source"] == "physics_numeric_solver"
+    assert r["reply"].splitlines()[-1] == "Answer: $B"
+
+
+def test_numeric_solver_lorentz_gamma():
+    t = parse("""Answer the following multiple choice question.
+A spacecraft moves at speed 0.8 c. What is its Lorentz factor gamma?
+
+A) 1.25
+B) 1.67
+C) 2.50
+D) 5.00
+""")
+    r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
+    assert r["decision_source"] == "physics_numeric_solver"
+    assert r["reply"].splitlines()[-1] == "Answer: $B"
+
+
+def test_numeric_solver_hubble_law():
+    t = parse("""Answer the following multiple choice question.
+Using a Hubble constant H0 = 70 km/s/Mpc, what recession velocity corresponds to a distance of 100 Mpc?
+
+A) 700 km/s
+B) 7000 km/s
+C) 70000 km/s
+D) 70 km/s
+""")
+    r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
+    assert r["decision_source"] == "physics_numeric_solver"
+    assert r["reply"].splitlines()[-1] == "Answer: $B"
+
+
+def test_numeric_solver_schwarzschild_radius():
+    t = parse("""Answer the following multiple choice question.
+What is the Schwarzschild radius of a black hole with mass 10 solar masses?
+
+A) 2.95 km
+B) 29.5 km
+C) 295 km
+D) 2950 km
+""")
+    r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
+    assert r["decision_source"] == "physics_numeric_solver"
+    assert r["reply"].splitlines()[-1] == "Answer: $B"
+
+
+def test_numeric_solver_classical_kinetic_energy():
+    t = parse("""Answer the following multiple choice question.
+An object has mass = 2 kg and speed = 3 m/s. What is its kinetic energy?
+
+A) 3 J
+B) 6 J
+C) 9 J
+D) 18 J
+""")
+    r = PhysicsKnowledgeReasoner(gateway.CORE.science_reasoner).run(t)
+    assert r["decision_source"] == "physics_numeric_solver"
+    assert r["reply"].splitlines()[-1] == "Answer: $C"
