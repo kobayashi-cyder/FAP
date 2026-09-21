@@ -13,6 +13,7 @@ class Concept:
     mechanisms: tuple[str, ...]
     boundaries: tuple[str, ...] = ()
     related: tuple[str, ...] = ()
+    plain: str = ""
 
 
 CONCEPTS: tuple[Concept, ...] = (
@@ -31,6 +32,7 @@ CONCEPTS: tuple[Concept, ...] = (
             "コリオリ効果は赤道付近や非常に小さいスケールでは弱く、局地的な流れでは摩擦や浮力が相対的に重要になります。",
         ),
         ("pressure_gradient", "coriolis", "convection"),
+        "要するに、空気は場所ごとの気圧や温度の違いで動き始め、その流れを地球の自転や地面との摩擦が曲げたり弱めたりします。上昇・下降には浮力や加熱・冷却も効きます。",
     ),
     Concept(
         "pressure_gradient",
@@ -164,6 +166,12 @@ class ReflectiveConversationOrgan:
     """
 
     FOLLOWUP = re.compile(r"^(?:それ|これは|その点|では|じゃあ|もう少し|詳しく)?(?:について|に関して|は)?[？?。\s]*$")
+    CONTEXTUAL_FOLLOWUP = re.compile(
+        r"(どういうこと|どういう意味|何を意味|つまり|要するに|"
+        r"簡単に|かみ砕|もう一度|もう少し|"
+        r"(?:わか|分か|理解)(?:ります|できます|できる).*(?:か|？|\?))",
+        re.I,
+    )
     PREMISE_REASONING = re.compile(
         r"(どう思う|どう考える|妥当|仮説|もし|仮に|とすると|としたら|"
         r"という見方|という考え|捉えると|観点|本質|前提|何が欠損|"
@@ -222,6 +230,8 @@ class ReflectiveConversationOrgan:
         t = str(text or "")
         if re.search(r"(なぜ|どうして|理由|原因|why)", t, re.I):
             return "why"
+        if re.search(r"(どういうこと|どういう意味|つまり|要するに|簡単に|かみ砕)", t, re.I):
+            return "clarify"
         if re.search(r"(どう動|仕組み|メカニズム|どのよう|どういう|how)", t, re.I):
             return "how"
         if re.search(r"(違い|比較|比べ|difference|compare)", t, re.I):
@@ -250,6 +260,11 @@ class ReflectiveConversationOrgan:
         if mode == "why":
             body = self._join_sentences(concept.mechanisms, 3)
             reply = concept.summary + body
+        elif mode == "clarify":
+            if concept.plain:
+                reply = concept.plain
+            else:
+                reply = "要するに、" + concept.summary + self._join_sentences(concept.mechanisms, 1)
         elif mode == "how":
             body = self._join_sentences(concept.mechanisms, 4)
             reply = concept.summary + body
@@ -275,10 +290,11 @@ class ReflectiveConversationOrgan:
         concept = ranked[0][1] if ranked and ranked[0][0] > 0 else None
         score = ranked[0][0] if ranked and ranked[0][0] > 0 else 0.0
         followup = False
-        if concept is None and self.FOLLOWUP.match(t):
+        contextual_followup = bool(self.CONTEXTUAL_FOLLOWUP.search(t))
+        if concept is None and (self.FOLLOWUP.match(t) or contextual_followup):
             concept = self._from_history(history)
             followup = concept is not None
-            score = 2.0 if followup else 0.0
+            score = 2.5 if followup else 0.0
 
         if concept is None:
             premise_trigger = bool(self.PREMISE_REASONING.search(t))
@@ -331,5 +347,6 @@ class ReflectiveConversationOrgan:
             "evidence_ids": evidence_ids,
             "reasoning_mode": mode,
             "followup_resolved": followup,
+            "contextual_followup": bool(followup and contextual_followup),
             "related_topics": list(concept.related),
         }
