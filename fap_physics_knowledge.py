@@ -30,6 +30,10 @@ def _as_patterns(value) -> tuple[str, ...]:
     return tuple(value or ())
 
 
+def _shared_count(a: str, b: str) -> int:
+    return len(_tokens(a) & _tokens(b))
+
+
 def _overlap(a: str, b: str) -> float:
     ta, tb = _tokens(a), _tokens(b)
     if not ta or not tb:
@@ -616,16 +620,32 @@ class PhysicsKnowledgeStore:
                 score -= 1.35
                 contra.append(entry.knowledge_id + ":pattern")
 
-        true_sim = max((_overlap(option_n, claim) for claim in entry.claims), default=0.0)
-        false_sim = max((_overlap(option_n, claim) for claim in entry.misconceptions), default=0.0)
+        combined_text = question + " " + option_n
+        true_pairs = [
+            (
+                max(_overlap(option_n, claim), 0.90 * _overlap(combined_text, claim)),
+                max(_shared_count(option_n, claim), _shared_count(combined_text, claim)),
+            )
+            for claim in entry.claims
+        ]
+        false_pairs = [
+            (
+                max(_overlap(option_n, claim), 0.90 * _overlap(combined_text, claim)),
+                max(_shared_count(option_n, claim), _shared_count(combined_text, claim)),
+            )
+            for claim in entry.misconceptions
+        ]
+        true_sim, true_shared = max(true_pairs, default=(0.0, 0))
+        false_sim, false_shared = max(false_pairs, default=(0.0, 0))
 
-        # Similarity alone is deliberately conservative. It only contributes when
-        # the option shares substantial content with a canonical claim.
-        if true_sim >= 0.48:
-            score += min(0.95, true_sim)
+        # Semantic matching requires at least two meaningful shared tokens. The
+        # lower threshold improves paraphrase coverage while the token-count gate
+        # prevents one-word topic matches from becoming truth evidence.
+        if true_sim >= 0.30 and true_shared >= 2:
+            score += min(0.90, 1.35 * true_sim)
             evidence.append(entry.knowledge_id + ":claim")
-        if false_sim >= 0.48:
-            score -= min(1.0, false_sim)
+        if false_sim >= 0.30 and false_shared >= 2:
+            score -= min(0.95, 1.40 * false_sim)
             contra.append(entry.knowledge_id + ":misconception")
 
         return score, evidence, contra
@@ -658,8 +678,8 @@ class PhysicsKnowledgeStore:
 
 
 class PhysicsKnowledgeReasoner:
-    MIN_ABS_SCORE = 0.78
-    MIN_MARGIN = 0.38
+    MIN_ABS_SCORE = 0.55
+    MIN_MARGIN = 0.24
 
     def __init__(self, fallback: OptionConditionedScientificReasoner):
         self.fallback = fallback
