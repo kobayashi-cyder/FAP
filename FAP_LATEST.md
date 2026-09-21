@@ -43,11 +43,35 @@ BUILD_FAP_V87_39_NATIVE_GEOMETRY.cmd
 
 Normal launch:
 
+Windows:
+
 ```text
 RUN_FAP_CHAT_LATEST.cmd
 ```
 
-The latest launcher attempts to build both V87.38 raster and V87.39 geometry
+Debian / Linux / Android proot:
+
+```bash
+git pull --ff-only
+chmod +x RUN_FAP_CHAT_LATEST.sh
+./RUN_FAP_CHAT_LATEST.sh
+```
+
+The Linux launcher uses Python's standard library for readiness checks, keeps
+older FAP instances intact, selects another local port when needed, writes the
+background server PID/log under `runtime/`, and prints the exact local chat URL.
+It attempts to build the portable V87.38/V87.39 C99 `.so` libraries when a C
+compiler is available; if native compilation is unavailable, the preserved
+Python fallback remains usable.
+
+If Python 3 is missing on Debian:
+
+```bash
+sudo apt update
+sudo apt install -y python3 build-essential
+```
+
+The Windows launcher attempts to build both V87.38 raster and V87.39 geometry
 DLLs when absent.
 
 Compatibility:
