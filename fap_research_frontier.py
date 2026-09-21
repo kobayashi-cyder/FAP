@@ -260,6 +260,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Cluster unresolved literature appraisal into a research frontier.")
     ap.add_argument("--reviews", default="literature-review/reviews.jsonl")
     ap.add_argument("--output", default="literature-review/research_frontier.json")
+    ap.add_argument("--snapshot-output", default="")
+    ap.add_argument("--snapshot-limit", type=int, default=50)
     ap.add_argument("--max-clusters", type=int, default=200)
     ap.add_argument("--min-papers", type=int, default=4)
     args = ap.parse_args()
@@ -274,6 +276,36 @@ def main() -> int:
         json.dumps(frontier, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+    if args.snapshot_output:
+        limit = max(5, min(100, int(args.snapshot_limit)))
+        snapshot = {
+            "papers_processed": frontier["papers_processed"],
+            "cluster_count": frontier["cluster_count"],
+            "generated_from": str(args.reviews),
+            "epistemic_status": "automated research-priority snapshot; not verified fact",
+            "frontier": [
+                {
+                    "topic": row["topic"],
+                    "priority_score": row["priority_score"],
+                    "paper_count": row["paper_count"],
+                    "abstract_count": row["abstract_count"],
+                    "post_publication_update_records": row["post_publication_update_records"],
+                    "unresolved_appraisal_items": row["unresolved_appraisal_items"],
+                    "top_unresolved_kinds": row["top_unresolved_kinds"],
+                    "research_questions": row["research_questions"],
+                    "provisional_hypothesis_falsification_loops": row["provisional_hypothesis_falsification_loops"],
+                }
+                for row in frontier["frontier"][:limit]
+            ],
+        }
+        snap_path = Path(args.snapshot_output)
+        snap_path.parent.mkdir(parents=True, exist_ok=True)
+        snap_path.write_text(
+            json.dumps(snapshot, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
     print(json.dumps({
         "ok": True,
         "papers_processed": frontier["papers_processed"],
