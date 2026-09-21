@@ -136,7 +136,7 @@ def build_dna_mesh(spec: DNARequest) -> tuple[Mesh, list[tuple[float, float, flo
         pair_centers.append(mid)
 
         # Sugar/base anchor nodes and base-pair halves.
-        add_static_ellipsoid(mesh, p1, (0.055, 0.055, 0.055), "P" and (210, 135, 54), rings=4, sides=7)
+        add_static_ellipsoid(mesh, p1, (0.055, 0.055, 0.055), (210, 135, 54), rings=4, sides=7)
         add_static_ellipsoid(mesh, p2, (0.055, 0.055, 0.055), (210, 135, 54), rings=4, sides=7)
         add_static_tube(mesh, p1, mid, 0.033, 0.026, BASE_COLORS[spec.sequence[i]], sides=7)
         add_static_tube(mesh, p2, mid, 0.033, 0.026, BASE_COLORS[spec.complement[i]], sides=7)
