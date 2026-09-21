@@ -136,7 +136,7 @@ class FAPV8725(v12.FAPV8712):
                 "forced_choice": bool(result.get("forced_choice")),
                 "answer_contract": "Answer: $LETTER",
             },
-            "status": self.status(),
+            "status": self.chat_status(),
         }
 
 
