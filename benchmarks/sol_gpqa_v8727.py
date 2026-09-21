@@ -60,6 +60,10 @@ def main():
         "dev": Counter(),
         "holdout": Counter(),
     }
+    split_score_diag = {
+        "dev": {"max_abs": [], "margin": [], "evidence_ids": Counter()},
+        "holdout": {"max_abs": [], "margin": [], "evidence_ids": Counter()},
+    }
     dev_physics_terms = Counter()
     changed = changed_to_correct = changed_to_wrong = 0
     sources = Counter()
@@ -114,10 +118,22 @@ def main():
             if opts:
                 scores = [float(x.get("score", 0.0)) for x in opts]
                 if scores:
-                    max_abs_scores.append(max(abs(x) for x in scores))
+                    absmax = max(abs(x) for x in scores)
                     ordered = sorted(scores, reverse=True)
-                    evidence_margins.append(ordered[0] - ordered[1] if len(ordered) >= 2 else 0.0)
+                    margin = ordered[0] - ordered[1] if len(ordered) >= 2 else 0.0
+                    max_abs_scores.append(absmax)
+                    evidence_margins.append(margin)
                     evidence_nonzero += int(any(abs(x) > 1e-9 for x in scores))
+                    split_score_diag[split]["max_abs"].append(absmax)
+                    split_score_diag[split]["margin"].append(margin)
+                    if any(abs(x) > 1e-9 for x in scores):
+                        split_stats[split]["evidence_nonzero"] += 1
+                    for opt in opts:
+                        if abs(float(opt.get("score", 0.0))) > 1e-9:
+                            for tag in list(opt.get("evidence") or []) + list(opt.get("contradictions") or []):
+                                kid = str(tag).split(":", 1)[0]
+                                if kid:
+                                    split_score_diag[split]["evidence_ids"][kid] += 1
             if split == "dev":
                 dev_physics_terms.update(topic_terms(row["Question"]))
 
@@ -179,6 +195,11 @@ def main():
           "accuracy_candidate": stats["cand_correct"]/stats["trials"] if stats["trials"] else 0,
           "physics_accuracy_base": stats["physics_base_correct"]/stats["physics_trials"] if stats["physics_trials"] else 0,
           "physics_accuracy_candidate": stats["physics_cand_correct"]/stats["physics_trials"] if stats["physics_trials"] else 0,
+          "max_abs_score_max": max(split_score_diag[name]["max_abs"]) if split_score_diag[name]["max_abs"] else 0,
+          "max_abs_score_median": statistics.median(split_score_diag[name]["max_abs"]) if split_score_diag[name]["max_abs"] else 0,
+          "margin_max": max(split_score_diag[name]["margin"]) if split_score_diag[name]["margin"] else 0,
+          "margin_median": statistics.median(split_score_diag[name]["margin"]) if split_score_diag[name]["margin"] else 0,
+          "top_evidence_ids": split_score_diag[name]["evidence_ids"].most_common(20),
         }
         for name,stats in split_stats.items()
       },
