@@ -240,6 +240,8 @@ class FAPV8712(v11.FAPV8711):
                 route += ["self-capability"]
             if result.get("factual_qa"):
                 route += ["factual-qa"]
+            if result.get("scientific_model"):
+                route += ["scientific-model", str(result.get("model_mode", "overview"))]
             if result.get("inquiry_reasoning"):
                 route += [
                     "inquiry-retrieve",
@@ -330,6 +332,16 @@ class FAPV8712(v11.FAPV8711):
             "replan_count": replan_count,
             "adaptive_routing": adaptation,
             "semantic_memory": semantic_stats,
+            "scientific_model": {
+                "enabled": bool(result.get("scientific_model")),
+                "model_id": result.get("model_id"),
+                "title": result.get("model_title"),
+                "mode": result.get("model_mode"),
+                "match_score": result.get("model_match_score"),
+                "equations": result.get("model_equations", []),
+                "assumptions": result.get("model_assumptions", []),
+                "limits": result.get("model_limits", []),
+            },
             "inquiry": {
                 "enabled": bool(result.get("inquiry_reasoning")),
                 "rounds": int(result.get("inquiry_rounds", 0)),

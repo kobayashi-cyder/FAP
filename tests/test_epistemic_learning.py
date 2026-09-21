@@ -7,6 +7,8 @@ from pathlib import Path
 
 from fap_epistemic_learning import EpistemicLedger, QuestionValueScorer
 from fap_inquiry_engine import InquiryEngine, InquiryQuestion
+from fap_scientific_modeling import ScientificModelComposer
+from fap_v87_49_scientific_modeling_gateway import FAPV8749Unified
 
 
 class EpistemicLearningTests(unittest.TestCase):
@@ -112,6 +114,24 @@ class EpistemicLearningTests(unittest.TestCase):
             self.assertTrue(out["persistent_epistemic_learning"])
             self.assertGreater(out["resolved_questions"], 0)
             self.assertGreaterEqual(out["epistemic_learning"]["ledger"]["entries"], 1)
+
+
+    def test_atmospheric_dynamics_uses_structured_scientific_model(self):
+        core = FAPV8749Unified()
+        out = core.chat("大気の動き方を式も含めて解説して", "v8749-atmosphere-model")
+        self.assertEqual(out["verdict"], "OK")
+        self.assertIn("scientific-model", out["route"])
+        self.assertEqual(out["scientific_model"]["model_id"], "atmospheric_dynamics")
+        self.assertIn("質量保存", out["reply"])
+        self.assertTrue(out["scientific_model"]["equations"])
+
+    def test_model_composer_is_data_driven(self):
+        composer = ScientificModelComposer(Path("."))
+        out = composer.run("流体の運動を解説して", [])
+        self.assertIsNotNone(out)
+        self.assertEqual(out["model_id"], "generic_fluid_dynamics")
+        self.assertTrue(out["model_equations"])
+        self.assertGreater(out["model_match_score"], 0.1)
 
 
 if __name__ == "__main__":
