@@ -12,6 +12,7 @@ from fap_v87_43_reflective_chat_gateway import FAPV8743Unified
 from fap_v87_44_context_followup_gateway import FAPV8744Unified
 from fap_inquiry_engine import InquiryEngine
 from fap_v87_45_inquiry_loop_gateway import FAPV8745Unified
+from fap_v87_46_mass_inquiry_gateway import FAPV8746Unified
 
 
 class FactualChatRegressionTests(unittest.TestCase):
@@ -174,8 +175,8 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertIsNotNone(out)
         self.assertTrue(out["inquiry_reasoning"])
         self.assertTrue(out["audit_mode"])
-        self.assertEqual(out["generated_questions"], 5)
-        self.assertGreaterEqual(out["resolved_questions"], 2)
+        self.assertGreaterEqual(out["generated_questions"], 96)
+        self.assertGreaterEqual(out["resolved_questions"], 8)
         self.assertIn("Q:", out["reply"])
         self.assertIn("解消:", out["reply"])
 
@@ -200,6 +201,31 @@ class FactualChatRegressionTests(unittest.TestCase):
         out = core.chat("現在の台風3号の進路は？", "v8745-live-boundary")
         self.assertEqual(out["verdict"], "PARTIAL")
         self.assertIn("最新データ", out["critic"])
+
+
+    def test_mass_inquiry_default_is_high_volume(self):
+        core = FAPV8746Unified()
+        out = core.chat("大気の運動について疑問点を出して", "v8746-mass-default")
+        self.assertIn("question-generate", out["route"])
+        self.assertGreaterEqual(out["inquiry"]["generated"], 96)
+        self.assertGreater(out["inquiry"]["resolved"], 0)
+
+    def test_mass_inquiry_explicit_count_can_reach_128(self):
+        engine = InquiryEngine(base.ROOT)
+        out = engine.run("大気の運動について128問、問い出しと問い潰しをして", [])
+        self.assertIsNotNone(out)
+        self.assertGreaterEqual(out["generated_questions"], 128)
+        self.assertEqual(out["target_questions"], 128)
+
+    def test_mass_inquiry_keeps_unknowns_explicit(self):
+        engine = InquiryEngine(base.ROOT)
+        out = engine.run("大気の運動について疑問点を大量に出して", [])
+        self.assertIsNotNone(out)
+        self.assertEqual(
+            out["generated_questions"],
+            out["resolved_questions"] + out["unresolved_questions"],
+        )
+        self.assertIn("resolution_rate", out)
 
 
 if __name__ == "__main__":
