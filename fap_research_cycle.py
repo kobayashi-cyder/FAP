@@ -28,6 +28,23 @@ KIND_WEIGHT = {
     "replication": 0.82,
 }
 
+QUERY_FOCUS = {
+    "contradiction": ["contradictory findings", "inconsistent results", "replication"],
+    "causality": ["causal mechanism", "intervention longitudinal", "natural experiment"],
+    "validation": ["external validation", "independent validation", "out of sample"],
+    "robustness": ["robustness sensitivity analysis", "ablation stress test", "specification curve"],
+    "future_test": ["future work experiment", "prospective study", "further research"],
+    "open_question": ["open question unresolved", "remains unclear", "future research"],
+    "generalization": ["external validity", "generalization transfer", "multi population multi site"],
+    "uncertainty": ["uncertainty quantification", "confidence interval variance", "ensemble probabilistic"],
+    "scale": ["multiscale scale dependence", "spatial temporal resolution", "scale transition"],
+    "confounding": ["confounding adjusted covariates", "sensitivity unmeasured confounding", "causal adjustment"],
+    "bias": ["selection bias measurement bias", "publication bias", "bias correction"],
+    "mechanism": ["mechanism pathway mediator", "causal pathway", "process dynamics"],
+    "prospective_prediction": ["prospective prediction", "pre-registered forecast", "out of sample prediction"],
+    "replication": ["replication independent cohort", "reproducibility", "multi site replication"],
+}
+
 
 def _question_kind(row: dict) -> str:
     questions = row.get("research_questions") or []
@@ -139,6 +156,10 @@ def build_cycles(frontier: dict, limit: int = 30) -> dict:
                 "question_kind_unresolved_in": 0,
                 "update_flags": 0,
                 "sample_dois": [],
+                "rounds": [],
+                "unique_papers": 0,
+                "saturation_ratio": 1.0,
+                "stop_reason": "",
             },
             "phase": "evidence-needed",
             "epistemic_status": "provisional research cycle; not verified fact",
@@ -159,6 +180,18 @@ def build_cycles(frontier: dict, limit: int = 30) -> dict:
     }
 
 
+def _query_variants(topic: str, kind: str, rounds: int) -> list[str]:
+    focuses = QUERY_FOCUS.get(kind, ["validation", "limitations", "future research"])
+    queries = [topic]
+    for focus in focuses:
+        q = f"{topic} {focus}".strip()
+        if q not in queries:
+            queries.append(q)
+        if len(queries) >= max(1, rounds):
+            break
+    return queries[: max(1, rounds)]
+
+
 def enrich_targeted_evidence(
     program: dict,
     *,
@@ -166,6 +199,8 @@ def enrich_targeted_evidence(
     papers_per_topic: int,
     topics: int,
     mailto: str,
+    rounds: int = 3,
+    saturation_threshold: float = 0.08,
 ) -> None:
     appraiser = CriticalAppraiser()
     harvester = CrossrefHarvester(mailto=mailto, rows=min(200, max(20, papers_per_topic)))
@@ -180,49 +215,108 @@ def enrich_targeted_evidence(
         kind = str(cycle.get("question_kind", "open_question"))
         stats = Counter()
         sample_dois = []
+        seen_dois = set()
+        round_rows = []
+        stop_reason = "round-budget"
+
         try:
-            for item in harvester.iter_works(
-                start,
-                until,
-                max_works=max(1, papers_per_topic),
-                query=topic,
-                date_mode="pub",
-            ):
-                review = appraiser.review(item, store_abstract=False)
-                stats["papers"] += 1
-                stats["abstracts"] += int(review.abstract_available)
-                stats["updates"] += int(bool(review.update_flags))
-                by_kind = {q["kind"]: bool(q["resolved"]) for q in review.review_questions}
-                if by_kind.get(kind):
-                    stats["resolved_kind"] += 1
-                else:
-                    stats["unresolved_kind"] += 1
-                if review.doi and len(sample_dois) < 20:
-                    sample_dois.append(review.doi)
+            queries = _query_variants(topic, kind, max(1, rounds))
+            for round_no, query in enumerate(queries, 1):
+                rstats = Counter()
+                before = len(seen_dois)
+
+                for item in harvester.iter_works(
+                    start,
+                    until,
+                    max_works=max(1, papers_per_topic),
+                    query=query,
+                    date_mode="pub",
+                ):
+                    doi = str(item.get("DOI", "")).strip().lower()
+                    dedup_key = doi or str(item.get("URL", "")).strip() or str(item.get("title", ""))
+                    if dedup_key in seen_dois:
+                        rstats["duplicates"] += 1
+                        continue
+                    if dedup_key:
+                        seen_dois.add(dedup_key)
+
+                    review = appraiser.review(item, store_abstract=False)
+                    rstats["new_papers"] += 1
+                    rstats["abstracts"] += int(review.abstract_available)
+                    rstats["updates"] += int(bool(review.update_flags))
+                    by_kind = {q["kind"]: bool(q["resolved"]) for q in review.review_questions}
+                    if by_kind.get(kind):
+                        rstats["resolved_kind"] += 1
+                    else:
+                        rstats["unresolved_kind"] += 1
+                    if review.doi and review.doi not in sample_dois and len(sample_dois) < 20:
+                        sample_dois.append(review.doi)
+
+                gained = len(seen_dois) - before
+                stats.update(rstats)
+                denominator = max(1, papers_per_topic)
+                saturation = gained / denominator
+                round_rows.append({
+                    "round": round_no,
+                    "query": query,
+                    "new_papers": rstats["new_papers"],
+                    "duplicates": rstats["duplicates"],
+                    "abstracts_available": rstats["abstracts"],
+                    "question_kind_resolved_in": rstats["resolved_kind"],
+                    "question_kind_unresolved_in": rstats["unresolved_kind"],
+                    "update_flags": rstats["updates"],
+                    "new_yield_ratio": round(saturation, 4),
+                })
+
+                # Stop when a refined query yields very little new literature.
+                if round_no >= 2 and saturation < max(0.0, saturation_threshold):
+                    stop_reason = "search-saturated"
+                    break
+
+                # If this appraisal dimension is explicitly addressed across a
+                # substantial unique set, stop spending more search budget.
+                if (
+                    stats["resolved_kind"] >= 12
+                    and stats["resolved_kind"] >= 2 * max(1, stats["unresolved_kind"])
+                ):
+                    stop_reason = "dimension-well-addressed"
+                    break
         except Exception as exc:
             cycle["targeted_evidence"] = {
                 **cycle["targeted_evidence"],
                 "searched": True,
+                "rounds": round_rows,
+                "unique_papers": len(seen_dois),
                 "error": str(exc)[:240],
             }
             continue
 
+        unique_papers = len(seen_dois)
+        last_yield = round_rows[-1]["new_yield_ratio"] if round_rows else 0.0
         cycle["targeted_evidence"] = {
             "searched": True,
             "from_date": start,
             "until_date": until,
-            "papers_screened": stats["papers"],
+            "papers_screened": unique_papers,
+            "unique_papers": unique_papers,
             "abstracts_available": stats["abstracts"],
             "question_kind_resolved_in": stats["resolved_kind"],
             "question_kind_unresolved_in": stats["unresolved_kind"],
             "update_flags": stats["updates"],
             "sample_dois": sample_dois,
+            "rounds": round_rows,
+            "saturation_ratio": last_yield,
+            "stop_reason": stop_reason,
         }
 
         resolved = stats["resolved_kind"]
         unresolved = stats["unresolved_kind"]
-        if stats["papers"] == 0:
+        if unique_papers == 0:
             cycle["phase"] = "evidence-sparse"
+        elif stop_reason == "search-saturated" and resolved < max(3, unresolved):
+            cycle["phase"] = "search-saturated-gap-persists"
+        elif resolved >= max(12, 2 * max(1, unresolved)):
+            cycle["phase"] = "literature-dimension-addressed"
         elif resolved >= max(3, unresolved):
             cycle["phase"] = "literature-signal-found"
         else:
@@ -239,6 +333,8 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=365)
     ap.add_argument("--topics", type=int, default=20)
     ap.add_argument("--papers-per-topic", type=int, default=60)
+    ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--saturation-threshold", type=float, default=0.08)
     ap.add_argument("--mailto", default=os.environ.get("CROSSREF_MAILTO", ""))
     args = ap.parse_args()
 
@@ -252,6 +348,8 @@ def main() -> int:
             papers_per_topic=max(10, args.papers_per_topic),
             topics=max(1, args.topics),
             mailto=args.mailto,
+            rounds=max(1, min(6, args.rounds)),
+            saturation_threshold=max(0.0, min(1.0, args.saturation_threshold)),
         )
 
     out_path = Path(args.output)
@@ -274,6 +372,8 @@ def main() -> int:
                 "value_of_information": c["value_of_information"],
                 "phase": c["phase"],
                 "papers_screened": c["targeted_evidence"]["papers_screened"],
+                "rounds": len(c["targeted_evidence"].get("rounds", [])),
+                "stop_reason": c["targeted_evidence"].get("stop_reason", ""),
             }
             for c in program["cycles"][:10]
         ],
