@@ -1,0 +1,49 @@
+name: V87.31 Scene Compliance Verify
+
+on:
+  push:
+    branches:
+      - feature/v87-31-scene-compliance
+      - main
+    paths:
+      - "releases/v87_31/**"
+      - "fap_v87_31_scene_image_lab.py"
+      - "RUN_FAP_V87_31_SCENE_IMAGE_LAB.cmd"
+      - "web/FAP_Media_Lab_V87_31.html"
+      - ".github/workflows/v87-31-scene-compliance-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_31/**"
+      - "fap_v87_31_scene_image_lab.py"
+      - "RUN_FAP_V87_31_SCENE_IMAGE_LAB.cmd"
+      - "web/FAP_Media_Lab_V87_31.html"
+      - ".github/workflows/v87-31-scene-compliance-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Compile V87.31
+        run: |
+          python -m py_compile releases/v87_31/scene_image/fap_scene_image/scene.py
+          python -m py_compile releases/v87_31/scene_image/fap_scene_image/engine.py
+          python -m py_compile releases/v87_31/scene_image/fap_scene_image/critic.py
+          python -m py_compile releases/v87_31/scene_image/fap_scene_image/manager.py
+          python -m py_compile releases/v87_31/scene_image/fap_scene_image/runtime.py
+          python -m py_compile fap_v87_31_scene_image_lab.py
+      - name: Run V87.31 focused tests
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_29/native_image:releases/v87_30/human_lbs:releases/v87_31/scene_image
+        run: pytest -q releases/v87_31/scene_image/tests
+      - name: Run V87.30 regression
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_30/human_lbs
+        run: pytest -q releases/v87_30/human_lbs/tests
