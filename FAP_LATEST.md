@@ -1,11 +1,11 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.08 — General Code Generator Stage 1**.
+Current mainline: **V87.09 — Compositional Code Generator**.
 
-Adds CodeSpec generation for Python, HTML/CSS/JavaScript, JSON, and Markdown with validation, self-tests, bounded repair, and artifact promotion.
+Moves beyond fixed code targets by composing processing primitives for text, lists, statistics, JSON, and browser tools.
 
-Verified runtime test suite: **51/51 PASS**.
+Verified runtime test suite: **62/62 PASS**.
 
-Runtime snapshot: `releases/runtime_packages/FAP_V87_08_CODE_GENERATOR_RUNTIME.zip`.
+Runtime snapshot: `releases/runtime_packages/FAP_V87_09_COMPOSITIONAL_CODEGEN_RUNTIME.zip`.
 
-Promotion history is intentionally sequential through V87.08. Qwen is not used.
+Promotion history is intentionally sequential through V87.09. Qwen is not used.
