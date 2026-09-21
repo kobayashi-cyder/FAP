@@ -1,6 +1,39 @@
 # FAP latest development snapshot
 
-Current mainline: **V87.54 — Targeted Research Cycles**.
+Current mainline: **V87.55 — Recursive Research Rechallenge**.
+
+V87.55 makes the targeted research cycle recursive instead of doing only one
+literature pass. Each high-value unresolved topic can now run several refined
+search rounds using the unresolved gap type itself to change the query.
+
+Examples of generic refinement dimensions include:
+- validation → external validation / independent validation / out-of-sample;
+- causality → causal mechanism / intervention / longitudinal / natural experiment;
+- robustness → sensitivity analysis / ablation / specification curve;
+- uncertainty → uncertainty quantification / confidence / probabilistic evidence;
+- scale → multiscale / spatial-temporal resolution / scale transition;
+- replication → independent cohort / reproducibility / multi-site replication.
+
+The cycle deduplicates papers by DOI/URL, records per-round new-yield,
+tracks whether the relevant appraisal dimension is explicitly addressed, and
+stops when either:
+- refined searches are saturated (very little new literature), or
+- the targeted methodological dimension is already well covered.
+
+This produces explicit stop reasons such as `search-saturated`,
+`dimension-well-addressed`, or `round-budget`. The research phase can become
+`search-saturated-gap-persists`, `literature-dimension-addressed`,
+`literature-signal-found`, `evidence-still-ambiguous`, or
+`evidence-sparse`.
+
+The important boundary remains unchanged: repeated literature mentions are not
+automatic proof that a hypothesis is true. V87.55 refines where to search and
+when to stop searching; it does not auto-promote provisional hypotheses into
+verified facts.
+
+V87.54 targeted research cycles, V87.53 research frontier, V87.52 hypothesis
+reasoning, V87.51 literature appraisal, V87.50 dated recent science, V87.49
+scientific modeling and V87.48 epistemic learning remain underneath V87.55.
 
 V87.54 takes the rolling research frontier one step further. High-value
 unresolved clusters are converted into explicit research cycles and then

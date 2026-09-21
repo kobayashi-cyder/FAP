@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fap_research_cycle import build_cycles, _query_variants
 from fap_research_cycle_chat import ResearchCycleOrgan
+from fap_v87_55_recursive_research_gateway import FAPV8755Unified
 
 
 class ResearchCycleTests(unittest.TestCase):
@@ -115,6 +116,16 @@ class ResearchCycleTests(unittest.TestCase):
             )
             organ = ResearchCycleOrgan(root)
             self.assertIsNone(organ.run("大気の運動を説明して", []))
+
+
+    def test_v8755_exposes_recursive_research_capabilities(self):
+        core = FAPV8755Unified()
+        caps = core.capabilities()
+        self.assertIn("recursive-literature-rechallenge", caps)
+        self.assertIn("search-saturation-stop", caps)
+        status = core.status()
+        self.assertEqual(status["version"], "87.55-unified-chat")
+        self.assertTrue(status["recursive_research"]["enabled"])
 
 
 if __name__ == "__main__":
