@@ -110,5 +110,12 @@ class FactualChatRegressionTests(unittest.TestCase):
         self.assertIn("違いを短く言うと", out["reply"])
 
 
+    def test_latest_fast_status_reports_descendant_version(self):
+        import fap_v87_43_reflective_chat_gateway as v43
+        st = v43.Handler._fast_status()
+        self.assertEqual(st["version"], "87.43-unified-chat")
+        self.assertEqual(st["mainline_version"], "87.43")
+
+
 if __name__ == "__main__":
     unittest.main()
