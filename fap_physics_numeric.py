@@ -64,6 +64,8 @@ class PhysicsNumericSolver:
     LYA_NM = 121.567
     J1_ZERO_1 = 3.8317059702075125
     J1_ZERO_2 = 7.015586669815619
+    HC_EV_NM = 1239.8419843320026
+    SCHWARZSCHILD_KM_PER_SOLAR_MASS = 2.95325008
 
     @staticmethod
     def _extract_param(text: str, names: tuple[str, ...]) -> float | None:
@@ -210,10 +212,170 @@ class PhysicsNumericSolver:
             },
         )
 
+
+    def _solve_photon_energy_from_wavelength(self, task: MCQTask) -> PhysicsNumericResult | None:
+        q = str(task.question)
+        low = q.lower()
+        if "photon" not in low or "wavelength" not in low:
+            return None
+        if not ("energy" in low or "ev" in low):
+            return None
+        m = re.search(r"(?i)wavelength[^\d]{0,30}(\d+(?:\.\d+)?)\s*nm\b", q)
+        if not m:
+            m = re.search(r"(?i)(\d+(?:\.\d+)?)\s*nm\b", q)
+        if not m:
+            return None
+        wavelength_nm = float(m.group(1))
+        if wavelength_nm <= 0:
+            return None
+        energy_ev = self.HC_EV_NM / wavelength_nm
+        candidates = _numbers_with_unit(task.choices, r"(?:ev|electron\s*volts?)\b")
+        nearest = _nearest_unique(energy_ev, candidates, max_rel_error=0.08)
+        if nearest is None:
+            return None
+        letter, option_value = nearest
+        return PhysicsNumericResult(
+            MCQDecision(letter, "physics_numeric_solver", 0.98,
+                        f"E=hc/lambda={energy_ev:.6g} eV for lambda={wavelength_nm:g} nm"),
+            "photon_energy_from_wavelength",
+            energy_ev,
+            "eV",
+            {"wavelength_nm": wavelength_nm, "matched_option_value": option_value},
+        )
+
+    def _solve_lorentz_gamma(self, task: MCQTask) -> PhysicsNumericResult | None:
+        q = str(task.question)
+        low = q.lower()
+        if not ("lorentz factor" in low or re.search(r"(?i)\bgamma\b", q)):
+            return None
+        if not ("speed" in low or "velocity" in low or "moving" in low):
+            return None
+        beta = None
+        m = re.search(r"(?i)(\d+(?:\.\d+)?)\s*%\s*(?:of\s+)?(?:the\s+)?speed of light", q)
+        if m:
+            beta = float(m.group(1)) / 100.0
+        if beta is None:
+            m = re.search(r"(?i)(\d+(?:\.\d+)?)\s*c\b", q)
+            if m:
+                beta = float(m.group(1))
+        if beta is None:
+            m = re.search(r"(?i)(?:v\s*=\s*)?(0\.\d+)\s*c\b", q)
+            if m:
+                beta = float(m.group(1))
+        if beta is None or not (0.0 < beta < 1.0):
+            return None
+        gamma = 1.0 / math.sqrt(1.0 - beta * beta)
+        candidates: list[tuple[str, float]] = []
+        for letter, text in task.choices.items():
+            m = re.fullmatch(r"\s*(?:gamma\s*=\s*)?([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*", str(text), re.I)
+            if m:
+                candidates.append((letter, float(m.group(1))))
+        nearest = _nearest_unique(gamma, candidates, max_rel_error=0.06)
+        if nearest is None:
+            return None
+        letter, option_value = nearest
+        return PhysicsNumericResult(
+            MCQDecision(letter, "physics_numeric_solver", 0.98,
+                        f"gamma=1/sqrt(1-beta^2)={gamma:.6g} for beta={beta:.6g}"),
+            "lorentz_gamma",
+            gamma,
+            "dimensionless",
+            {"beta": beta, "matched_option_value": option_value},
+        )
+
+    def _solve_hubble_recession_velocity(self, task: MCQTask) -> PhysicsNumericResult | None:
+        q = str(task.question)
+        low = q.lower()
+        if "hubble" not in low:
+            return None
+        if not ("recession velocity" in low or "recessional velocity" in low or "velocity" in low):
+            return None
+        h = re.search(r"(?i)(?:hubble constant|h[_ ]?0)[^\d]{0,30}(\d+(?:\.\d+)?)\s*km\s*/\s*s\s*/\s*mpc", q)
+        d = re.search(r"(?i)(?:distance|at)\s*(?:of|=|:)??\s*(\d+(?:\.\d+)?)\s*mpc\b", q)
+        if not h or not d:
+            return None
+        h0 = float(h.group(1))
+        distance_mpc = float(d.group(1))
+        if not (0 < h0 < 200 and distance_mpc > 0):
+            return None
+        velocity = h0 * distance_mpc
+        candidates = _numbers_with_unit(task.choices, r"km\s*/\s*s\b")
+        nearest = _nearest_unique(velocity, candidates, max_rel_error=0.08)
+        if nearest is None:
+            return None
+        letter, option_value = nearest
+        return PhysicsNumericResult(
+            MCQDecision(letter, "physics_numeric_solver", 0.98,
+                        f"v=H0 d={velocity:.6g} km/s"),
+            "hubble_recession_velocity",
+            velocity,
+            "km/s",
+            {"H0_km_s_Mpc": h0, "distance_Mpc": distance_mpc, "matched_option_value": option_value},
+        )
+
+    def _solve_schwarzschild_radius(self, task: MCQTask) -> PhysicsNumericResult | None:
+        q = str(task.question)
+        low = q.lower()
+        if "schwarzschild radius" not in low:
+            return None
+        m = re.search(r"(?i)(\d+(?:\.\d+)?)\s*(?:solar masses|solar mass|m_sun|msun|M☉)", q)
+        if not m:
+            return None
+        mass_solar = float(m.group(1))
+        if mass_solar <= 0:
+            return None
+        radius_km = self.SCHWARZSCHILD_KM_PER_SOLAR_MASS * mass_solar
+        candidates = _numbers_with_unit(task.choices, r"km\b")
+        nearest = _nearest_unique(radius_km, candidates, max_rel_error=0.08)
+        if nearest is None:
+            return None
+        letter, option_value = nearest
+        return PhysicsNumericResult(
+            MCQDecision(letter, "physics_numeric_solver", 0.98,
+                        f"r_s=2GM/c^2={radius_km:.6g} km for M={mass_solar:g} M_sun"),
+            "schwarzschild_radius",
+            radius_km,
+            "km",
+            {"mass_solar": mass_solar, "matched_option_value": option_value},
+        )
+
+    def _solve_classical_kinetic_energy(self, task: MCQTask) -> PhysicsNumericResult | None:
+        q = str(task.question)
+        low = q.lower()
+        if "kinetic energy" not in low:
+            return None
+        mm = re.search(r"(?i)(?:mass|m)\s*(?:is|=|:)\s*(\d+(?:\.\d+)?)\s*kg\b", q)
+        vv = re.search(r"(?i)(?:speed|velocity|v)\s*(?:is|=|:)\s*(\d+(?:\.\d+)?)\s*m\s*/\s*s\b", q)
+        if not mm or not vv:
+            return None
+        mass = float(mm.group(1))
+        speed = float(vv.group(1))
+        if mass <= 0 or speed < 0:
+            return None
+        ke = 0.5 * mass * speed * speed
+        candidates = _numbers_with_unit(task.choices, r"(?:j|joules?)\b")
+        nearest = _nearest_unique(ke, candidates, max_rel_error=0.05)
+        if nearest is None:
+            return None
+        letter, option_value = nearest
+        return PhysicsNumericResult(
+            MCQDecision(letter, "physics_numeric_solver", 0.99,
+                        f"K=1/2 mv^2={ke:.6g} J"),
+            "classical_kinetic_energy",
+            ke,
+            "J",
+            {"mass_kg": mass, "speed_m_s": speed, "matched_option_value": option_value},
+        )
+
     def solve(self, task: MCQTask) -> PhysicsNumericResult | None:
         if task.domain != "physics":
             return None
         for solver in (
+            self._solve_photon_energy_from_wavelength,
+            self._solve_lorentz_gamma,
+            self._solve_hubble_recession_velocity,
+            self._solve_schwarzschild_radius,
+            self._solve_classical_kinetic_energy,
             self._solve_quasar_comoving_distance,
             self._solve_circular_aperture_minima_gap,
         ):
