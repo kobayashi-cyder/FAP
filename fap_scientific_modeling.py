@@ -205,9 +205,10 @@ class RecentScienceIndex:
             (self._score(query, model, update), update)
             for update in self.updates
         ]
-        ranked.sort(key=lambda x: (-x[0], x[1].as_of, x[1].update_id), reverse=False)
-        # Re-sort explicitly for newest date on equal score.
-        ranked = sorted(ranked, key=lambda x: (-x[0], x[1].as_of), reverse=False)
+        # Stable two-pass sort: newest evidence first on equal relevance,
+        # then relevance score descending.
+        ranked.sort(key=lambda x: (x[1].as_of, x[1].update_id), reverse=True)
+        ranked.sort(key=lambda x: x[0], reverse=True)
         out = []
         for score, update in ranked:
             if score < 0.10:
