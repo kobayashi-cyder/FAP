@@ -48,3 +48,27 @@ def is_transparent_discourse_turn(text: str, root: Path | None = None) -> bool:
         return True
     base = Path(root) if root is not None else Path(__file__).resolve().parent
     return token in _transparent_aliases(str(base.resolve()))
+
+
+_CORRECTION_BOUNDARY = re.compile(
+    r"(?:ではなく(?:て)?|じゃなくて|じゃなく|でなくて|でなく)(?:[、,\s]*)",
+    re.I,
+)
+
+
+def focus_explicit_correction(text: str) -> str:
+    """Return the asserted side of an explicit A-not-B correction.
+
+    This is grammar-level discourse handling, not a topic list. When a user
+    explicitly rejects a prior candidate and supplies a replacement after a
+    correction boundary, semantic matching should rank the replacement clause
+    rather than rewarding both sides by token length.
+    """
+    value = unicodedata.normalize("NFKC", str(text or "")).strip()
+    if not value:
+        return ""
+    parts = _CORRECTION_BOUNDARY.split(value, maxsplit=1)
+    if len(parts) != 2:
+        return value
+    asserted = parts[1].strip(" 、,。．!?！？")
+    return asserted or value
