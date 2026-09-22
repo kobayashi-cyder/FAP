@@ -8,6 +8,7 @@ on:
     paths:
       - "fap_conversation_quality_fuzz.py"
       - "fap_reflective_conversation.py"
+      - "fap_inquiry_engine.py"
       - "tests/test_fap_conversation_quality.py"
       - "fap_v87_78_conversation_fuzz_gateway.py"
       - ".github/workflows/v87-79-conversation-quality-fuzz.yml"
@@ -15,6 +16,7 @@ on:
     paths:
       - "fap_conversation_quality_fuzz.py"
       - "fap_reflective_conversation.py"
+      - "fap_inquiry_engine.py"
       - "tests/test_fap_conversation_quality.py"
       - "fap_v87_78_conversation_fuzz_gateway.py"
       - ".github/workflows/v87-79-conversation-quality-fuzz.yml"
@@ -35,6 +37,7 @@ jobs:
           python -m compileall -q \
             fap_conversation_quality_fuzz.py \
             fap_reflective_conversation.py \
+            fap_inquiry_engine.py \
             fap_v87_78_conversation_fuzz_gateway.py
       - name: Run semantic quality fuzz
         run: python -m unittest tests.test_fap_conversation_quality -v
