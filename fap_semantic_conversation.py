@@ -43,6 +43,14 @@ def _hits(text: str, aliases: Sequence[str]) -> list[str]:
     return found
 
 
+def _nonnegative_int(value: object, default: int = 1) -> int:
+    """Parse optional knowledge-data thresholds without letting one bad row abort loading."""
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError, OverflowError):
+        return max(0, int(default))
+
+
 class SemanticConversationRouter:
     """Small data-driven semantic intent router for ordinary conversation.
 
@@ -87,8 +95,8 @@ class SemanticConversationRouter:
                         intent_id=iid,
                         subject_aliases=tuple(str(x) for x in (row.get("subject_aliases") or []) if str(x).strip()),
                         action_aliases=tuple(str(x) for x in (row.get("action_aliases") or []) if str(x).strip()),
-                        min_subject_hits=max(0, int(row.get("min_subject_hits", 1))),
-                        min_action_hits=max(0, int(row.get("min_action_hits", 1))),
+                        min_subject_hits=_nonnegative_int(row.get("min_subject_hits", 1), 1),
+                        min_action_hits=_nonnegative_int(row.get("min_action_hits", 1), 1),
                         response_mode=str(row.get("response_mode") or iid),
                     ))
                 elif kind == "capability_group":
