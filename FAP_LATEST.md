@@ -1,3 +1,32 @@
+# FAP V87.63 — Self-Contained Local Raster Image Generation
+
+V87.63 adds a built-in image fallback that works without AUTOMATIC1111, a
+network service, Pillow, or other third-party Python packages.
+
+The path is:
+
+```text
+semantic image-create intent
+→ declarative visual concept lookup
+→ generic scene graph
+→ pure-stdlib raster renderer
+→ PNG structure verification
+→ artifact display
+```
+
+Visual subject knowledge lives in `knowledge/visual_concepts_ja.jsonl`. The
+renderer itself knows only generic primitives such as ellipses, rectangles,
+polygons and lines; it has no dog/cat/tree-specific code branch. New lightweight
+visual concepts can therefore be added as data.
+
+This backend is intentionally classified as lightweight illustration, not a
+photorealistic diffusion model. If an external compatible image model is
+available, the existing multi-candidate/inspection path can still use it;
+otherwise FAP falls back to its own local raster generator.
+
+V87.63 also exposes semantic-action routes such as image generation as the
+displayed ability instead of leaving the UI at `ability: chat`.
+
 # FAP V87.62 — Semantic Action Routing + Canonical Latest Port
 
 V87.62 fixes two generic failure classes observed on Pixel:
@@ -177,7 +206,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.62 — Semantic Action Routing**.
+Current mainline: **V87.63 — Self-Contained Local Raster Image Generation**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
