@@ -82,19 +82,30 @@ class VisualKnowledge:
                     ))
         self.concepts = tuple(rows)
 
-    def resolve(self, text: str) -> tuple[VisualConcept | None, float]:
+    def resolve_all(self, text: str) -> list[tuple[VisualConcept, float, int]]:
         value = _compact(text)
-        ranked: list[tuple[float, VisualConcept]] = []
+        ranked: list[tuple[VisualConcept, float, int]] = []
         for concept in self.concepts:
             best = 0.0
+            best_pos = 10**9
             for alias in concept.aliases:
                 token = _compact(alias)
-                if token and token in value:
-                    best = max(best, 4.0 + min(3.0, len(token) / 3.0))
+                if not token:
+                    continue
+                pos = value.find(token)
+                if pos >= 0:
+                    score = 4.0 + min(3.0, len(token) / 3.0)
+                    if score > best or (score == best and pos < best_pos):
+                        best = score
+                        best_pos = pos
             if best:
-                ranked.append((best, concept))
-        ranked.sort(key=lambda x: (-x[0], x[1].concept_id))
-        return (ranked[0][1], ranked[0][0]) if ranked else (None, 0.0)
+                ranked.append((concept, best, best_pos))
+        ranked.sort(key=lambda x: (x[2], -x[1], x[0].concept_id))
+        return ranked
+
+    def resolve(self, text: str) -> tuple[VisualConcept | None, float]:
+        rows = self.resolve_all(text)
+        return (rows[0][0], rows[0][1]) if rows else (None, 0.0)
 
 
 class Canvas:
@@ -234,16 +245,24 @@ class LocalRasterGenerator:
     def _xy(v: Any, scale: float, offset: float = 0.0) -> float:
         return offset + float(v) * scale
 
-    def _render_primitive(self, canvas: Canvas, primitive: dict[str, Any]) -> None:
+    def _render_primitive(
+        self,
+        canvas: Canvas,
+        primitive: dict[str, Any],
+        viewport: tuple[float, float, float, float] | None = None,
+    ) -> None:
         kind = str(primitive.get("type") or "")
         fill = str(primitive.get("fill") or "#333333")
         alpha = float(primitive.get("alpha", 1.0))
-        w, h = canvas.width, canvas.height
+        if viewport is None:
+            ox, oy, w, h = 0.0, 0.0, float(canvas.width), float(canvas.height)
+        else:
+            ox, oy, w, h = viewport
 
         if kind == "ellipse":
             canvas.ellipse(
-                self._xy(primitive.get("cx", 0.5), w),
-                self._xy(primitive.get("cy", 0.5), h),
+                self._xy(primitive.get("cx", 0.5), w, ox),
+                self._xy(primitive.get("cy", 0.5), h, oy),
                 self._xy(primitive.get("rx", 0.1), w),
                 self._xy(primitive.get("ry", 0.1), h),
                 fill,
@@ -251,8 +270,8 @@ class LocalRasterGenerator:
             )
         elif kind == "rect":
             canvas.rect(
-                self._xy(primitive.get("x", 0.0), w),
-                self._xy(primitive.get("y", 0.0), h),
+                self._xy(primitive.get("x", 0.0), w, ox),
+                self._xy(primitive.get("y", 0.0), h, oy),
                 self._xy(primitive.get("w", 0.1), w),
                 self._xy(primitive.get("h", 0.1), h),
                 fill,
@@ -262,44 +281,75 @@ class LocalRasterGenerator:
             pts = []
             for pair in primitive.get("points") or []:
                 if isinstance(pair, (list, tuple)) and len(pair) == 2:
-                    pts.append((self._xy(pair[0], w), self._xy(pair[1], h)))
+                    pts.append((self._xy(pair[0], w, ox), self._xy(pair[1], h, oy)))
             canvas.polygon(pts, fill, alpha)
         elif kind == "line":
             canvas.line(
-                self._xy(primitive.get("x1", 0.0), w),
-                self._xy(primitive.get("y1", 0.0), h),
-                self._xy(primitive.get("x2", 1.0), w),
-                self._xy(primitive.get("y2", 1.0), h),
+                self._xy(primitive.get("x1", 0.0), w, ox),
+                self._xy(primitive.get("y1", 0.0), h, oy),
+                self._xy(primitive.get("x2", 1.0), w, ox),
+                self._xy(primitive.get("y2", 1.0), h, oy),
                 max(1.0, self._xy(primitive.get("width", 0.01), min(w, h))),
                 fill,
                 alpha,
             )
 
+    @staticmethod
+    def _layout(count: int, width: int, height: int) -> list[tuple[float, float, float, float]]:
+        n = max(1, count)
+        margin = min(width, height) * 0.04
+        if n == 1:
+            return [(0.0, 0.0, float(width), float(height))]
+        cols = 2 if n <= 4 else 3
+        rows = int(math.ceil(n / cols))
+        cell_w = width / cols
+        cell_h = height / rows
+        slots = []
+        for i in range(n):
+            col = i % cols
+            row = i // cols
+            slots.append((
+                col * cell_w + margin,
+                row * cell_h + margin,
+                max(1.0, cell_w - 2 * margin),
+                max(1.0, cell_h - 2 * margin),
+            ))
+        return slots
+
     def generate(self, text: str, width: int = 512, height: int = 512) -> dict:
-        concept, score = self.knowledge.resolve(text)
-        if concept is None:
+        resolved = self.knowledge.resolve_all(text)
+        if not resolved:
             return {
                 "ok": False,
                 "reply": "画像生成要求は認識しましたが、内蔵ラスタ生成器に対応する視覚概念がまだありません。",
-                "confidence": 0.78,
+                "confidence": 0.62,
                 "local_raster": True,
                 "structural_verified": False,
+                "quality_met": False,
             }
 
+        concepts = [row[0] for row in resolved[:6]]
+        scores = [row[1] for row in resolved[:6]]
         width = max(256, min(768, int(width)))
         height = max(256, min(768, int(height)))
-        canvas = Canvas(width, height, concept.background)
-        for primitive in concept.primitives:
-            self._render_primitive(canvas, primitive)
+
+        # Multi-subject composition is generic: every matched visual concept is
+        # placed into an automatically selected viewport. The renderer never
+        # branches on a concrete subject name.
+        canvas = Canvas(width, height, concepts[0].background)
+        for concept, viewport in zip(concepts, self._layout(len(concepts), width, height)):
+            for primitive in concept.primitives:
+                self._render_primitive(canvas, primitive, viewport)
 
         raw = canvas.png_bytes()
         if not raw.startswith(b"\x89PNG\r\n\x1a\n"):
             return {
                 "ok": False,
                 "reply": "内蔵ラスタ生成器がPNG検証に失敗しました。",
-                "confidence": 0.60,
+                "confidence": 0.50,
                 "local_raster": True,
                 "structural_verified": False,
+                "quality_met": False,
             }
 
         name = "img_local_" + dt.datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".png"
@@ -310,26 +360,44 @@ class LocalRasterGenerator:
             return {
                 "ok": False,
                 "reply": "内蔵ラスタ生成器は描画しましたが、成果物検証に失敗しました。",
-                "confidence": 0.60,
+                "confidence": 0.50,
                 "local_raster": True,
                 "structural_verified": False,
+                "quality_met": False,
             }
+
+        schematic_requested = bool(re.search(
+            r"(図解|簡単な絵|簡単な図|シンプル|アイコン|模式図|schematic|simple icon|diagram)",
+            str(text or ""),
+            re.I,
+        ))
+        labels = "、".join(concept.label for concept in concepts)
+        quality_met = schematic_requested
+        coverage = len(concepts)
 
         return {
             "ok": True,
             "reply": (
-                f"FAP内蔵ラスタ生成器で「{concept.label}」の画像を生成しました。\n"
-                "外部画像APIは使用していません。現在は軽量な図解・イラスト生成で、写真品質の生成モデルではありません。"
+                f"FAP内蔵ラスタ生成器で「{labels}」を含むPNGを生成しました。\n"
+                + (
+                    "指定どおり簡易図解として生成しています。"
+                    if quality_met
+                    else "ただしこれは簡易図解レベルのドラフトで、一般的な画像生成としての品質基準は満たしていません。"
+                )
             ),
-            "confidence": 0.94,
+            "confidence": 0.88 if quality_met else 0.72,
             "local_raster": True,
             "image_orchestrated": True,
             "structural_verified": True,
             "visual_verified": False,
-            "image_score": min(0.95, 0.82 + score / 100.0),
-            "visual_caption": concept.caption,
-            "concept_id": concept.concept_id,
+            "quality_met": quality_met,
+            "quality_class": "schematic-draft",
+            "image_score": min(0.90, 0.70 + (sum(scores) / max(1, len(scores))) / 100.0),
+            "visual_caption": ", ".join(concept.caption for concept in concepts),
+            "concept_ids": [concept.concept_id for concept in concepts],
+            "concept_count": coverage,
             "candidate_count": 1,
             "generation_rounds": 1,
             "artifacts": [{"type": "image", "src": "/artifacts/" + name, "name": name}],
         }
+
