@@ -30,9 +30,11 @@ class FAPV8759Unified(v58.FAPV8758Unified):
         if semantic is not None:
             mode = str(semantic.get("response_mode") or "")
             caps = () if mode == "runtime_greeting" else self._profile_capabilities()
+            runtime_status = self.status()
+            runtime_version = str(runtime_status.get("version") or VERSION)
             result = self.runtime_profile.run(
                 text,
-                version=VERSION,
+                version=runtime_version,
                 capabilities=caps,
                 status=self.chat_status(),
             )
