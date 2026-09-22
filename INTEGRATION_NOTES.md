@@ -191,7 +191,7 @@ A candidate branch is evidence-bearing output for an external/human promotion de
 
 # FAP V87.70 Repository Coding Coordinator
 
-Status: CANDIDATE on `feature/v87-70-repository-coding-coordinator`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #92 after Python 3.11/3.12 verification.
 
 V87.70 composes the repository-coding stack behind one bounded orchestration API without changing the existing single-artifact `fap_code_generator.py`.
 
@@ -216,3 +216,27 @@ The proposal provider receives only the structured plan and bounded read context
 Promotion remains separate:
 
 `verified candidate + explicit PromotionApproval -> fresh re-verification -> local fap/candidate branch`
+
+
+# FAP V87.71 FCA Repository Evidence Capsule
+
+Status: CANDIDATE on `feature/v87-71-fca-repository-evidence`.
+
+V87.71 exports verified repository-coding evidence through the existing `fca-fap.exchange.v1` schema without exporting executable code or edit payloads.
+
+## Added
+
+- `fap_fca_repository_exchange.py`
+  - exports only `verified_candidate` repository-coding results;
+  - records exact FAP source commit, plan ID, repository digest and per-file before/after hashes;
+  - records bounded verification facts and optional successful candidate-branch provenance;
+  - hashes the user goal rather than exporting the goal text;
+  - forbids source content, replacement text, excerpts, diffs, argv and command output;
+  - seals the capsule with canonical SHA-256;
+  - validates the capsule before emission.
+
+## Cross-project boundary
+
+The capsule is provenance only. It does not authorize FCA to execute code, bypass connectome selection, promote a branch, push, open a PR, merge, or update main.
+
+FCA must independently receive and evidence-gate the capsule before any adaptation.
