@@ -270,7 +270,7 @@ The injected proposal/repair providers are trusted host components. Their declar
 
 # FAP V87.73 Exponential-Linear Interaction Fabric
 
-Status: CANDIDATE on `feature/v87-73-exponential-linear-fabric`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #96 after Python 3.11/3.12 and compatibility verification.
 
 V87.73 keeps FAP standalone while generalizing chat and repository coding behind
 one bounded interaction contract.
