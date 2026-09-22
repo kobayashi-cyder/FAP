@@ -1,3 +1,27 @@
+# FAP V87.62 — Semantic Action Routing + Canonical Latest Port
+
+V87.62 fixes two generic failure classes observed on Pixel:
+
+1. Resource/action paraphrases such as image + create are now composed from
+   declarative semantic-action data instead of relying on one exact verb form.
+2. The "latest" Linux launcher now replaces an older repository-local FAP
+   gateway occupying the canonical 127.0.0.1:11439 endpoint, rather than
+   silently starting the new version on another port while the browser remains
+   connected to the stale server.
+
+The semantic action path is:
+
+```text
+resource concept
+→ action concept
+→ declarative route
+→ capability organ
+→ verifier
+```
+
+No subject-specific image branch is used; subjects such as animals or scenery
+do not participate in route selection.
+
 # FAP V87.61 — Generic Multi-Turn Recommendation
 
 V87.61 adds a generic recommendation layer that handles open-ended requests and
@@ -153,7 +177,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.61 — Generic Multi-Turn Recommendation**.
+Current mainline: **V87.62 — Semantic Action Routing**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
