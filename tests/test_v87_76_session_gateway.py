@@ -35,7 +35,7 @@ class V8776SessionGatewayTests(unittest.TestCase):
 
     def test_existing_session_store_is_reused_with_adaptive_context(self):
         first = self.core.chat("リポジトリを解析して", self.sid)
-        second = self.core.chat("リポジトリを確認して", self.sid)
+        second = self.core.chat("リポジトリを分析して", self.sid)
 
         self.assertIn("adaptive_session_context", first)
         self.assertIn("adaptive_session_context", second)
@@ -79,7 +79,7 @@ class V8776SessionGatewayTests(unittest.TestCase):
             ("repository_inspect",),
         )
 
-        result = self.core.chat("リポジトリを確認して", self.sid)
+        result = self.core.chat("リポジトリを分析して", self.sid)
         continuity = captured.get("session_continuity") or {}
         self.assertIn(
             "repository_inspect",
