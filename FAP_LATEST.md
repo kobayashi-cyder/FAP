@@ -1,3 +1,38 @@
+# FAP V87.58 — Generic Contextual Rule Reasoning
+
+V87.58 removes the next class of exact-answer behavior from ordinary chat.
+Short follow-up questions can now resolve their subject from recent
+conversation context and answer by recursively chaining declarative rules.
+
+The runtime code does **not** contain a branch for a particular theorem,
+polygon, angle sum, or numeric answer. Instead it loads four generic data
+types from `knowledge/*.jsonl`:
+
+- semantic entities and aliases;
+- semantic relations and aliases;
+- reusable constants;
+- rules with dependencies and safe arithmetic expressions.
+
+The execution path is:
+
+```text
+relation resolve
+→ subject resolve from current turn or conversation history
+→ recursively satisfy rule dependencies
+→ safe AST arithmetic evaluation
+→ evidence trace
+→ verifier
+```
+
+This specifically fixes the observed failure where a derivation about a right
+triangle was followed by a short property question and the subject was lost.
+The same inference engine and the same rule chain are exercised against more
+than one entity in tests; there is no exact question-response lookup in the
+Python implementation.
+
+V87.57 generic symbolic derivation, V87.56 image orchestration, and all earlier
+fallback paths remain underneath V87.58.
+
 # FAP V87.57 — Generic Verified Derivation
 
 V87.57 adds a generic local derivation lane above V87.56. It is not a
@@ -31,7 +66,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.56 — Image Orchestrator**.
+Current mainline: **V87.58 — Generic Contextual Rule Reasoning**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
