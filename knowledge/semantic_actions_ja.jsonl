@@ -3,3 +3,12 @@
 {"kind":"semantic_action","id":"capability","aliases":["できますか","できる","可能","使えますか","対応","capability","can you"]}
 {"kind":"semantic_action_rule","id":"image_create","resource":"image","action":"create","route":"image_generate"}
 {"kind":"semantic_action_rule","id":"image_capability","resource":"image","action":"capability","route":"image_capability"}
+{"kind":"semantic_resource","id":"code","aliases":["コード","プログラム","スクリプト","Python","HTML","JSON","Markdown","code","program","script"]}
+{"kind":"semantic_resource","id":"repository","aliases":["リポジトリ","コードベース","プロジェクト全体","repository","repo","codebase"]}
+{"kind":"semantic_action","id":"modify","aliases":["修正","変更","編集","改修","実装","直して","fix","modify","edit","refactor","implement"]}
+{"kind":"semantic_action","id":"inspect","aliases":["調査","解析","分析","確認","読んで","見て","inspect","analyze","analyse","read","review"]}
+{"kind":"semantic_action","id":"verify","aliases":["検証","テスト","確認して","verify","test","validate","check"]}
+{"kind":"semantic_action_rule","id":"code_create","resource":"code","action":"create","route":"artifact_code_generate"}
+{"kind":"semantic_action_rule","id":"repository_modify","resource":"repository","action":"modify","route":"repository_coding"}
+{"kind":"semantic_action_rule","id":"repository_inspect","resource":"repository","action":"inspect","route":"repository_inspect"}
+{"kind":"semantic_action_rule","id":"repository_verify","resource":"repository","action":"verify","route":"repository_verify"}
