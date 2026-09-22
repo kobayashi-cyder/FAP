@@ -1,0 +1,47 @@
+name: FAP V87.78 conversation-fuzz verify
+
+on:
+  push:
+    branches:
+      - feature/v87-78-conversation-fuzz-hardening
+      - main
+    paths:
+      - "fap_conversation_fuzz.py"
+      - "fap_interaction_fabric.py"
+      - "fap_session_continuity.py"
+      - "fap_semantic_conversation.py"
+      - "fap_semantic_action_router.py"
+      - "tests/test_fap_conversation_fuzz.py"
+      - ".github/workflows/v87-78-conversation-fuzz-verify.yml"
+  pull_request:
+    paths:
+      - "fap_conversation_fuzz.py"
+      - "fap_interaction_fabric.py"
+      - "fap_session_continuity.py"
+      - "fap_semantic_conversation.py"
+      - "fap_semantic_action_router.py"
+      - "tests/test_fap_conversation_fuzz.py"
+      - ".github/workflows/v87-78-conversation-fuzz-verify.yml"
+
+jobs:
+  fuzz:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile conversation fuzz stack
+        run: |
+          python -m compileall -q             fap_conversation_fuzz.py             fap_interaction_fabric.py             fap_session_continuity.py             fap_semantic_conversation.py             fap_semantic_action_router.py
+      - name: Run randomized conversation corpus
+        run: python -m unittest tests.test_fap_conversation_fuzz -v
+      - name: Run interaction regressions
+        run: |
+          python -m unittest tests.test_fap_interaction_fabric -v
+          python -m unittest tests.test_fap_session_continuity -v
+          python -m unittest tests.test_semantic_conversation -v
+          python -m unittest tests.test_semantic_action_routing -v
