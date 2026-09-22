@@ -98,9 +98,17 @@ class InteractionFabric:
     def unregister(self, endpoint_id: str) -> None:
         self._endpoints.pop(str(endpoint_id), None)
 
-    def dispatch(self, request: InteractionRequest) -> InteractionDispatch:
+    def dispatch(
+        self,
+        request: InteractionRequest,
+        *,
+        allow_endpoint_ids: tuple[str, ...] | None = None,
+        exclude_endpoint_ids: tuple[str, ...] = (),
+    ) -> InteractionDispatch:
         if not isinstance(request, InteractionRequest):
             raise TypeError("request must be InteractionRequest")
+        allowed = self._endpoint_filter(allow_endpoint_ids, allow_none=True)
+        excluded = self._endpoint_filter(exclude_endpoint_ids, allow_none=False)
         text = str(request.text or "").strip()
         channel = str(request.channel or "").strip()
         if not text:
@@ -118,6 +126,10 @@ class InteractionFabric:
         ranked: list[tuple[float, str, InteractionEndpoint]] = []
         attempts: list[InteractionAttempt] = []
         for endpoint_id in sorted(self._endpoints):
+            if allowed is not None and endpoint_id not in allowed:
+                continue
+            if endpoint_id in excluded:
+                continue
             endpoint = self._endpoints[endpoint_id]
             if channel not in endpoint.channels and "*" not in endpoint.channels:
                 continue
@@ -238,6 +250,25 @@ class InteractionFabric:
             ),
             payload=None,
         )
+
+    @staticmethod
+    def _endpoint_filter(
+        values: tuple[str, ...] | None,
+        *,
+        allow_none: bool,
+    ) -> frozenset[str] | None:
+        if values is None:
+            if allow_none:
+                return None
+            raise TypeError("endpoint filter cannot be None")
+        if not isinstance(values, tuple):
+            raise TypeError("endpoint filter must be a tuple")
+        out: set[str] = set()
+        for value in values:
+            if not isinstance(value, str) or not _SAFE_ID.fullmatch(value):
+                raise ValueError("endpoint filter contains invalid id")
+            out.add(value)
+        return frozenset(out)
 
     @staticmethod
     def _validate_endpoint(endpoint: InteractionEndpoint) -> None:
