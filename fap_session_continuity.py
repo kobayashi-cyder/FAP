@@ -191,9 +191,12 @@ class SessionRouteLedger:
         endpoint = self._safe_id(endpoint_id, 128, "endpoint_id")
         state_value = self._safe_id(state, 64, "state")
         tags = tuple(
-            str(tag).strip()[:128]
+            str(tag).strip()
             for tag in route_tags
-            if isinstance(tag, str) and str(tag).strip()
+            if (
+                isinstance(tag, str)
+                and _SAFE_ID.fullmatch(str(tag).strip())
+            )
         )[:32]
 
         with self._lock:
@@ -212,7 +215,9 @@ class SessionRouteLedger:
     def snapshot(self, session_id: str) -> RouteContinuitySnapshot:
         sid = self._safe_id(session_id, 80, "session_id")
         with self._lock:
-            rows = self._rows.pop(sid, [])
+            if sid not in self._rows:
+                return RouteContinuitySnapshot(sid, ())
+            rows = self._rows.pop(sid)
             self._rows[sid] = rows
             return RouteContinuitySnapshot(sid, tuple(rows))
 
