@@ -31,6 +31,7 @@ class FAPV8762Unified(v61.FAPV8761Unified):
             if result:
                 result["semantic_action"] = True
                 result["semantic_action_match"] = matched
+                result["ability_override"] = route
                 tags = list(result.get("route_tags", []))
                 for tag in (
                     "semantic-action-resolve",
