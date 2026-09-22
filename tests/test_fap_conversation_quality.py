@@ -10,7 +10,11 @@ from fap_conversation_quality_fuzz import (
     history_for,
     repeated_sentence_ratio,
 )
-from fap_reflective_conversation import ReflectiveConversationOrgan
+from fap_reflective_conversation import (
+    CONCEPTS,
+    ReflectiveConversationOrgan,
+    is_context_only_followup,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +43,27 @@ class ConversationQualityFuzzTests(unittest.TestCase):
             {"intent": "chat"},
             {"intent": "chat", "verdict": "OK"},
         )
+
+    def test_context_reference_classifier_is_subject_sensitive(self):
+        for text in (
+            "どういうこと？",
+            "つまり？",
+            "それってどういう意味？",
+            "その点をもう一度説明して",
+        ):
+            self.assertTrue(is_context_only_followup(text), text)
+
+        for text in (
+            "qxunknownzvってどういうこと？",
+            "qxunknownzvについて簡単に説明して",
+            "qxunknownzvとはどういう意味？",
+        ):
+            self.assertFalse(is_context_only_followup(text), text)
+
+        for concept in CONCEPTS:
+            out = self.organ.run("どういうこと？", history_for(concept.concept_id))
+            self.assertIsNotNone(out, concept.concept_id)
+            self.assertEqual(out.get("topic_id"), concept.concept_id)
 
     def test_semantic_quality_properties(self):
         counts = {}
