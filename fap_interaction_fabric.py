@@ -19,6 +19,31 @@ Handler = Callable[["InteractionRequest", InteractionBudget], Mapping[str, Any] 
 _SAFE_ID = re.compile(r"^[0-9A-Za-z_.:-]{1,128}$")
 
 
+def _history_turns(value: object) -> int:
+    """Count plausible conversation turns without trusting the runtime type."""
+    if value is None:
+        return 0
+    if isinstance(value, Mapping):
+        return 1
+    if isinstance(value, (str, bytes, bytearray)):
+        return 0
+    try:
+        return max(0, int(len(value)))
+    except (TypeError, ValueError, OverflowError):
+        return 0
+
+
+def _safe_pressure_hint(value: object) -> float:
+    """Normalize malformed external pressure hints to the neutral value."""
+    try:
+        hint = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    if not isfinite(hint):
+        return 0.0
+    return min(1.0, max(0.0, hint))
+
+
 @dataclass(frozen=True)
 class InteractionRequest:
     text: str
@@ -118,8 +143,8 @@ class InteractionFabric:
 
         demand = estimate_interaction_demand(
             text,
-            history_turns=len(request.history),
-            pressure_hint=request.pressure_hint,
+            history_turns=_history_turns(request.history),
+            pressure_hint=_safe_pressure_hint(request.pressure_hint),
         )
         budget = budget_for_demand(demand, policy=self.policy)
 
@@ -230,8 +255,8 @@ class InteractionFabric:
     def _empty_dispatch(self, request: InteractionRequest, reason: str) -> InteractionDispatch:
         demand = estimate_interaction_demand(
             str(request.text or ""),
-            history_turns=len(request.history),
-            pressure_hint=request.pressure_hint,
+            history_turns=_history_turns(request.history),
+            pressure_hint=_safe_pressure_hint(request.pressure_hint),
         )
         budget = budget_for_demand(demand, policy=self.policy)
         return InteractionDispatch(

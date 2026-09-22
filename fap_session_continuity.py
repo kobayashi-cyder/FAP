@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
+from math import isfinite
 import re
 from threading import RLock
 from typing import Any, Mapping, Sequence
@@ -16,6 +17,44 @@ from fap_exponential_linear import (
 
 _ALLOWED_ROLES = frozenset({"user", "assistant", "system", "tool"})
 _SAFE_ID = re.compile(r"^[0-9A-Za-z_.:-]{1,128}$")
+
+
+def _coerce_history_rows(value: object) -> tuple[Any, ...]:
+    """Fail closed on malformed history containers instead of raising in chat."""
+    if value is None:
+        return ()
+    if isinstance(value, Mapping):
+        return (value,)
+    if isinstance(value, (str, bytes, bytearray)):
+        return ()
+    try:
+        return tuple(value)
+    except (TypeError, ValueError, OverflowError):
+        return ()
+
+
+def _safe_pressure_hint(value: object) -> float:
+    """Normalize caller pressure to a finite bounded hint for demand estimation."""
+    try:
+        hint = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0.0
+    if not isfinite(hint):
+        return 0.0
+    return min(1.0, max(0.0, hint))
+
+
+def _coerce_route_tags(value: object) -> tuple[object, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (bytes, bytearray)):
+        return ()
+    try:
+        return tuple(value)
+    except (TypeError, ValueError, OverflowError):
+        return ()
 
 
 @dataclass(frozen=True)
@@ -66,11 +105,11 @@ class AdaptiveContextSelector:
         *,
         pressure_hint: float = 0.0,
     ) -> AdaptiveContextSelection:
-        rows = tuple(history or ())
+        rows = _coerce_history_rows(history)
         demand = estimate_interaction_demand(
             text,
             history_turns=len(rows),
-            pressure_hint=pressure_hint,
+            pressure_hint=_safe_pressure_hint(pressure_hint),
         )
         budget = budget_for_demand(demand, policy=self.policy)
         char_limit = min(self.hard_context_chars, budget.context_chars)
@@ -135,6 +174,8 @@ class AdaptiveContextSelector:
             safe_meta: dict[str, Any] = {}
             for key in ("intent", "verdict", "ability"):
                 value = meta.get(key)
+                if isinstance(value, float) and not isfinite(value):
+                    continue
                 if isinstance(value, (str, int, float, bool)) and len(str(value)) <= 160:
                     safe_meta[key] = value
             if safe_meta:
@@ -192,7 +233,7 @@ class SessionRouteLedger:
         state_value = self._safe_id(state, 64, "state")
         tags = tuple(
             str(tag).strip()
-            for tag in route_tags
+            for tag in _coerce_route_tags(route_tags)
             if (
                 isinstance(tag, str)
                 and _SAFE_ID.fullmatch(str(tag).strip())
