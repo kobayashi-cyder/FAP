@@ -104,6 +104,8 @@ class VerifiedCandidatePromoter:
         edit_tuple = tuple(edits)
         command_tuple = tuple(commands)
 
+        commit_sha: str | None = None
+        ref_created = False
         try:
             with self.executor.open(plan) as session:
                 if session.base_commit != approval.expected_base_commit:
@@ -147,6 +149,7 @@ class VerifiedCandidatePromoter:
                 )
 
                 self._create_candidate_ref(branch, commit_sha)
+                ref_created = True
 
                 source_head_after = self._git(
                     self.root, "rev-parse", "--verify", "HEAD"
@@ -173,9 +176,10 @@ class VerifiedCandidatePromoter:
                 )
         except Exception as exc:
             # If a ref was created immediately before a postcondition failed,
-            # remove only that exact candidate ref when it still points at the
-            # commit produced by this call.
-            self._remove_candidate_ref_if_owned(branch)
+            # remove it only when this call created it and it still points at
+            # the exact commit produced by this call.
+            if ref_created and commit_sha:
+                self._remove_candidate_ref_if_owned(branch, commit_sha)
             return self._reject(
                 plan.plan_id,
                 source_head_before,
@@ -323,14 +327,25 @@ class VerifiedCandidatePromoter:
         )
         return proc.returncode == 0
 
-    def _remove_candidate_ref_if_owned(self, branch: str) -> None:
-        if not branch or not self._branch_exists(branch):
+    def _remove_candidate_ref_if_owned(
+        self,
+        branch: str,
+        expected_commit: str,
+    ) -> None:
+        if not branch or not expected_commit:
             return
-        # A failure after ref creation is rare. Delete only the deterministic
-        # candidate ref; never touch the checked-out branch or HEAD.
+        ref = f"refs/heads/{branch}"
+        current = self._git(
+            self.root,
+            "rev-parse", "--verify", ref,
+            check=False,
+        )
+        if current.returncode != 0 or current.stdout.strip() != expected_commit:
+            return
+        # Delete atomically only if the ref still points at our commit.
         self._git(
             self.root,
-            "update-ref", "-d", f"refs/heads/{branch}",
+            "update-ref", "-d", ref, expected_commit,
             check=False,
         )
 
