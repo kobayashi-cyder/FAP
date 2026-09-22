@@ -87,7 +87,9 @@ class RepositoryPlanner:
         mutation = bool(MUTATE_WORDS.search(goal))
         delete = bool(DELETE_WORDS.search(goal))
         create = bool(CREATE_WORDS.search(goal))
-        default_op = "delete" if delete else ("modify" if mutation else "inspect")
+        known_paths = set(self.reader._by_path)
+        explicit_paths = set(_explicit_paths(goal))
+        explicit_existing = explicit_paths & known_paths
 
         files: list[PlannedFile] = []
         goal_tokens = _goal_tokens(goal)
@@ -97,18 +99,38 @@ class RepositoryPlanner:
                 sym.name for sym in rec.symbols
                 if any(token in sym.name.casefold() for token in goal_tokens)
             )[:8]
+            dependency_only = bool(item.reasons) and all(
+                reason.startswith("dependency_hop:")
+                for reason in item.reasons
+            )
+            if delete:
+                operation = (
+                    "delete"
+                    if item.path in explicit_existing
+                    else "inspect"
+                )
+            elif mutation:
+                if explicit_existing:
+                    operation = (
+                        "modify"
+                        if item.path in explicit_existing
+                        else "inspect"
+                    )
+                else:
+                    operation = "inspect" if dependency_only else "modify"
+            else:
+                operation = "inspect"
             files.append(
                 PlannedFile(
                     path=item.path,
                     before_sha256=item.sha256,
-                    operation=default_op,
+                    operation=operation,
                     reason=", ".join(item.reasons) or "selected_by_reader",
                     symbols=symbols,
                 )
             )
 
         existing = {f.path for f in files}
-        known_paths = set(self.reader._by_path)
         if create:
             for path in _explicit_new_paths(goal):
                 if path not in known_paths and path not in existing and len(files) < self.max_files:
@@ -129,6 +151,17 @@ class RepositoryPlanner:
             risks.append("stale_context")
         if delete:
             risks.append("delete_requested")
+            if not any(f.operation == "delete" for f in files):
+                risks.append("ambiguous_delete_target")
+        if (
+            mutation
+            and explicit_paths
+            and not explicit_existing
+            and not create
+        ):
+            risks.append("explicit_target_missing")
+        if create and (explicit_paths & known_paths):
+            risks.append("create_target_exists")
         if any(f.operation == "create" for f in files):
             risks.append("create_requested")
         if len(files) > 4:
@@ -145,13 +178,22 @@ class RepositoryPlanner:
             languages.add("python")
         if "python" in languages:
             checks.extend(["python_compile", "focused_tests"])
-        if mutation or create or delete:
+        mutating_ops = any(
+            f.operation in {"modify", "create", "delete"}
+            for f in files
+        )
+        if mutating_ops:
             checks.append("regression_tests")
         checks.append("no_direct_main_write")
 
         if stale:
             status = "stale_context"
-        elif not files:
+        elif (
+            not files
+            or "ambiguous_delete_target" in risks
+            or "explicit_target_missing" in risks
+            or "create_target_exists" in risks
+        ):
             status = "insufficient_context"
         else:
             status = "ready"
@@ -203,7 +245,7 @@ def _plan_digest(
     return sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _explicit_new_paths(goal: str) -> tuple[str, ...]:
+def _explicit_paths(goal: str) -> tuple[str, ...]:
     out = []
     for match in EXPLICIT_PATH.findall(goal):
         path = match.replace("\\", "/").lstrip("./")
@@ -216,6 +258,10 @@ def _explicit_new_paths(goal: str) -> tuple[str, ...]:
         ):
             out.append(path)
     return tuple(dict.fromkeys(out))
+
+
+def _explicit_new_paths(goal: str) -> tuple[str, ...]:
+    return _explicit_paths(goal)
 
 
 def _goal_tokens(goal: str) -> tuple[str, ...]:

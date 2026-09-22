@@ -1,3 +1,24 @@
+# FAP V87.77 — Repository Context Precision
+
+V87.77 tightens repository-scale coding while preserving the V87.66-V87.76
+interfaces.
+
+Repository reading now distinguishes symbol-focused source windows from a simple
+file prefix. If a matching Python symbol is near the end of a large indexed
+file, the reader streams to the bounded line window instead of returning an
+irrelevant prefix. The configured per-file/total byte budgets still apply.
+
+Planning now separates mutation targets from dependency context:
+
+- explicit existing paths are the only mutation targets when paths are named;
+- dependency-hop files remain inspect-only;
+- delete requests require an explicit existing path;
+- missing explicit modify targets fail closed;
+- attempts to create an already-existing explicit path fail closed.
+
+This keeps repository context broad enough for reasoning while narrowing actual
+write authority.
+
 # FAP V87.76 — Adaptive Session Continuity
 
 V87.76 generalizes multi-turn continuity across the V87.75 semantic interaction
