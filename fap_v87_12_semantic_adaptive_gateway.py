@@ -167,6 +167,7 @@ class FAPV8712(v11.FAPV8711):
             if self._needs_deliberation(text, intent, state, tools)
             else self._direct_deliberation(state)
         )
+        followup = False
         adaptation = {
             "family": "deferred",
             "base": intent.name,
@@ -217,7 +218,7 @@ class FAPV8712(v11.FAPV8711):
             followup = bool(
                 intent.name == "chat"
                 and state.get("open_goal")
-                and re.search(r"(続き|次|どうする|進め|やって|それ|このまま)", text)
+                and re.search(r"(続き|次|どうする|進め|やって|それ|このまま|残り|完了まで|終わるまで)", text)
             )
             if followup:
                 semantic_rows = self.semantic.retrieve(sid, text, 4)
@@ -268,7 +269,13 @@ class FAPV8712(v11.FAPV8711):
             route += ["deliberate", "semantic-context", "verify", "integrate"]
 
         replan_count = 0
-        if (not result.get("ok") or result.get("needs_teacher")) and state.get("open_goal") and intent.name == "chat" and ability == "chat":
+        if (
+            (not result.get("ok") or result.get("needs_teacher"))
+            and state.get("open_goal")
+            and intent.name == "chat"
+            and ability == "chat"
+            and followup
+        ):
             replan_count = 1
             sem = self.semantic.retrieve(sid, text, 4)
             mem = " / ".join(str(x.get("text", "")) for x in sem)
