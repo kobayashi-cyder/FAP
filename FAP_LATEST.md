@@ -1,3 +1,29 @@
+# FAP V87.74 — Bounded Cooperative Interaction Chain
+
+V87.74 extends the V87.73 interaction fabric from single-endpoint selection to
+explicit multi-endpoint cooperation.
+
+A trusted host-supplied HandoffPolicy may connect generic capabilities such as:
+
+```text
+chat -> reasoning -> repository coding -> verification
+```
+
+No concrete chain is hardcoded. The policy returns the next typed
+`InteractionRequest` plus an optional endpoint allowlist.
+
+Safety remains bounded:
+
+- the initial exponential-linear budget limits chain depth;
+- the runtime hard-caps chains at 12 steps by default;
+- endpoints cannot revisit themselves by default;
+- every handoff request is checked against the original context budget;
+- conversation history has a fixed maximum;
+- policy exceptions expose only exception type, not arbitrary provider text;
+- ordinary chat does not automatically enter a chain.
+
+FAP remains standalone. FCA is optional.
+
 # FAP V87.73 — Exponential-Linear Interaction Fabric
 
 V87.73 generalizes chat and repository coding behind one provider-neutral
