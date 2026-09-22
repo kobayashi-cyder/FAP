@@ -1,10 +1,10 @@
 # FAP Android APK
 
 - FAP release packaged: `V87_39`
-- Runtime core source: `./fap_v87_63_local_raster_gateway.py`
-- Source main commit: `44e6e6f17df8237944b8583426a1e784aa7c947e`
-- Android branch commit before APK commit: `90fb38ff1326f2a5b7ff239609f5dddab36a1008`
-- Built at UTC: `2026-09-22T05:28:45Z`
+- Runtime core source: `./fap_v87_64_raster_quality_gateway.py`
+- Source main commit: `4802f624fb0d112d4bc2834f7685da1da786b23c`
+- Android branch commit before APK commit: `8dc18eb3bcbdf69d7fae537a9decd49f08fe2f93`
+- Built at UTC: `2026-09-22T05:30:05Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `4fcebc1556502317c64bce6b873eae27d84155e26c82b0d28c2a52ae7910b888`
+- SHA-256: `5994072ac7cb8957dcef61f57f1275bf116b80aa0ef7adc3d11c54a25b0543e3`
 - Build: debug APK
