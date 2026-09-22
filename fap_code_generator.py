@@ -118,7 +118,13 @@ class CodeGeneratorOrgan:
             return CodeSpec("markdown", "unknown", "candidate.md", (), (), ("文書の目的または章立て",))
         return CodeSpec("unknown", "unknown", "artifact.pending", (), (), ("生成する言語または形式（Python/HTML/JSON/Markdown）", "必要な処理"))
 
-    def build(self, text: str) -> dict[str, Any]:
+    def build(self, text: str, *, max_repairs: int = 2) -> dict[str, Any]:
+        try:
+            repair_limit = int(max_repairs)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("max_repairs must be an integer") from exc
+        if not 0 <= repair_limit <= 4:
+            raise ValueError("max_repairs must be in [0, 4]")
         spec = self.infer(text)
         if spec.missing:
             return {
@@ -140,7 +146,7 @@ class CodeGeneratorOrgan:
 
         report = self.validate(spec, candidate)
         repair_rounds = 0
-        while not report["ok"] and repair_rounds < 2:
+        while not report["ok"] and repair_rounds < repair_limit:
             repaired = self.repair(spec, candidate.read_text(encoding="utf-8"), report["errors"])
             if repaired == candidate.read_text(encoding="utf-8"):
                 break
