@@ -57,12 +57,37 @@ class FAPV8773Unified(v64.FAPV8764Unified):
             raise TypeError("adapter must be RepositoryCodingInteraction")
         self.interactions.register(adapter.endpoint())
 
+    def interaction_request_metadata(
+        self,
+        intent,
+        text: str,
+        history: list[dict],
+    ) -> dict:
+        return {"intent": intent}
+
+    def interaction_pressure_hint(
+        self,
+        intent,
+        text: str,
+        history: list[dict],
+    ) -> float:
+        return 0.0
+
     def route(self, intent, text: str, history: list[dict]) -> dict:
         request = InteractionRequest(
             text=text,
             history=tuple(history or ()),
             channel="chat",
-            metadata={"intent": intent},
+            pressure_hint=self.interaction_pressure_hint(
+                intent,
+                text,
+                history,
+            ),
+            metadata=self.interaction_request_metadata(
+                intent,
+                text,
+                history,
+            ),
         )
         dispatched = self.interactions.dispatch(request)
         if dispatched.state == "handled" and dispatched.payload is not None:
