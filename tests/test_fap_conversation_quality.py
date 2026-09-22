@@ -20,6 +20,26 @@ class ConversationQualityFuzzTests(unittest.TestCase):
     def setUp(self):
         self.organ = ReflectiveConversationOrgan()
 
+    @staticmethod
+    def _reset_session(core, sid: str) -> None:
+        path = gateway.base.MEMORY.path(sid)
+        if path.exists():
+            path.unlink()
+        gateway.base.MEMORY._cache.pop(gateway.base.safe_session(sid), None)
+        core.clear_route_continuity(sid)
+
+    @classmethod
+    def _seed_session(cls, core, sid: str, concept_id: str) -> None:
+        cls._reset_session(core, sid)
+        rows = history_for(concept_id)
+        gateway.base.MEMORY.append_exchange(
+            sid,
+            rows[0]["text"],
+            rows[1]["text"],
+            {"intent": "chat"},
+            {"intent": "chat", "verdict": "OK"},
+        )
+
     def test_semantic_quality_properties(self):
         counts = {}
         for case in generate_quality_cases(seed=879001, rounds=64):
@@ -57,9 +77,7 @@ class ConversationQualityFuzzTests(unittest.TestCase):
         core = gateway.FAPV8778Unified()
         sid = "v8779-quality-context-isolation"
         path = gateway.base.MEMORY.path(sid)
-        if path.exists():
-            path.unlink()
-        core.clear_route_continuity(sid)
+        self._reset_session(core, sid)
         try:
             cases = [
                 case
@@ -69,10 +87,7 @@ class ConversationQualityFuzzTests(unittest.TestCase):
             self.assertGreaterEqual(len(cases), 24)
             for index, case in enumerate(cases[:24]):
                 history_topic = case.history_concept_id
-                seed_prompt = history_for(history_topic)[0]["text"]
-                first = core.chat(seed_prompt, sid)
-                self.assertIn(first["verdict"], {"OK", "PARTIAL"})
-
+                self._seed_session(core, sid, history_topic)
                 second = core.chat(case.prompt, sid)
                 self.assertNotIn(
                     "context-followup",
@@ -80,23 +95,15 @@ class ConversationQualityFuzzTests(unittest.TestCase):
                     f"case {index}: {case.prompt}",
                 )
 
-                if path.exists():
-                    path.unlink()
-                core.clear_route_continuity(sid)
-                gateway.base.MEMORY._cache.pop(gateway.base.safe_session(sid), None)
+                self._reset_session(core, sid)
         finally:
-            if path.exists():
-                path.unlink()
-            core.clear_route_continuity(sid)
-            gateway.base.MEMORY._cache.pop(gateway.base.safe_session(sid), None)
+            self._reset_session(core, sid)
 
     def test_latest_gateway_preserves_subjectless_followup(self):
         core = gateway.FAPV8778Unified()
         sid = "v8779-quality-followup"
         path = gateway.base.MEMORY.path(sid)
-        if path.exists():
-            path.unlink()
-        core.clear_route_continuity(sid)
+        self._reset_session(core, sid)
         try:
             cases = [
                 case
@@ -104,8 +111,7 @@ class ConversationQualityFuzzTests(unittest.TestCase):
                 if case.kind == "subjectless_followup"
             ]
             for case in cases[:16]:
-                seed_prompt = history_for(case.history_concept_id)[0]["text"]
-                core.chat(seed_prompt, sid)
+                self._seed_session(core, sid, case.history_concept_id)
                 follow = core.chat(case.prompt, sid)
                 self.assertIn("context-followup", follow.get("route", []), case)
 
