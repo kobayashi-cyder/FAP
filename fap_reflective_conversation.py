@@ -144,7 +144,7 @@ CONCEPTS: tuple[Concept, ...] = (
 def _norm(text: str) -> str:
     value = unicodedata.normalize("NFKC", str(text or "")).casefold()
     return re.sub(
-        r"[\\s\\-‐-–—_・･、。，．,:：;；!?！？'\"「」『』()（）\\[\\]{}]+",
+        r"[\s\-‐-–—_・･、。，．,:：;；!?！？'\"「」『』()（）\[\]{}]+",
         "",
         value,
     )
@@ -175,7 +175,7 @@ def is_context_only_followup(text: str) -> bool:
 
     direct = re.fullmatch(
         r"(?:それ|これ|その点|この点|その話|この話|では|じゃあ|もう少し|詳しく)?"
-        r"(?:について|に関して|は)?[？?。！!\\s]*",
+        r"(?:について|に関して|は)?[？?。！!\s]*",
         value,
         re.I,
     )
@@ -184,7 +184,7 @@ def is_context_only_followup(text: str) -> bool:
 
     cue = re.compile(
         r"(どういうこと|どういう意味|何を意味|つまり|要するに|簡単に|かみ砕|もう一度|もう少し|"
-        r"(?:わか|分か|理解)(?:ります|できます|できる).*(?:か|？|\\?))",
+        r"(?:わか|分か|理解)(?:ります|できます|できる).*(?:か|？|\?))",
         re.I,
     )
     if not cue.search(value):
@@ -199,7 +199,7 @@ def is_context_only_followup(text: str) -> bool:
         residual,
         flags=re.I,
     )
-    residual = re.sub(r"[\\s？?。！!、,・:：;；「」『』()（）]+", "", residual)
+    residual = re.sub(r"[\s？?。！!、,・:：;；「」『』()（）]+", "", residual)
     return not residual
 
 
