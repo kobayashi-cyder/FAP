@@ -240,3 +240,29 @@ V87.71 exports verified repository-coding evidence through the existing `fca-fap
 The capsule is provenance only. It does not authorize FCA to execute code, bypass connectome selection, promote a branch, push, open a PR, merge, or update main.
 
 FCA must independently receive and evidence-gate the capsule before any adaptation.
+
+
+# FAP V87.72 Repository Coding Host Runner
+
+Status: CANDIDATE on `feature/v87-72-repository-host-runner`.
+
+V87.72 exposes the V87.70 repository-coding coordinator as a provider-neutral callable host boundary without importing FCA or granting promotion authority.
+
+## Added
+
+- `fap_repository_host.py`
+  - accepts a trusted host proposal provider, verification commands and optional bounded repair provider;
+  - runs the existing read/plan/worktree/verify/repair stack;
+  - returns only `fap.repository.host.v1` typed summary metadata;
+  - exports plan ID, repository digest, bounded progress and attempt/repair counts;
+  - never exports edit content, source excerpts, diffs or raw verification output;
+  - strips arbitrary provider exception message text from rejection reasons;
+  - does not create candidate branches or call the V87.69 promotion gate.
+
+## Host-composition boundary
+
+FAP does not import FCA and FCA does not import FAP.
+
+A host application may inject this callable into FCA's `RepositoryCodingHostBinding`. FCA remains responsible for connectome-first selection and exchange-evidence gating; FAP remains responsible for sandboxed repository coding and verification.
+
+The injected proposal/repair providers are trusted host components. Their declarative edits remain constrained by the V87.66-V87.70 planner/executor/verifier stack.
