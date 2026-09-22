@@ -244,7 +244,7 @@ def _extract_python_imports(tree: ast.AST, path: str) -> list[str]:
 def _resolve_import_from(path: str, level: int, module: str | None) -> str:
     if level == 0:
         return str(module or "")
-    package = path[:-3].replace("\\", ".").split(".")[:-1]
+    package = path[:-3].replace("/", ".").replace("\\", ".").split(".")[:-1]
     ascend = level - 1
     if ascend > len(package):
         return ""
