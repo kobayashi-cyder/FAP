@@ -314,7 +314,7 @@ automatic branch merge/main promotion.
 
 # FAP V87.74 Cooperative Interaction Chain
 
-Status: CANDIDATE on `feature/v87-74-cooperative-interaction-chain`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #98 after Python 3.11/3.12 and compatibility verification.
 
 V87.74 adds optional bounded multi-endpoint handoff above the V87.73 fabric.
 
@@ -337,3 +337,23 @@ request is automatically converted to multi-step execution.
 
 Repository promotion remains separately gated and no chain step may bypass the
 V87.66-V87.72 repository safety stack.
+
+
+# FAP V87.75 Semantic Fabric Bindings
+
+Status: CANDIDATE on `feature/v87-75-semantic-fabric-bindings`.
+
+V87.75 binds declarative semantic action routes directly to generic interaction
+endpoints.
+
+## Added
+
+- `fap_semantic_fabric.py` route-to-endpoint bridge;
+- code and repository resources/actions/rules as JSONL knowledge data;
+- built-in semantic image endpoints without adding new route-if branches;
+- standalone constrained artifact-code endpoint;
+- standalone read-only repository-inspection endpoint;
+- semantic mounting helper for verified repository write coding;
+- bounded adaptive repair depth for the legacy V87.08 Code Generator.
+
+FAP remains standalone and FCA remains optional.

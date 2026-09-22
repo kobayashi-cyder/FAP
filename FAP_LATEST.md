@@ -1,3 +1,27 @@
+# FAP V87.75 — Declarative Semantic Fabric Bindings
+
+V87.75 removes the need to add Python route branches whenever a new chat-facing
+capability is attached to FAP.
+
+The existing semantic resource/action knowledge now resolves to a route ID, and
+`SemanticFabricBridge` binds that route ID to any registered
+`InteractionEndpoint`.
+
+Built-in bindings now include:
+
+- image generation and image capability;
+- constrained standalone artifact code generation;
+- read-only repository inspection.
+
+Repository write coding remains opt-in. A host may mount
+`RepositoryCodingInteraction` onto the declarative `repository_coding` route;
+the existing worktree, verification and promotion gates remain mandatory.
+
+Code/repository vocabulary is stored in `knowledge/semantic_actions_ja.jsonl`,
+not as new routing branches. The existing V87.08 Code Generator now accepts a
+bounded per-call repair budget so the V87.73 exponential-linear law can control
+its repair depth without breaking legacy callers.
+
 # FAP V87.74 — Bounded Cooperative Interaction Chain
 
 V87.74 extends the V87.73 interaction fabric from single-endpoint selection to
