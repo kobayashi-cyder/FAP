@@ -96,5 +96,18 @@ class ConversationFuzzTests(unittest.TestCase):
                 _strict_json(dispatch.to_dict())
 
 
+class V8778ConversationGatewayTests(unittest.TestCase):
+    def test_latest_gateway_reports_generic_hardening(self):
+        import fap_v87_78_conversation_fuzz_gateway as gateway
+
+        status = gateway.CORE.chat_status()
+        self.assertEqual(status.get("version"), "87.78-unified-chat")
+        hardening = gateway.CORE.status().get("conversation_fuzz_hardening") or {}
+        self.assertTrue(hardening.get("enabled"))
+        self.assertTrue(hardening.get("knowledge_derived_corpus"))
+        self.assertFalse(hardening.get("utterance_specific_branches_added"))
+        self.assertTrue(hardening.get("strict_json_safe"))
+
+
 if __name__ == "__main__":
     unittest.main()
