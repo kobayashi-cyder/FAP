@@ -34,9 +34,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Check portable launcher syntax
+        run: |
+          sh -n RUN_FAP_CHAT_LATEST.sh
       - name: Compile relevance isolation stack
         run: |
           python -m py_compile fap_inquiry_engine.py fap_sol_gap_controller.py fap_v87_12_semantic_adaptive_gateway.py fap_v87_60_relevance_isolation_gateway.py
+      - name: Safe-mode gateway preflight
+        run: |
+          PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 python -S -B -c 'import fap_v87_60_relevance_isolation_gateway as g; s=g.CORE.chat_status(); assert s.get("version") == "87.60-unified-chat", s'
       - name: Run relevance isolation tests
         run: |
           python -m unittest tests.test_relevance_isolation -v

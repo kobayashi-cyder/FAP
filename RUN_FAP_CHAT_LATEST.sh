@@ -7,51 +7,100 @@ cd "$ROOT" || exit 1
 LATEST_VERSION="87.60-unified-chat"
 GATEWAY="$ROOT/fap_v87_60_relevance_isolation_gateway.py"
 
+# The Pixel/Debian path is deliberately stdlib-first.  A broken user-site,
+# stale bytecode, or optional native build must not prevent local chat startup.
+PY_SAFE_FLAGS="-S -B"
+
+python_healthy() {
+  candidate=$1
+  "$candidate" -S -B -c 'import ast,json,marshal,pathlib,socket,urllib.request; print("ok")' >/dev/null 2>&1
+}
+
 find_python() {
-  if command -v python3 >/dev/null 2>&1; then
-    command -v python3
-    return 0
-  fi
-  if command -v python >/dev/null 2>&1; then
-    command -v python
-    return 0
-  fi
+  seen=""
+  for candidate in python3.13 python3.12 python3.11 python3.10 python3 python /usr/bin/python3 /usr/local/bin/python3; do
+    if echo " $seen " | grep -F " $candidate " >/dev/null 2>&1; then
+      continue
+    fi
+    seen="$seen $candidate"
+
+    if [ -x "$candidate" ]; then
+      path=$candidate
+    elif command -v "$candidate" >/dev/null 2>&1; then
+      path=$(command -v "$candidate")
+    else
+      continue
+    fi
+
+    if python_healthy "$path"; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
   return 1
 }
 
 PY=$(find_python || true)
 if [ -z "$PY" ]; then
-  echo "[ERROR] Python 3 was not found."
-  echo "[INFO] Debian/Ubuntu: sudo apt update && sudo apt install -y python3 build-essential"
+  echo "[ERROR] No healthy Python 3 interpreter was found."
+  echo "[INFO] The FAP source is intact; the local Python runtime is failing its stdlib self-check."
+  echo "[INFO] Debian/Ubuntu repair: sudo apt update && sudo apt install --reinstall -y python3 python3-minimal"
   exit 1
 fi
+
+echo "[INFO] Python: $PY (safe stdlib mode)"
 
 if [ ! -f "$GATEWAY" ]; then
   echo "[ERROR] Missing latest gateway: $GATEWAY"
-  echo "[INFO] Run: git pull --ff-only"
+  echo "[INFO] Run: git fetch --prune origin main && git reset --hard origin/main"
   exit 1
 fi
 
+clean_bytecode() {
+  find "$ROOT" -type d -name '__pycache__' -prune -exec rm -rf {} + 2>/dev/null || true
+  find "$ROOT" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete 2>/dev/null || true
+}
+
+gateway_preflight() {
+  PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 "$PY" -S -B -c     'import fap_v87_60_relevance_isolation_gateway as g; s=g.CORE.chat_status(); raise SystemExit(0 if s.get("version") == "87.60-unified-chat" else 4)'     >/dev/null 2>&1
+}
+
+# First try without touching anything.  If import fails, stale bytecode is
+# removed once and the exact same generic preflight is retried.
+if ! gateway_preflight; then
+  echo "[INFO] Gateway preflight failed once; clearing Python bytecode cache and retrying."
+  clean_bytecode
+  if ! gateway_preflight; then
+    echo "[ERROR] Python can run, but the FAP gateway import still fails in safe mode."
+    echo "[INFO] Run: git fetch --prune origin main && git reset --hard origin/main"
+    exit 1
+  fi
+fi
+
 get_version() {
-  "$PY" - "$1" <<'PY' 2>/dev/null
+  "$PY" -S -B - "$1" <<'PY' 2>/dev/null
 import json
 import sys
 import urllib.request
 
 port = int(sys.argv[1])
-try:
-    with urllib.request.urlopen(
-        f"http://127.0.0.1:{port}/api/v1/status", timeout=0.7
-    ) as response:
-        payload = json.load(response)
-    print(str(payload.get("version", "")))
-except Exception:
-    pass
+for path in ("/api/v1/ready", "/api/v1/status"):
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}{path}", timeout=0.7
+        ) as response:
+            payload = json.load(response)
+        value = str(payload.get("version", ""))
+        if value:
+            print(value)
+            break
+    except Exception:
+        pass
 PY
 }
 
 port_in_use() {
-  "$PY" - "$1" <<'PY' >/dev/null 2>&1
+  "$PY" -S -B - "$1" <<'PY' >/dev/null 2>&1
 import socket
 import sys
 
@@ -103,7 +152,7 @@ for candidate in 11439 11441 11443 11445; do
 done
 
 if [ -z "$PORT" ]; then
-  PORT=$("$PY" - <<'PY'
+  PORT=$("$PY" -S -B - <<'PY'
 import socket
 s = socket.socket()
 s.bind(("127.0.0.1", 0))
@@ -115,21 +164,27 @@ fi
 
 echo "[INFO] Preparing FAP CHAT $LATEST_VERSION on port $PORT ..."
 
-if [ -f "$ROOT/releases/v87_38/native_raster/build_native.py" ]; then
-  "$PY" "$ROOT/releases/v87_38/native_raster/build_native.py" --quiet ||
-    echo "[WARN] V87.38 native raster build unavailable; Python fallback will be used."
-fi
-
-if [ -f "$ROOT/releases/v87_39/native_geometry/build_native.py" ]; then
-  "$PY" "$ROOT/releases/v87_39/native_geometry/build_native.py" --quiet ||
-    echo "[WARN] V87.39 native geometry build unavailable; earlier fallback will be used."
+# Native acceleration is optional.  It is intentionally opt-in on the portable
+# launcher so a compiler/toolchain/native-library problem cannot block chat.
+# Enable explicitly with: FAP_NATIVE_BUILDS=1 ./RUN_FAP_CHAT_LATEST.sh
+if [ "${FAP_NATIVE_BUILDS:-0}" = "1" ]; then
+  if [ -f "$ROOT/releases/v87_38/native_raster/build_native.py" ]; then
+    "$PY" -S -B "$ROOT/releases/v87_38/native_raster/build_native.py" --quiet ||
+      echo "[WARN] V87.38 native raster unavailable; Python fallback will be used."
+  fi
+  if [ -f "$ROOT/releases/v87_39/native_geometry/build_native.py" ]; then
+    "$PY" -S -B "$ROOT/releases/v87_39/native_geometry/build_native.py" --quiet ||
+      echo "[WARN] V87.39 native geometry unavailable; earlier fallback will be used."
+  fi
+else
+  echo "[INFO] Optional native builds skipped; portable Python fallback is active."
 fi
 
 mkdir -p "$ROOT/runtime"
 LOG="$ROOT/runtime/fap_chat_latest.log"
 PIDFILE="$ROOT/runtime/fap_chat_latest.pid"
 
-FAP_HOST=127.0.0.1 FAP_PORT="$PORT" nohup "$PY" "$GATEWAY" >"$LOG" 2>&1 &
+PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 PYTHONFAULTHANDLER=1 FAP_HOST=127.0.0.1 FAP_PORT="$PORT" nohup "$PY" -S -B "$GATEWAY" >"$LOG" 2>&1 &
 PID=$!
 printf '%s\n' "$PID" >"$PIDFILE"
 
@@ -150,7 +205,7 @@ while [ "$i" -lt 125 ]; do
     echo "[ERROR] FAP CHAT stopped during startup."
     echo "[INFO] Log: $LOG"
     if command -v tail >/dev/null 2>&1; then
-      tail -n 40 "$LOG" 2>/dev/null || true
+      tail -n 80 "$LOG" 2>/dev/null || true
     fi
     exit 1
   fi
@@ -162,6 +217,6 @@ done
 echo "[ERROR] FAP CHAT did not report $LATEST_VERSION within 25 seconds."
 echo "[INFO] Log: $LOG"
 if command -v tail >/dev/null 2>&1; then
-  tail -n 40 "$LOG" 2>/dev/null || true
+  tail -n 80 "$LOG" 2>/dev/null || true
 fi
 exit 1
