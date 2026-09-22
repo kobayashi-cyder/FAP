@@ -1,3 +1,40 @@
+# FAP V87.79 — Conversation Quality Fuzz Hardening
+
+V87.79 moves conversation testing from crash resistance to semantic quality.
+The quality corpus is generated from the existing concept registry and applies
+generic transformations and conversation structures rather than storing
+question-specific answers.
+
+The automated properties now check:
+- semantic topic stability across width, case, whitespace and separator variants;
+- explicit current subjects cannot be replaced by a prior conversation topic;
+- genuinely subjectless clarification may resolve from recent context;
+- the user's stated topic outranks related concepts mentioned by FAP itself;
+- a new explicit topic outranks unrelated history;
+- grounded replies stay non-empty, bounded, free of internal exception markers,
+  and below a repeated-sentence threshold.
+
+The failing corpus exposed three general quality defects before the final fix:
+1. an explicit unknown subject plus clarification wording could borrow the prior
+   known topic;
+2. follow-up resolution could select a related noun from FAP's previous answer
+   instead of the subject stated by the user (for example, a related concept
+   mentioned inside an explanation);
+3. Unicode/punctuation separators such as full-width slash could destabilize
+   semantic matching.
+
+The fixes are structural rather than utterance-specific:
+- context inheritance is permitted only when generic request/reference framing
+  leaves no substantive current-turn subject;
+- recent user turns are searched before assistant turns when resolving a
+  subjectless follow-up;
+- NFKC/case normalization plus generic separator removal stabilizes concept
+  matching;
+- context-only clarification is left to the lightweight reflective resolver
+  instead of triggering the mass inquiry engine.
+
+No generated utterance or individual concept is added as a routing exception.
+
 # FAP V87.78 — Randomized Conversation Fuzz Hardening
 
 V87.78 hardens ordinary FAP conversation boundaries with a deterministic,
