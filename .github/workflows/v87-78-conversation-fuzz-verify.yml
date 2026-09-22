@@ -12,6 +12,8 @@ on:
       - "fap_semantic_conversation.py"
       - "fap_semantic_action_router.py"
       - "tests/test_fap_conversation_fuzz.py"
+      - "tests/test_v87_78_conversation_fuzz_gateway.py"
+      - "fap_v87_77_repository_precision_gateway.py"
       - "fap_v87_78_conversation_fuzz_gateway.py"
       - "RUN_FAP_CHAT_LATEST.*"
       - "FAP_LATEST.md"
@@ -19,6 +21,8 @@ on:
   pull_request:
     paths:
       - "fap_conversation_fuzz.py"
+      - "tests/test_v87_78_conversation_fuzz_gateway.py"
+      - "fap_v87_77_repository_precision_gateway.py"
       - "fap_interaction_fabric.py"
       - "fap_session_continuity.py"
       - "fap_semantic_conversation.py"
@@ -42,9 +46,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Compile conversation fuzz stack
         run: |
-          python -m compileall -q             fap_conversation_fuzz.py             fap_interaction_fabric.py             fap_session_continuity.py             fap_semantic_conversation.py             fap_semantic_action_router.py
+          python -m compileall -q \
+            fap_conversation_fuzz.py \
+            fap_interaction_fabric.py \
+            fap_session_continuity.py \
+            fap_semantic_conversation.py \
+            fap_semantic_action_router.py \
+            fap_v87_78_conversation_fuzz_gateway.py
       - name: Run randomized conversation corpus
-        run: python -m unittest tests.test_fap_conversation_fuzz -v
+        run: |
+          python -m unittest tests.test_fap_conversation_fuzz -v
+          python -m unittest tests.test_v87_78_conversation_fuzz_gateway -v
       - name: Run interaction regressions
         run: |
           python -m unittest tests.test_fap_interaction_fabric -v
