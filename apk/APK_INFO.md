@@ -2,9 +2,9 @@
 
 - FAP release packaged: `V87_39`
 - Runtime core source: `./fap_v87_60_relevance_isolation_gateway.py`
-- Source main commit: `0ed51dd1d36eb0d55f96e8b6a48f6482708f5a21`
-- Android branch commit before APK commit: `5b81c0a2d73cddc183cb16ea2619d01c792be36d`
-- Built at UTC: `2026-09-22T04:34:33Z`
+- Source main commit: `7374b2e285f7e6aa4eb3c69fd73a1fab2fe1e25f`
+- Android branch commit before APK commit: `5ded2e63cc0da8b7f863b240cb78900071f707ef`
+- Built at UTC: `2026-09-22T04:58:50Z`
 - Python runtime: `CPython 3.13 / Chaquopy 17`
-- SHA-256: `e51ca14f4e4392f2569ab96831e8b0da8452ae5d26748e1c3243a84d9b1cd81b`
+- SHA-256: `59e6b8250b742cab07b6a6d80db60340d631f6229d2b1ddf9998e61d2d3da11d`
 - Build: debug APK
