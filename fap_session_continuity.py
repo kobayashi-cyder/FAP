@@ -19,6 +19,19 @@ _ALLOWED_ROLES = frozenset({"user", "assistant", "system", "tool"})
 _SAFE_ID = re.compile(r"^[0-9A-Za-z_.:-]{1,128}$")
 
 
+def _safe_meta_value(value: object) -> bool:
+    if not isinstance(value, (str, int, float, bool)):
+        return False
+    if isinstance(value, float) and not isfinite(value):
+        return False
+    if isinstance(value, int) and not isinstance(value, bool) and value.bit_length() > 512:
+        return False
+    try:
+        return len(str(value)) <= 160
+    except Exception:
+        return False
+
+
 def _coerce_history_rows(value: object) -> tuple[Any, ...]:
     """Fail closed on malformed history containers instead of raising in chat."""
     if value is None:
@@ -101,7 +114,7 @@ class AdaptiveContextSelector:
     def select(
         self,
         text: str,
-        history: Sequence[Mapping[str, Any]],
+        history: object,
         *,
         pressure_hint: float = 0.0,
     ) -> AdaptiveContextSelection:
@@ -176,7 +189,7 @@ class AdaptiveContextSelector:
                 value = meta.get(key)
                 if isinstance(value, float) and not isfinite(value):
                     continue
-                if isinstance(value, (str, int, float, bool)) and len(str(value)) <= 160:
+                if _safe_meta_value(value):
                     safe_meta[key] = value
             if safe_meta:
                 out["meta"] = safe_meta

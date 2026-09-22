@@ -1,28 +1,30 @@
 # FAP V87.78 — Randomized Conversation Fuzz Hardening
 
-V87.78 stress-tests ordinary FAP conversation boundaries with a deterministic
-seeded corpus instead of adding utterance-specific fixes.
+V87.78 hardens ordinary FAP conversation boundaries with a deterministic,
+seeded random corpus rather than adding utterance-specific fixes.
 
-The corpus generator reads aliases from the repository's declarative knowledge
-files and mixes them with randomized Unicode, punctuation, empty/long input,
-multi-turn history, malformed history containers, invalid or non-finite pressure
-hints, and non-finite metadata. The test oracle checks generic invariants:
-conversation routing must not raise, context remains bounded, dispatch remains
-well-formed, and outputs remain strict-JSON serializable.
+The generator derives semantic material from the repository's declarative
+knowledge files, then mixes it with randomized Unicode, punctuation, empty and
+long input, malformed history containers, invalid or non-finite pressure hints,
+and non-finite metadata. The oracle checks generic invariants: routing must not
+raise, context stays bounded, dispatch stays well-formed, and exposed structures
+remain strict-JSON serializable.
 
-The first fuzz run exposed 853 boundary errors across 1,024 cases. Generic
-normalization reduced that to 424, and the final shared-boundary fix reduced it
-to zero on both Python 3.11 and 3.12.
+The pre-hardening run exposed **853 errors across 1,024 generated cases**.
+After shared-boundary normalization, the expanded suite passes:
+- 4 deterministic seeds × 1,024 lower-layer cases on Python 3.11 and 3.12;
+- 96 randomized end-to-end chat turns through the actual V87.78 gateway;
+- 48 additional randomized multi-turn continuity checks;
+- existing Interaction Fabric, Session Continuity, semantic conversation and
+  semantic action regressions.
 
-Runtime hardening is generic:
-- Interaction Fabric safely counts malformed or missing history instead of
-  calling `len()` blindly;
-- pressure hints are converted to a finite bounded value before demand
-  estimation;
-- Adaptive Session Context treats malformed history containers as empty or a
-  single mapping rather than raising;
-- non-finite session metadata is dropped before it can produce invalid JSON;
-- no generated utterance is hard-coded into routing or response logic.
+Runtime changes remain generic:
+- malformed or missing history is normalized before demand/context accounting;
+- pressure hints are converted to finite bounded values at conversation
+  boundaries while the lower-level estimator remains strict;
+- session metadata rejects non-finite/oversized scalar values before JSON output;
+- route-tag containers are normalized defensively;
+- no generated utterance is copied into routing or response code.
 
 # FAP V87.77 — Repository Context Precision
 
