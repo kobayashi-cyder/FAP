@@ -167,7 +167,7 @@ V87.68 still has no branch creation, commit, push, PR, merge or main-promotion c
 
 # FAP V87.69 Verified Candidate Branch Gate
 
-Status: CANDIDATE on `feature/v87-69-verified-candidate-branch`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #91 after Python 3.11/3.12 verification.
 
 V87.69 adds an explicit promotion gate from a freshly re-verified sandbox candidate to a local Git candidate branch.
 
@@ -187,3 +187,32 @@ V87.69 adds an explicit promotion gate from a freshly re-verified sandbox candid
 V87.69 does not push, open a remote PR, merge, fast-forward main, delete branches, or alter the currently checked-out source branch.
 
 A candidate branch is evidence-bearing output for an external/human promotion decision, not permission to merge.
+
+
+# FAP V87.70 Repository Coding Coordinator
+
+Status: CANDIDATE on `feature/v87-70-repository-coding-coordinator`.
+
+V87.70 composes the repository-coding stack behind one bounded orchestration API without changing the existing single-artifact `fap_code_generator.py`.
+
+## Added
+
+- `fap_repository_agent.py`
+  - read + plan + proposal-provider + sandbox apply + verification + bounded repair;
+  - returns a structured `fap.repository.coding.v1` result;
+  - tracks the final repaired edit set;
+  - catches proposal-provider and pipeline failures into fail-closed rejected results;
+  - never promotes automatically;
+  - exposes a separate `promote_verified()` method that reuses the V87.69 explicit approval gate.
+
+## Provider boundary
+
+The proposal provider receives only the structured plan and bounded read context and returns declarative `FileEdit` values. FAP core does not require a particular model or provider and does not assume Qwen or any network service.
+
+## End-to-end flow
+
+`goal -> read -> plan -> proposal -> worktree -> static -> focused tests -> regression -> bounded repair -> verified candidate`
+
+Promotion remains separate:
+
+`verified candidate + explicit PromotionApproval -> fresh re-verification -> local fap/candidate branch`
