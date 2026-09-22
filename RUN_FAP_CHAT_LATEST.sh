@@ -4,8 +4,8 @@ set -u
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT" || exit 1
 
-LATEST_VERSION="87.61-unified-chat"
-GATEWAY="$ROOT/fap_v87_61_generic_recommendation_gateway.py"
+LATEST_VERSION="87.62-unified-chat"
+GATEWAY="$ROOT/fap_v87_62_semantic_action_gateway.py"
 
 # The Pixel/Debian path is deliberately stdlib-first.  A broken user-site,
 # stale bytecode, or optional native build must not prevent local chat startup.
@@ -62,7 +62,7 @@ clean_bytecode() {
 }
 
 gateway_preflight() {
-  PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 "$PY" -S -B -c     'import fap_v87_61_generic_recommendation_gateway as g; s=g.CORE.chat_status(); raise SystemExit(0 if s.get("version") == "87.61-unified-chat" else 4)'     >/dev/null 2>&1
+  PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 "$PY" -S -B -c     'import fap_v87_62_semantic_action_gateway as g; s=g.CORE.chat_status(); raise SystemExit(0 if s.get("version") == "87.62-unified-chat" else 4)'     >/dev/null 2>&1
 }
 
 # First try without touching anything.  If import fails, stale bytecode is
@@ -129,6 +129,33 @@ open_browser() {
     am start -a android.intent.action.VIEW -d "$url" >/dev/null 2>&1 || true
   fi
 }
+
+canonical_version=$(get_version 11439)
+if [ "$canonical_version" = "$LATEST_VERSION" ]; then
+  URL="http://127.0.0.1:11439/"
+  echo "[OK] Latest FAP CHAT is already running on canonical port: $LATEST_VERSION"
+  echo "[OK] $URL"
+  open_browser "$URL"
+  exit 0
+fi
+
+# The "LATEST" launcher owns FAP gateway processes from this repository.
+# If 11439 is serving an older FAP, stop repository-local gateway processes
+# so the newest version can reclaim the canonical URL instead of silently
+# starting on a different port while the browser remains on the stale server.
+if [ -n "$canonical_version" ]; then
+  echo "[INFO] Replacing stale FAP on 127.0.0.1:11439 ($canonical_version -> $LATEST_VERSION)"
+  if command -v ps >/dev/null 2>&1; then
+    ps -eo pid=,args= 2>/dev/null | while read -r pid args; do
+      case "$args" in
+        *"$ROOT"/fap_v87_*_gateway.py*)
+          kill "$pid" >/dev/null 2>&1 || true
+          ;;
+      esac
+    done
+  fi
+  sleep 0.4
+fi
 
 PORT=""
 for candidate in 11439 11441 11443 11445; do
