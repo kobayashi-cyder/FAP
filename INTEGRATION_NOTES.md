@@ -59,7 +59,7 @@ The current `fap_code_generator.py` remains unchanged until repository-scale pla
 
 # FAP V87.66 Repository Reader + Planner
 
-Status: CANDIDATE on `feature/v87-66-repository-planner`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #87 after Python 3.11/3.12 verification.
 
 V87.66 keeps repository-scale coding read-only. It adds bounded source selection and deterministic patch planning without patch application, subprocess execution, git mutation or direct main writes.
 
