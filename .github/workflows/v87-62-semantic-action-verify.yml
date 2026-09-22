@@ -1,0 +1,46 @@
+name: V87.62 Semantic Action Verify
+
+on:
+  push:
+    paths:
+      - "fap_semantic_action_router.py"
+      - "fap_v87_62_semantic_action_gateway.py"
+      - "knowledge/semantic_actions_ja.jsonl"
+      - "tests/test_semantic_action_routing.py"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - ".github/workflows/v87-62-semantic-action-verify.yml"
+  pull_request:
+    paths:
+      - "fap_semantic_action_router.py"
+      - "fap_v87_62_semantic_action_gateway.py"
+      - "knowledge/semantic_actions_ja.jsonl"
+      - "tests/test_semantic_action_routing.py"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - ".github/workflows/v87-62-semantic-action-verify.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check launcher syntax
+        run: |
+          sh -n RUN_FAP_CHAT_LATEST.sh
+      - name: Compile semantic action stack
+        run: |
+          python -m py_compile fap_semantic_action_router.py fap_v87_62_semantic_action_gateway.py
+      - name: Safe-mode gateway preflight
+        run: |
+          PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 python -S -B -c 'import fap_v87_62_semantic_action_gateway as g; s=g.CORE.chat_status(); assert s.get("version") == "87.62-unified-chat", s'
+      - name: Run semantic action regression tests
+        run: |
+          python -m unittest tests.test_semantic_action_routing -v
