@@ -361,7 +361,7 @@ FAP remains standalone and FCA remains optional.
 
 # FAP V87.76 Adaptive Session Continuity
 
-Status: CANDIDATE on `feature/v87-76-adaptive-session-continuity`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #100 after Python 3.11/3.12 and compatibility verification.
 
 V87.76 reuses the existing persistent session/message and semantic-memory layers
 while adapting the active context presented to interaction endpoints.
@@ -378,3 +378,26 @@ while adapting the active context presented to interaction endpoints.
 
 No additional persistent message store is introduced and route-ledger persistence
 is disabled by default.
+
+
+# FAP V87.77 Repository Context Precision
+
+Status: CANDIDATE on `feature/v87-77-repository-context-precision`.
+
+## Reader hardening
+
+- matching late-file Python symbols use bounded streaming line windows;
+- source hashes are still checked before excerpts are exposed;
+- no project module import or execution is introduced;
+- byte budgets remain enforced.
+
+## Planner hardening
+
+- dependency-hop context is inspect-only;
+- explicit existing paths bound modify/delete targets;
+- ambiguous delete requests return `insufficient_context`;
+- missing explicit mutation paths fail closed;
+- create-over-existing-path requests fail closed;
+- plan schema remains `fap.repository.plan.v1`.
+
+Executor, verifier, bounded repair and promotion gates remain unchanged.
