@@ -133,7 +133,7 @@ The next stage is V87.68: verification and bounded repair over an open V87.67 sa
 
 # FAP V87.68 Verification + Bounded Repair
 
-Status: CANDIDATE on `feature/v87-68-verification-repair-loop`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #90 after Python 3.11/3.12 verification.
 
 V87.68 separates candidate verification from patch application and adds a bounded retry controller.
 
@@ -163,3 +163,27 @@ Any missing required check, syntax failure, required command failure, timeout, o
 ## Explicit boundary
 
 V87.68 still has no branch creation, commit, push, PR, merge or main-promotion capability. V87.69 may consume only `verified_candidate` evidence for an explicit promotion gate.
+
+
+# FAP V87.69 Verified Candidate Branch Gate
+
+Status: CANDIDATE on `feature/v87-69-verified-candidate-branch`.
+
+V87.69 adds an explicit promotion gate from a freshly re-verified sandbox candidate to a local Git candidate branch.
+
+## Added
+
+- `fap_repository_promotion.py`
+  - requires matching `plan_id`, expected base commit, explicit branch approval and a non-empty reason;
+  - re-applies and re-verifies the candidate in a fresh V87.67 worktree;
+  - creates Git blobs/tree/commit with plumbing commands instead of checking out or modifying the source tree;
+  - creates only a deterministic `fap/candidate/<plan-id-prefix>` local branch;
+  - fails closed on branch collision;
+  - verifies source HEAD and working-tree status remain unchanged;
+  - rollback removes a candidate ref only when this invocation created it and it still points to the exact candidate commit.
+
+## Explicit boundary
+
+V87.69 does not push, open a remote PR, merge, fast-forward main, delete branches, or alter the currently checked-out source branch.
+
+A candidate branch is evidence-bearing output for an external/human promotion decision, not permission to merge.
