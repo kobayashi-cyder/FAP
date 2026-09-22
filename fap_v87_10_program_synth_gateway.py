@@ -418,7 +418,9 @@ class VerificationOrgan:
             if not result.get("ok"):
                 return "PARTIAL", "画像オーケストレーターは起動しましたが、候補生成に成功していません。"
             if result.get("local_raster") and result.get("structural_verified"):
-                return "OK", "FAP内蔵ラスタ生成器が宣言的シーングラフをPNGへ描画し、成果物構造を検証しています。写真生成モデルではありません。"
+                if result.get("quality_met"):
+                    return "OK", "FAP内蔵ラスタ生成器が要求された簡易図解をPNGへ描画し、成果物構造を検証しています。"
+                return "PARTIAL", "PNGとしての生成と構造検証には成功しましたが、これは簡易図解ドラフトであり、通常の画像生成としての品質基準は満たしていません。"
             if result.get("visual_verified") and float(result.get("image_score", 0.0)) >= 0.80:
                 return "OK", "実画像をCLIP自己検査し、要求適合度の高い候補を選択しています。"
             if result.get("visual_verified"):
