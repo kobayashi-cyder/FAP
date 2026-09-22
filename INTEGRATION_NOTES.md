@@ -55,3 +55,50 @@ First connect this read-only context to a new repository-coding planner behind a
 9. only then promotion decision
 
 The current `fap_code_generator.py` remains unchanged until repository-scale planning and regression tests prove no behavior loss.
+
+
+# FAP V87.66 Repository Reader + Planner
+
+Status: CANDIDATE on `feature/v87-66-repository-planner`.
+
+V87.66 keeps repository-scale coding read-only. It adds bounded source selection and deterministic patch planning without patch application, subprocess execution, git mutation or direct main writes.
+
+## Added
+
+- `fap_repository_reader.py`
+  - task-relevant file/symbol ranking;
+  - bounded dependency-neighborhood expansion;
+  - repository/file SHA-256 freshness checks;
+  - bounded source excerpts;
+  - fail-closed stale-source handling;
+  - configurable file/byte budgets.
+
+- `fap_repository_planner.py`
+  - deterministic `fap.repository.plan.v1` output;
+  - per-file `before_sha256` preconditions;
+  - inspect/modify/create/delete intent classification;
+  - required verification checks and risk flags;
+  - stable `plan_id`;
+  - `write_enabled=false` invariant.
+
+- V87.65 index hardening
+  - large files are size-checked before source parsing and hashed incrementally;
+  - `from pkg import util` now exposes both package and member-module dependency edges;
+  - relative imports are normalized for dependency analysis.
+
+## Explicit boundary
+
+V87.66 does **not** contain a patch executor.
+
+The next stage may add a sandbox/worktree executor, but it must consume V87.66 plans and enforce:
+
+1. repository digest/freshness validation;
+2. per-file `before_sha256` validation;
+3. sandbox/worktree-only writes;
+4. compile/static checks;
+5. focused tests;
+6. bounded repair;
+7. regression tests;
+8. explicit promotion decision.
+
+The existing `fap_code_generator.py` remains unchanged.
