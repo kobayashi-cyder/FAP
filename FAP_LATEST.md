@@ -1,3 +1,25 @@
+# FAP V87.76 — Adaptive Session Continuity
+
+V87.76 generalizes multi-turn continuity across the V87.75 semantic interaction
+fabric without introducing a second message store.
+
+FAP already has persistent session messages and long-term semantic memory.
+V87.76 reuses those stores and adds two bounded runtime layers:
+
+- `AdaptiveContextSelector` chooses the most recent valid conversation turns
+  that fit the current exponential-linear context budget;
+- `SessionRouteLedger` remembers only endpoint IDs/state/safe route tags so the
+  next endpoint or handoff policy can see recent capability flow without
+  duplicating message text.
+
+The selector expands context for structurally heavier requests and larger
+conversation histories, but remains bounded by 128 turns, 20k characters per
+turn and 250k selected characters. Arbitrary message metadata is not copied into
+the active context; only small intent/verdict/ability fields may pass.
+
+Route continuity is in-memory and non-persistent by default. Existing persistent
+session messages remain unchanged. FCA is optional.
+
 # FAP V87.75 — Declarative Semantic Fabric Bindings
 
 V87.75 removes the need to add Python route branches whenever a new chat-facing
