@@ -261,6 +261,10 @@ class FAPV8712(v11.FAPV8711):
                     route += ["context-followup"]
             if adaptation.get("applied"):
                 route += ["adaptive-route", ability]
+            for tag in result.get("route_tags", []):
+                value = str(tag).strip()
+                if value and value not in route:
+                    route.append(value)
             route += ["deliberate", "semantic-context", "verify", "integrate"]
 
         replan_count = 0
@@ -338,6 +342,14 @@ class FAPV8712(v11.FAPV8711):
             "replan_count": replan_count,
             "adaptive_routing": adaptation,
             "semantic_memory": semantic_stats,
+            "derivation": {
+                "enabled": bool(result.get("derivation_reasoning")),
+                "verified": bool(result.get("derivation_verified")),
+                "id": result.get("derivation_id"),
+                "source": result.get("derivation_source"),
+                "goal": result.get("derivation_goal"),
+                "coefficients": result.get("derivation_coefficients", []),
+            },
             "scientific_model": {
                 "enabled": bool(result.get("scientific_model")),
                 "model_id": result.get("model_id"),
