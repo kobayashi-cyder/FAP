@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -128,7 +129,7 @@ class RepositoryCodingInteraction:
             return ""
         latest = request.history[-1]
         value = ""
-        if isinstance(latest, dict):
+        if isinstance(latest, Mapping):
             for key in ("content", "text", "reply", "observation"):
                 raw = latest.get(key)
                 if isinstance(raw, str) and raw.strip():
