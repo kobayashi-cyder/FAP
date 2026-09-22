@@ -94,6 +94,7 @@ def _history_row(rng: random.Random, index: int) -> dict[str, Any]:
         True,
         rng.randint(-100, 100),
         rng.random(),
+        1 << 20_000,
         float("nan"),
         float("inf"),
         float("-inf"),
@@ -114,7 +115,7 @@ def _history_row(rng: random.Random, index: int) -> dict[str, Any]:
 
 
 def _history(rng: random.Random, index: int) -> Any:
-    mode = index % 7
+    mode = index % 8
     rows = [_history_row(rng, index * 10 + i) for i in range(rng.randint(0, 8))]
     if mode == 0:
         return tuple(rows)
@@ -131,6 +132,8 @@ def _history(rng: random.Random, index: int) -> Any:
         return _random_text(rng, 0, 80)
     if mode == 5:
         return _history_row(rng, index)
+    if mode == 6:
+        return iter(rows)
     return rows
 
 
