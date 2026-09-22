@@ -239,13 +239,27 @@ class ReflectiveConversationOrgan:
         return scored[0][1], scored[0][0]
 
     def _from_history(self, history: list[Mapping]) -> Concept | None:
-        for row in reversed(history[-12:]):
-            value = str(row.get("text", "")).strip()
-            if not value:
-                continue
-            concept, score = self._match(value)
-            if concept is not None and score > 0:
-                return concept
+        recent = list(history[-12:])
+
+        # The user's own recent subject is stronger continuity evidence than
+        # concepts merely mentioned inside an assistant explanation. Otherwise
+        # a reply about one topic can silently shift the next follow-up to a
+        # related noun that happened to appear in that reply.
+        for preferred_role in ("user", None):
+            for row in reversed(recent):
+                role = str(row.get("role") or "").strip().lower()
+                if preferred_role == "user":
+                    if role != "user":
+                        continue
+                elif role == "user":
+                    continue
+
+                value = str(row.get("text", "")).strip()
+                if not value:
+                    continue
+                concept, score = self._match(value)
+                if concept is not None and score > 0:
+                    return concept
         return None
 
     @staticmethod
