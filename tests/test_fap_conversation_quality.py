@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
-import fap_v87_78_conversation_fuzz_gateway as gateway
+import fap_v87_79_conversation_quality_gateway as gateway
 from fap_conversation_quality_fuzz import (
     generate_quality_cases,
     has_internal_error_marker,
@@ -99,7 +99,7 @@ class ConversationQualityFuzzTests(unittest.TestCase):
         self.assertTrue(all(value >= 64 for value in counts.values()))
 
     def test_latest_gateway_does_not_context_hijack_explicit_unknown_subject(self):
-        core = gateway.FAPV8778Unified()
+        core = gateway.FAPV8779Unified()
         sid = "v8779-quality-context-isolation"
         path = gateway.base.MEMORY.path(sid)
         self._reset_session(core, sid)
@@ -125,7 +125,7 @@ class ConversationQualityFuzzTests(unittest.TestCase):
             self._reset_session(core, sid)
 
     def test_latest_gateway_preserves_subjectless_followup(self):
-        core = gateway.FAPV8778Unified()
+        core = gateway.FAPV8779Unified()
         sid = "v8779-quality-followup"
         path = gateway.base.MEMORY.path(sid)
         self._reset_session(core, sid)
