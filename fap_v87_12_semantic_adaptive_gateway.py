@@ -236,6 +236,9 @@ class FAPV8712(v11.FAPV8711):
                 effective_intent = intent
             else:
                 result, ability, effective_intent = self._route_adapted(intent, adaptation, text, history)
+                override = str(result.get("ability_override") or "").strip()
+                if override:
+                    ability = override
             route = ["intent", intent.name]
             if result.get("self_capability"):
                 route += ["self-capability"]
