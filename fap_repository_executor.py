@@ -312,6 +312,13 @@ class RepositoryPatchExecutor:
                 )
             )
 
+        created_paths = [rel for edit, rel in normalized if edit.operation == "create"]
+        if created_paths:
+            self._git(
+                session.path, "add", "-N", "--", *created_paths,
+                timeout=self.git_timeout_sec,
+            )
+
         check = self._git(
             session.path, "diff", "--check", "--",
             timeout=self.git_timeout_sec,
