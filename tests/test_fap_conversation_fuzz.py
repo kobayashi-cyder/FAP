@@ -53,47 +53,49 @@ class ConversationFuzzTests(unittest.TestCase):
         self.assertGreater(len({x.text for x in first}), 200)
         self.assertTrue(any(x.history is None for x in first))
         self.assertTrue(any(isinstance(x.history, int) for x in first))
+        self.assertTrue(any(hasattr(x.history, "__next__") for x in first))
         self.assertTrue(any(is_nonfinite_number(x.pressure_hint) for x in first))
 
     def test_randomized_conversation_boundaries_never_raise(self):
-        for case in generate_conversation_corpus(ROOT, seed=8707801, count=1024):
-            with self.subTest(case=case.index):
-                semantic = self.conversation_router.match(case.text)
-                action = self.action_router.match(case.text)
-                if semantic is not None:
-                    _strict_json(semantic)
-                if action is not None:
-                    _strict_json(action)
+        for seed in (8707801, 8707802, 8707803, 8707804):
+            for case in generate_conversation_corpus(ROOT, seed=seed, count=1024):
+                with self.subTest(seed=seed, case=case.index):
+                    semantic = self.conversation_router.match(case.text)
+                    action = self.action_router.match(case.text)
+                    if semantic is not None:
+                        _strict_json(semantic)
+                    if action is not None:
+                        _strict_json(action)
 
-                selection = self.selector.select(
-                    case.text,
-                    case.history,
-                    pressure_hint=case.pressure_hint,
-                )
-                self.assertLessEqual(
-                    selection.selected_turns,
-                    self.selector.max_turns,
-                )
-                self.assertLessEqual(
-                    selection.selected_chars,
-                    self.selector.hard_context_chars,
-                )
-                _strict_json(selection.history)
-                _strict_json(selection.to_dict())
-
-                dispatch = self.fabric.dispatch(
-                    InteractionRequest(
-                        text=case.text,
-                        history=case.history,
-                        channel=case.channel,
+                    selection = self.selector.select(
+                        case.text,
+                        case.history,
                         pressure_hint=case.pressure_hint,
                     )
-                )
-                self.assertIn(
-                    dispatch.state,
-                    {"blocked", "handled", "unhandled"},
-                )
-                _strict_json(dispatch.to_dict())
+                    self.assertLessEqual(
+                        selection.selected_turns,
+                        self.selector.max_turns,
+                    )
+                    self.assertLessEqual(
+                        selection.selected_chars,
+                        self.selector.hard_context_chars,
+                    )
+                    _strict_json(selection.history)
+                    _strict_json(selection.to_dict())
+
+                    dispatch = self.fabric.dispatch(
+                        InteractionRequest(
+                            text=case.text,
+                            history=case.history,
+                            channel=case.channel,
+                            pressure_hint=case.pressure_hint,
+                        )
+                    )
+                    self.assertIn(
+                        dispatch.state,
+                        {"blocked", "handled", "unhandled"},
+                    )
+                    _strict_json(dispatch.to_dict())
 
 
 class V8778ConversationGatewayTests(unittest.TestCase):
