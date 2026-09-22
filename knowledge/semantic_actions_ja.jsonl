@@ -1,0 +1,5 @@
+{"kind":"semantic_resource","id":"image","aliases":["画像","写真","イラスト","絵","picture","image","photo","illustration","drawing"]}
+{"kind":"semantic_action","id":"create","aliases":["作成","作って","作る","生成","生成して","描いて","描く","create","generate","draw","render","make"]}
+{"kind":"semantic_action","id":"capability","aliases":["できますか","できる","可能","使えますか","対応","capability","can you"]}
+{"kind":"semantic_action_rule","id":"image_create","resource":"image","action":"create","route":"image_generate"}
+{"kind":"semantic_action_rule","id":"image_capability","resource":"image","action":"capability","route":"image_capability"}
