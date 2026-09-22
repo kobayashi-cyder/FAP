@@ -35,7 +35,7 @@ class RepositoryCodingInteraction:
         *,
         proposer: ProposalProvider,
         commands: Iterable[VerificationCommand],
-        scorer: IntentScorer,
+        scorer: IntentScorer | None = None,
         repairer: RepairProvider | None = None,
         endpoint_id: str = "repository_coding",
         priority: float = 2.0,
@@ -46,14 +46,14 @@ class RepositoryCodingInteraction:
             raise ValueError(f"repository root is not a directory: {self.root}")
         if not callable(proposer):
             raise TypeError("proposer must be callable")
-        if not callable(scorer):
-            raise TypeError("scorer must be callable")
+        if scorer is not None and not callable(scorer):
+            raise TypeError("scorer must be callable or None")
         if repairer is not None and not callable(repairer):
             raise TypeError("repairer must be callable")
 
         self.proposer = proposer
         self.commands = tuple(commands)
-        self.scorer = scorer
+        self.scorer = scorer or (lambda request: 0.0)
         self.repairer = repairer
         self.endpoint_id = endpoint_id
         self.priority = float(priority)
