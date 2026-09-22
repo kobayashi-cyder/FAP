@@ -349,6 +349,16 @@ class FAPV8712(v11.FAPV8711):
             "replan_count": replan_count,
             "adaptive_routing": adaptation,
             "semantic_memory": semantic_stats,
+            "recommendation": {
+                "enabled": bool(result.get("recommendation_reasoning")),
+                "verified": bool(result.get("recommendation_verified")),
+                "domain_id": result.get("domain_id"),
+                "context_id": result.get("context_id"),
+                "contextual_followup": bool(result.get("contextual_followup")),
+                "candidate_ids": result.get("candidate_ids", []),
+                "preferences": result.get("preference_labels", []),
+                "signals": result.get("signal_labels", []),
+            },
             "rule_reasoning": {
                 "enabled": bool(result.get("rule_reasoning")),
                 "verified": bool(result.get("rule_verified")),
