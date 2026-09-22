@@ -1,3 +1,33 @@
+# FAP V87.59 — Semantic Conversation Generalization
+
+V87.59 fixes ordinary-chat paraphrase failures without adding utterance-specific
+branches. Semantic conversation intents are stored as data under
+`knowledge/conversation_intents_ja.jsonl` and matched compositionally from
+subject concepts and action concepts.
+
+For self-description, the response is generated from the currently running
+version and capability set instead of replaying the legacy V78 self-introduction.
+Equivalent requests such as asking FAP to introduce itself, asking who it is, or
+asking what it can do now share the same semantic route.
+
+Greetings also use the semantic conversation route and no longer claim a
+specific device such as Pixel from a canned legacy string.
+
+The execution path is:
+
+```text
+semantic intent data
+→ compositional subject/action match
+→ current runtime inspection
+→ capability grouping
+→ dynamic response
+→ verifier
+```
+
+V87.58 generic contextual rule reasoning, V87.57 generic symbolic derivation,
+V87.56 image orchestration, and earlier fallback paths remain underneath
+V87.59.
+
 # FAP V87.58 — Generic Contextual Rule Reasoning
 
 V87.58 removes the next class of exact-answer behavior from ordinary chat.
@@ -66,7 +96,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.58 — Generic Contextual Rule Reasoning**.
+Current mainline: **V87.59 — Semantic Conversation Generalization**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
