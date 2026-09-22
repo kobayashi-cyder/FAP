@@ -45,6 +45,11 @@ class ExponentialLinearPolicyTests(unittest.TestCase):
         self.assertGreater(high.history_component, low.history_component)
         self.assertGreater(high.structure_component, low.structure_component)
 
+    def test_token_component_recognizes_latin_and_japanese_text(self):
+        demand = estimate_interaction_demand("alpha beta 日本語 テスト")
+        self.assertGreater(demand.token_component, 0.0)
+        self.assertGreater(demand.diversity_component, 0.0)
+
     def test_budget_expands_but_preserves_hard_limits(self):
         low = budget_for_demand(0.0)
         high = budget_for_demand(1.0)
