@@ -4,8 +4,8 @@ set -u
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT" || exit 1
 
-LATEST_VERSION="87.62-unified-chat"
-GATEWAY="$ROOT/fap_v87_62_semantic_action_gateway.py"
+LATEST_VERSION="87.63-unified-chat"
+GATEWAY="$ROOT/fap_v87_63_local_raster_gateway.py"
 
 # The Pixel/Debian path is deliberately stdlib-first.  A broken user-site,
 # stale bytecode, or optional native build must not prevent local chat startup.
@@ -62,7 +62,7 @@ clean_bytecode() {
 }
 
 gateway_preflight() {
-  PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 "$PY" -S -B -c     'import fap_v87_62_semantic_action_gateway as g; s=g.CORE.chat_status(); raise SystemExit(0 if s.get("version") == "87.62-unified-chat" else 4)'     >/dev/null 2>&1
+  PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1 "$PY" -S -B -c     'import fap_v87_63_local_raster_gateway as g; s=g.CORE.chat_status(); raise SystemExit(0 if s.get("version") == "87.63-unified-chat" else 4)'     >/dev/null 2>&1
 }
 
 # First try without touching anything.  If import fails, stale bytecode is

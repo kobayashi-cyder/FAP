@@ -9,6 +9,8 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Callable, Any
 
+from fap_local_image_backend import LocalRasterGenerator
+
 
 _STYLE_PATTERNS = (
     ("photorealistic", re.compile(r"(写真風|写真みたい|実写|フォトリアル|photoreal|photo[- ]?real|realistic photo)", re.I)),
@@ -300,22 +302,29 @@ class ImageOrchestrator:
         self.artifact_dir.mkdir(parents=True, exist_ok=True)
         self.http_json = http_json
         self.parser = ImageRequestParser()
+        self.local = LocalRasterGenerator(Path(__file__).resolve().parent, self.artifact_dir)
         self.candidates = min(4, max(1, int(os.environ.get("FAP_IMAGE_CANDIDATES", "2"))))
         self.rounds = min(4, max(1, int(os.environ.get("FAP_IMAGE_ROUNDS", "2"))))
         self.steps = min(60, max(8, int(os.environ.get("FAP_IMAGE_STEPS", "28"))))
         self.cfg = float(os.environ.get("FAP_IMAGE_CFG", "7.0"))
         self.pass_score = min(0.98, max(0.50, float(os.environ.get("FAP_IMAGE_PASS_SCORE", "0.80"))))
 
-    def available(self) -> tuple[bool, str]:
+    def _external_available(self) -> tuple[bool, str]:
         try:
             models = self.http_json(self.image_base + "/sdapi/v1/sd-models", timeout=4)
             count = len(models) if isinstance(models, list) else 0
-            return True, f"画像生成器官は接続済みです（models={count}, orchestrator=V87.56）。"
+            return True, f"外部画像モデル接続済み（models={count}）。"
         except Exception:
-            return False, (
-                "画像生成意図は認識できますが、画像モデルが未接続です。"
-                "FAP_IMAGE_APIへAUTOMATIC1111互換APIを接続してください。"
-            )
+            return False, "外部画像モデルは未接続です。"
+
+    def available(self) -> tuple[bool, str]:
+        external_ok, external_status = self._external_available()
+        if external_ok:
+            return True, f"{external_status} FAP Image Orchestratorを使用できます。"
+        local_ok, local_status = self.local.available()
+        if local_ok:
+            return True, f"{local_status} 外部画像APIなしで軽量イラストを生成できます。"
+        return False, external_status + " " + local_status
 
     def _interrogate(self, image_b64: str) -> tuple[str, bool]:
         try:
@@ -341,11 +350,25 @@ class ImageOrchestrator:
         return str(path)
 
     def generate(self, text: str) -> dict:
-        ok, status = self.available()
-        if not ok:
-            return {"ok": False, "reply": status, "confidence": 0.96}
-
+        external_ok, _ = self._external_available()
         spec = self.parser.parse(text)
+        if not external_ok:
+            local = self.local.generate(
+                text,
+                width=min(768, spec.width),
+                height=min(768, spec.height),
+            )
+            if local.get("ok"):
+                local["image_spec"] = asdict(spec)
+                local["image_backend"] = "fap-local-raster"
+                local["route_tags"] = [
+                    "image-backend-select",
+                    "local-raster",
+                    "scene-graph-render",
+                    "png-verify",
+                ]
+            return local
+
         all_candidates: list[ImageCandidate] = []
         repairs: tuple[str, ...] = ()
 
