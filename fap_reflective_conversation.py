@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -141,7 +142,12 @@ CONCEPTS: tuple[Concept, ...] = (
 
 
 def _norm(text: str) -> str:
-    return re.sub(r"\s+", "", str(text or "").lower())
+    value = unicodedata.normalize("NFKC", str(text or "")).casefold()
+    return re.sub(
+        r"[\\s\\-‐-–—_・･、。，．,:：;；!?！？'\"「」『』()（）\\[\\]{}]+",
+        "",
+        value,
+    )
 
 
 def _topic_score(concept: Concept, text: str) -> float:
@@ -154,6 +160,47 @@ def _topic_score(concept: Concept, text: str) -> float:
         if a in n:
             score += 4.0 + min(2.0, len(a) / 8.0)
     return score
+
+
+def is_context_only_followup(text: str) -> bool:
+    """Return True only when the turn depends on prior context for its subject.
+
+    This is a language-structure gate, not a topic list. A clarification cue is
+    allowed to borrow history only when removing generic reference/request
+    framing leaves no substantive current-turn subject behind.
+    """
+    value = unicodedata.normalize("NFKC", str(text or "")).strip()
+    if not value:
+        return False
+
+    direct = re.fullmatch(
+        r"(?:それ|これ|その点|この点|その話|この話|では|じゃあ|もう少し|詳しく)?"
+        r"(?:について|に関して|は)?[？?。！!\\s]*",
+        value,
+        re.I,
+    )
+    if direct:
+        return True
+
+    cue = re.compile(
+        r"(どういうこと|どういう意味|何を意味|つまり|要するに|簡単に|かみ砕|もう一度|もう少し|"
+        r"(?:わか|分か|理解)(?:ります|できます|できる).*(?:か|？|\\?))",
+        re.I,
+    )
+    if not cue.search(value):
+        return False
+
+    residual = cue.sub(" ", value)
+    residual = re.sub(
+        r"(?:それ|これ|その点|この点|その話|この話|この件|では|じゃあ|"
+        r"について|に関して|とは|って|教えて|説明して|ください|下さい|お願いします|"
+        r"です|ます|でした|ました|は|を|の|に|で|か)+",
+        " ",
+        residual,
+        flags=re.I,
+    )
+    residual = re.sub(r"[\\s？?。！!、,・:：;；「」『』()（）]+", "", residual)
+    return not residual
 
 
 class ReflectiveConversationOrgan:
@@ -291,7 +338,8 @@ class ReflectiveConversationOrgan:
         score = ranked[0][0] if ranked and ranked[0][0] > 0 else 0.0
         followup = False
         contextual_followup = bool(self.CONTEXTUAL_FOLLOWUP.search(t))
-        if concept is None and (self.FOLLOWUP.match(t) or contextual_followup):
+        context_only_followup = is_context_only_followup(t)
+        if concept is None and context_only_followup:
             concept = self._from_history(history)
             followup = concept is not None
             score = 2.5 if followup else 0.0
@@ -347,6 +395,6 @@ class ReflectiveConversationOrgan:
             "evidence_ids": evidence_ids,
             "reasoning_mode": mode,
             "followup_resolved": followup,
-            "contextual_followup": bool(followup and contextual_followup),
+            "contextual_followup": bool(followup and contextual_followup and context_only_followup),
             "related_topics": list(concept.related),
         }
