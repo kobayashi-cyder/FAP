@@ -310,3 +310,30 @@ output characters.
 
 This release does not weaken the V87.69 explicit promotion gate and does not add
 automatic branch merge/main promotion.
+
+
+# FAP V87.74 Cooperative Interaction Chain
+
+Status: CANDIDATE on `feature/v87-74-cooperative-interaction-chain`.
+
+V87.74 adds optional bounded multi-endpoint handoff above the V87.73 fabric.
+
+## Added
+
+- endpoint allow/exclude filters on `InteractionFabric.dispatch()`;
+- `InteractionChainCoordinator`;
+- typed `InteractionHandoff`;
+- explicit host-provided HandoffPolicy;
+- no endpoint revisit by default;
+- original exponential-linear reasoning budget constrains maximum chain depth;
+- handoff text and history bounds;
+- sanitized handoff-policy failures;
+- V87.74 gateway API for explicit chain execution.
+
+## Compatibility boundary
+
+Default chat routing remains the V87.73 single-dispatch path. No existing chat
+request is automatically converted to multi-step execution.
+
+Repository promotion remains separately gated and no chain step may bypass the
+V87.66-V87.72 repository safety stack.
