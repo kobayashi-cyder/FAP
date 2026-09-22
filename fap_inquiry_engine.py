@@ -472,9 +472,31 @@ class InquiryEngine:
             return None
 
         context = self.index.context_from_history(history)
-        hits = self.index.search(t, context, 12)
-        if not hits or hits[0].score < 0.08:
-            return None
+
+        # Ground the topic in the CURRENT turn before conversation context can
+        # influence retrieval. Otherwise a completely unrelated short question
+        # can inherit high-scoring science chunks from the previous discussion
+        # and produce a fluent but irrelevant answer.
+        direct_hits = self.index.search(t, "", 12)
+        contextual_reference = bool(
+            re.search(r"(これ|それ|その話|この話|この件|続き|前の話|さっきの)", t, re.I)
+        )
+        if not direct_hits or direct_hits[0].score < 0.08:
+            if not contextual_reference:
+                return None
+            hits = self.index.search(t, context, 12)
+            if not hits or hits[0].score < 0.08:
+                return None
+        else:
+            # Context may refine ranking, but it is not allowed to introduce a
+            # new subject that had zero relevance to the user's current words.
+            direct_ids = {hit.chunk.chunk_id for hit in direct_hits}
+            contextual_hits = self.index.search(t, context, 12)
+            reranked = [hit for hit in contextual_hits if hit.chunk.chunk_id in direct_ids]
+            seen = {hit.chunk.chunk_id for hit in reranked}
+            reranked.extend(hit for hit in direct_hits if hit.chunk.chunk_id not in seen)
+            hits = reranked[:12]
+
         if not QUESTION_CUES.search(t) and len(t) < 12:
             return None
 
