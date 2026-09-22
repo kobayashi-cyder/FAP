@@ -1,3 +1,28 @@
+# FAP V87.61 — Generic Multi-Turn Recommendation
+
+V87.61 adds a generic recommendation layer that handles open-ended requests and
+follow-up constraints without adding question-specific branches.
+
+The recommendation pipeline is:
+
+```text
+recommendation action
+→ domain/context resolution
+→ recent user-turn constraint composition
+→ data-driven candidate ranking
+→ recommendation verification
+```
+
+Concrete vocabulary and candidates live in `knowledge/recommendation_framework_ja.jsonl`.
+The Python engine contains no branch for a particular lunch question or allergy
+sentence. A constraint-only follow-up is accepted only when recent conversation
+history contains a matching recommendation request, so unrelated statements are
+not hijacked.
+
+The observed sequence “lunch recommendation → no allergies” is covered by an
+end-to-end regression test, alongside preference-based reranking and
+out-of-context rejection.
+
 # FAP V87.60 — Current-Turn Relevance Isolation
 
 V87.60 prevents unrelated new questions from borrowing the previous topic simply
@@ -128,7 +153,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.60 — Current-Turn Relevance Isolation**.
+Current mainline: **V87.61 — Generic Multi-Turn Recommendation**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
