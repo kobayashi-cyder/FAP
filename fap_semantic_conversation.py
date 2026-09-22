@@ -205,11 +205,31 @@ class RuntimeSelfProfile:
 
     def run(self, text: str, *, version: str, capabilities: Sequence[str], status: Mapping) -> dict | None:
         match = self.router.match(text)
-        if match is None or match.get("response_mode") != "runtime_self_profile":
+        if match is None:
             return None
+
+        mode = str(match.get("response_mode") or "")
+        if mode == "runtime_greeting":
+            reply = f"こんにちは。FAP {version} は稼働中です。現在の実装状態に基づいて応答します。"
+            route_tags = [
+                "semantic-conversation-intent",
+                "runtime-self-inspect",
+                "dynamic-greeting",
+            ]
+        elif mode == "runtime_self_profile":
+            reply = self.render(version=version, capabilities=capabilities, status=status)
+            route_tags = [
+                "semantic-conversation-intent",
+                "runtime-self-inspect",
+                "capability-group",
+                "dynamic-self-profile",
+            ]
+        else:
+            return None
+
         return {
             "ok": True,
-            "reply": self.render(version=version, capabilities=capabilities, status=status),
+            "reply": reply,
             "confidence": min(0.99, 0.90 + float(match.get("score", 0.0)) / 100.0),
             "needs_teacher": False,
             "local": True,
@@ -217,10 +237,5 @@ class RuntimeSelfProfile:
             "semantic_conversation": True,
             "semantic_intent": match.get("intent_id"),
             "semantic_match": match,
-            "route_tags": [
-                "semantic-conversation-intent",
-                "runtime-self-inspect",
-                "capability-group",
-                "dynamic-self-profile",
-            ],
+            "route_tags": route_tags,
         }
