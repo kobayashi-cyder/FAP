@@ -1,3 +1,34 @@
+# FAP V87.57 — Generic Verified Derivation
+
+V87.57 adds a generic local derivation lane above V87.56. It is not a
+theorem-name router and does not contain a canned branch for the Pythagorean
+theorem. Mathematical subject matter is stored as data under
+`knowledge/*.jsonl`; the Python engine performs the same retrieval and
+verification procedure for every supported derivation record.
+
+The derivation flow is:
+
+```text
+generic derivation intent
+→ retrieve local derivation record
+→ parse equations with a restricted AST
+→ normalize both sides to rational-coefficient polynomials
+→ prove the target relation is in the algebraic span of the premises
+→ independently countercheck that relation with several numeric substitutions
+→ render the verified derivation
+```
+
+The initial data pack includes area-rearrangement, equation-rearrangement and
+multi-premise examples. For example, `三平方の定理を導出して` retrieves the
+area construction from `knowledge/math_derivations_ja.jsonl`, expands the
+area equality and verifies that its normalized relation is exactly equivalent
+to `a^2 + b^2 = c^2`. Unsupported theorems are not fabricated: they fall
+through to the existing conservative paths.
+
+New derivations can be added as data records without adding theorem-specific
+Python branches. V87.56 image orchestration and all earlier chat, science,
+research, media and local fallback paths remain underneath V87.57.
+
 # FAP latest development snapshot
 
 Current mainline: **V87.56 — Image Orchestrator**.
