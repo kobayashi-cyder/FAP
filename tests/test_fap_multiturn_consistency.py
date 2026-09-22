@@ -37,8 +37,8 @@ class MultiTurnConsistencyFuzzTests(unittest.TestCase):
                 continue
 
             self.assertIsNotNone(out, case)
-            self.assertTrue(out.get("followup_resolved"), case)
             self.assertEqual(out.get("topic_id"), case.expected_topic_id, case)
+            self.assertEqual(bool(out.get("followup_resolved")), case.expect_followup, case)
 
         self.assertEqual(
             set(counts),
