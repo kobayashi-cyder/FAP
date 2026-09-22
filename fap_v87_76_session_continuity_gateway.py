@@ -34,14 +34,27 @@ class FAPV8776Unified(v75.FAPV8775Unified):
             "fap_v87_76_active_session",
             default="default",
         )
+        self._active_context_stats: ContextVar[dict | None] = ContextVar(
+            "fap_v87_76_active_context_stats",
+            default=None,
+        )
 
     def chat(self, text: str, sid: str) -> dict:
         safe_sid = base.safe_session(sid)
-        token = self._active_session.set(safe_sid)
+        session_token = self._active_session.set(safe_sid)
+        context_token = self._active_context_stats.set(None)
         try:
-            return super().chat(text, safe_sid)
+            result = dict(super().chat(text, safe_sid))
+            context_stats = self._active_context_stats.get()
+            if context_stats is not None:
+                result["adaptive_session_context"] = context_stats
+            result["session_route_continuity"] = (
+                self.session_routes.snapshot(safe_sid).to_dict()
+            )
+            return result
         finally:
-            self._active_session.reset(token)
+            self._active_context_stats.reset(context_token)
+            self._active_session.reset(session_token)
 
     def interaction_request_metadata(
         self,
@@ -96,6 +109,7 @@ class FAPV8776Unified(v75.FAPV8775Unified):
                     ),
                 )
 
+        self._active_context_stats.set(selection.to_dict())
         result["adaptive_session_context"] = selection.to_dict()
         result["session_route_continuity"] = self.session_routes.snapshot(
             self._active_session.get()
