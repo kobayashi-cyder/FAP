@@ -341,7 +341,7 @@ V87.66-V87.72 repository safety stack.
 
 # FAP V87.75 Semantic Fabric Bindings
 
-Status: CANDIDATE on `feature/v87-75-semantic-fabric-bindings`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #99 after Python 3.11/3.12 and compatibility verification.
 
 V87.75 binds declarative semantic action routes directly to generic interaction
 endpoints.
@@ -357,3 +357,24 @@ endpoints.
 - bounded adaptive repair depth for the legacy V87.08 Code Generator.
 
 FAP remains standalone and FCA remains optional.
+
+
+# FAP V87.76 Adaptive Session Continuity
+
+Status: CANDIDATE on `feature/v87-76-adaptive-session-continuity`.
+
+V87.76 reuses the existing persistent session/message and semantic-memory layers
+while adapting the active context presented to interaction endpoints.
+
+## Added
+
+- exponential-linear context selection over existing history;
+- bounded recent-turn retention with per-turn and total-character limits;
+- safe metadata projection for active context;
+- content-free in-memory endpoint route ledger;
+- session-isolated route continuity metadata exposed to future endpoints/policies;
+- ContextVar-based session propagation safe for threaded request handling;
+- read-only `/api/v1/session-routes` inspection endpoint.
+
+No additional persistent message store is introduced and route-ledger persistence
+is disabled by default.
