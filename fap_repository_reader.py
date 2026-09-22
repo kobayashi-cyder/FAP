@@ -218,20 +218,33 @@ class RepositoryReader:
                 reasons + ("stale_hash",), "", 0, True,
             )
 
-        raw = _read_prefix(path, budget)
-        try:
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            try:
-                text = raw.decode("utf-8-sig")
-            except UnicodeDecodeError:
+        ranges = _matching_symbol_ranges(rec, tokens)
+        if ranges:
+            excerpt = _read_utf8_line_ranges(
+                path,
+                ranges,
+                budget,
+                rec.path,
+            )
+            if excerpt is None:
                 return SourceSlice(
                     rec.path, rec.language, rec.sha256, score,
                     reasons + ("non_utf8",), "", 0, False,
                 )
-
-        excerpt = _focus_excerpt(text, rec, tokens)
-        excerpt = _truncate_utf8(excerpt, budget)
+        else:
+            raw = _read_prefix(path, budget)
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                try:
+                    text = raw.decode("utf-8-sig")
+                except UnicodeDecodeError:
+                    return SourceSlice(
+                        rec.path, rec.language, rec.sha256, score,
+                        reasons + ("non_utf8",), "", 0, False,
+                    )
+            excerpt = _focus_excerpt(text, rec, ())
+            excerpt = _truncate_utf8(excerpt, budget)
         return SourceSlice(
             path=rec.path,
             language=rec.language,
@@ -254,6 +267,88 @@ def _query_tokens(text: str) -> tuple[str, ...]:
             if key in token:
                 expanded.extend(aliases)
     return tuple(dict.fromkeys(x for x in expanded if len(x) >= 2))
+
+
+def _matching_symbol_ranges(
+    rec: FileRecord,
+    tokens: tuple[str, ...],
+) -> tuple[tuple[int, int], ...]:
+    matching = [
+        sym for sym in rec.symbols
+        if any(
+            token in sym.name.casefold() or token in sym.signature.casefold()
+            for token in tokens
+        )
+    ]
+    if not matching:
+        return ()
+
+    ranges: list[tuple[int, int]] = []
+    for sym in matching[:4]:
+        start = max(0, sym.line - 4)
+        end_line = sym.end_line or sym.line
+        end = max(start + 1, end_line + 3)
+        ranges.append((start, end))
+
+    merged: list[tuple[int, int]] = []
+    for start, end in sorted(ranges):
+        if merged and start <= merged[-1][1] + 2:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return tuple(merged)
+
+
+def _read_utf8_line_ranges(
+    path: Path,
+    ranges: tuple[tuple[int, int], ...],
+    budget: int,
+    label: str,
+) -> str | None:
+    if budget <= 0 or not ranges:
+        return ""
+    parts: list[str] = []
+    used = 0
+    range_index = 0
+    header_added = False
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            for line_index, line in enumerate(fh):
+                while (
+                    range_index < len(ranges)
+                    and line_index >= ranges[range_index][1]
+                ):
+                    range_index += 1
+                    header_added = False
+                if range_index >= len(ranges):
+                    break
+                start, end = ranges[range_index]
+                if line_index < start:
+                    continue
+                if line_index >= end:
+                    continue
+                if not header_added:
+                    header = f"# {label}:L{start + 1}-L{end}\n"
+                    clipped = _take_utf8(header, budget - used)
+                    parts.append(clipped)
+                    used += len(clipped.encode("utf-8"))
+                    header_added = True
+                    if used >= budget:
+                        break
+                clipped = _take_utf8(line, budget - used)
+                parts.append(clipped)
+                used += len(clipped.encode("utf-8"))
+                if used >= budget:
+                    break
+    except UnicodeDecodeError:
+        return None
+    return "".join(parts)
+
+
+def _take_utf8(text: str, limit: int) -> str:
+    if limit <= 0:
+        return ""
+    return _truncate_utf8(text, limit)
 
 
 def _focus_excerpt(text: str, rec: FileRecord, tokens: tuple[str, ...]) -> str:
