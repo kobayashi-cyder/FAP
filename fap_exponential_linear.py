@@ -78,7 +78,7 @@ class InteractionBudget:
         return asdict(self)
 
 
-_TOKEN_RE = re.compile(r"[\\w\\u3040-\\u30ff\\u3400-\\u9fff]+", re.UNICODE)
+_TOKEN_RE = re.compile(r"[\w\u3040-\u30ff\u3400-\u9fff]+", re.UNICODE)
 
 
 def estimate_interaction_demand(
