@@ -3,7 +3,8 @@ from __future__ import annotations
 import inspect
 import unittest
 
-from fap_discourse_context import is_transparent_discourse_turn
+from fap_discourse_context import focus_explicit_correction, is_transparent_discourse_turn
+from fap_inquiry_engine import current_subject_anchor
 from fap_multiturn_consistency_fuzz import generate_multiturn_cases
 import fap_reflective_conversation as reflective_module
 from fap_reflective_conversation import ReflectiveConversationOrgan
@@ -22,6 +23,23 @@ class MultiTurnConsistencyFuzzTests(unittest.TestCase):
         source = inspect.getsource(reflective_module)
         self.assertNotIn("ありがとう", source)
         self.assertNotIn("なるほど", source)
+
+    def test_explicit_correction_focus_is_grammar_level(self):
+        pairs = (
+            ("oldではなくnewについて説明して", "newについて説明して"),
+            ("alphaじゃなくてbetaのほう", "betaのほう"),
+            ("AでなくB", "B"),
+        )
+        for text, expected in pairs:
+            self.assertEqual(focus_explicit_correction(text), expected)
+
+        unchanged = ("波について説明して", "それってどういう意味？")
+        for text in unchanged:
+            self.assertEqual(focus_explicit_correction(text), text)
+
+        anchor = current_subject_anchor("自然対流ではなく波について説明して")
+        self.assertIn("波", anchor)
+        self.assertNotIn("自然対流", anchor)
 
     def test_multiturn_topic_resolution_properties(self):
         counts = {}
