@@ -342,6 +342,17 @@ class FAPV8712(v11.FAPV8711):
             "replan_count": replan_count,
             "adaptive_routing": adaptation,
             "semantic_memory": semantic_stats,
+            "rule_reasoning": {
+                "enabled": bool(result.get("rule_reasoning")),
+                "verified": bool(result.get("rule_verified")),
+                "subject_id": result.get("subject_id"),
+                "relation_id": result.get("relation_id"),
+                "value": result.get("value"),
+                "unit": result.get("unit", ""),
+                "context_source": result.get("context_source", ""),
+                "evidence_ids": result.get("evidence_ids", []),
+                "trace": result.get("rule_trace", []),
+            },
             "derivation": {
                 "enabled": bool(result.get("derivation_reasoning")),
                 "verified": bool(result.get("derivation_verified")),

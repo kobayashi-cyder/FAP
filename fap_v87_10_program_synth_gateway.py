@@ -422,6 +422,12 @@ class VerificationOrgan:
             if result.get("visual_verified"):
                 return "PARTIAL", "画像は生成され実画像検査も行いましたが、要求適合度が目標値に届いていません。"
             return "PARTIAL", "画像生成は成功しましたが、実画像の意味検査器官が未接続のため視覚的一致は未検証です。"
+        if result.get("rule_reasoning"):
+            if not result.get("rule_verified"):
+                return "PARTIAL", "汎用ルール推論は起動しましたが、導出結果を検証できません。"
+            if not result.get("evidence_ids"):
+                return "PARTIAL", "ルール推論の結果は得られましたが、根拠トレースを追跡できません。"
+            return "OK", "文脈から対象を解決し、汎用ルールを再帰適用して根拠トレース付きで回答しています。"
         if result.get("derivation_reasoning"):
             if not result.get("derivation_verified"):
                 return "PARTIAL", "導出経路は起動しましたが、前提式から目標式への記号的含意を検証できません。"
