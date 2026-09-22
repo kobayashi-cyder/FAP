@@ -5,7 +5,7 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Mapping
 
-from fap_discourse_context import is_transparent_discourse_turn
+from fap_discourse_context import focus_explicit_correction, is_transparent_discourse_turn
 
 
 @dataclass(frozen=True)
@@ -229,8 +229,9 @@ class ReflectiveConversationOrgan:
     )
 
     def _rank(self, text: str) -> list[tuple[float, Concept]]:
+        focused = focus_explicit_correction(text)
         return sorted(
-            ((_topic_score(c, text), c) for c in CONCEPTS),
+            ((_topic_score(c, focused), c) for c in CONCEPTS),
             key=lambda x: (-x[0], x[1].concept_id),
         )
 
