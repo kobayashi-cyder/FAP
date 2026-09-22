@@ -1,3 +1,20 @@
+# FAP V87.64 — Multi-Concept Raster + Honest Quality Gate
+
+V87.64 fixes two problems exposed by the Pixel test:
+
+- multi-subject requests are now composed generically from every matched visual
+  concept instead of silently rendering only the first concept;
+- the built-in raster fallback is no longer certified as finished general image
+  generation merely because it produced a valid PNG.
+
+The local raster path now distinguishes structural success from visual quality.
+A normal creative-image request can still return a schematic draft artifact, but
+the verifier marks it PARTIAL unless the user explicitly asked for a schematic,
+diagram, icon, or similarly simple output.
+
+Visual subjects remain declarative data under `knowledge/visual_concepts_ja.jsonl`.
+The renderer contains no subject-specific dog/bird/cat branch.
+
 # FAP V87.63 — Self-Contained Local Raster Image Generation
 
 V87.63 adds a built-in image fallback that works without AUTOMATIC1111, a
@@ -206,7 +223,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.63 — Self-Contained Local Raster Image Generation**.
+Current mainline: **V87.64 — Multi-Concept Raster + Honest Quality Gate**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
