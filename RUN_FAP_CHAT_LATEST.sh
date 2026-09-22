@@ -139,22 +139,83 @@ if [ "$canonical_version" = "$LATEST_VERSION" ]; then
   exit 0
 fi
 
-# The "LATEST" launcher owns FAP gateway processes from this repository.
-# If 11439 is serving an older FAP, stop repository-local gateway processes
-# so the newest version can reclaim the canonical URL instead of silently
-# starting on a different port while the browser remains on the stale server.
+stop_repository_gateways() {
+  "$PY" -S -B - "$ROOT" <<'PY'
+import os
+import re
+import signal
+import sys
+import time
+from pathlib import Path
+
+root = str(Path(sys.argv[1]).resolve())
+me = os.getpid()
+parent = os.getppid()
+pattern = re.compile(r"^fap_v\d+_\d+.*_gateway\.py$")
+
+def matches(pid: int) -> bool:
+    if pid in {me, parent}:
+        return False
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except Exception:
+        return False
+    args = [x.decode("utf-8", "ignore") for x in raw.split(b"\0") if x]
+    for arg in args:
+        try:
+            p = Path(arg)
+            if p.name and pattern.match(p.name) and str(p.resolve()).startswith(root + os.sep):
+                return True
+        except Exception:
+            continue
+    return False
+
+targets = []
+for name in os.listdir("/proc"):
+    if name.isdigit():
+        pid = int(name)
+        if matches(pid):
+            targets.append(pid)
+
+for pid in targets:
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        pass
+
+deadline = time.time() + 2.0
+while time.time() < deadline:
+    alive = [pid for pid in targets if Path(f"/proc/{pid}").exists()]
+    if not alive:
+        break
+    time.sleep(0.05)
+
+for pid in targets:
+    if Path(f"/proc/{pid}").exists():
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except Exception:
+            pass
+
+if targets:
+    print("[INFO] stopped repository FAP gateways:", ",".join(map(str, targets)))
+PY
+}
+
+# The LATEST launcher owns repository-local FAP gateway processes. If the
+# canonical endpoint serves an older version, terminate those old gateway
+# processes by inspecting /proc (not by fragile shell wildcard matching), then
+# wait for 11439 to become reusable.
 if [ -n "$canonical_version" ]; then
   echo "[INFO] Replacing stale FAP on 127.0.0.1:11439 ($canonical_version -> $LATEST_VERSION)"
-  if command -v ps >/dev/null 2>&1; then
-    ps -eo pid=,args= 2>/dev/null | while read -r pid args; do
-      case "$args" in
-        *"$ROOT"/fap_v87_*_gateway.py*)
-          kill "$pid" >/dev/null 2>&1 || true
-          ;;
-      esac
-    done
-  fi
-  sleep 0.4
+  stop_repository_gateways || true
+  i=0
+  while port_in_use 11439 && [ "$i" -lt 30 ]; do
+    i=$((i + 1))
+    sleep 0.1
+  done
 fi
 
 PORT=""
