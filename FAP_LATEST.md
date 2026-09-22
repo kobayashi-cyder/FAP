@@ -1,3 +1,35 @@
+# FAP V87.60 — Current-Turn Relevance Isolation
+
+V87.60 prevents unrelated new questions from borrowing the previous topic simply
+because conversation history contains strong local knowledge matches.
+
+The generic rule is now:
+
+```text
+current user turn establishes the subject
+→ direct local relevance check
+→ conversation context may refine that subject
+→ context may not introduce a subject that had zero current-turn relevance
+→ answer / fail closed
+```
+
+This is implemented in the generic inquiry/retrieval path rather than as a list
+of blocked words, names, characters, or domains.
+
+Persistent goal handling was tightened at the same layer. A polite one-shot
+request is no longer automatically stored as a long-running goal, and failed
+ordinary questions are replanned against an old goal only when the current turn
+explicitly refers back to that goal.
+
+This prevents two broad failure classes:
+- an unknown or unrelated term being answered with material from the previous
+  science/math topic;
+- an unrelated new question being rewritten into an earlier creation or
+  self-description task.
+
+V87.59 semantic conversation routing and all earlier reasoning layers remain
+underneath V87.60.
+
 # FAP V87.59 — Semantic Conversation Generalization
 
 V87.59 fixes ordinary-chat paraphrase failures without adding utterance-specific
@@ -96,7 +128,7 @@ research, media and local fallback paths remain underneath V87.57.
 
 # FAP latest development snapshot
 
-Current mainline: **V87.59 — Semantic Conversation Generalization**.
+Current mainline: **V87.60 — Current-Turn Relevance Isolation**.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
