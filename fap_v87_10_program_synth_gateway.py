@@ -422,6 +422,12 @@ class VerificationOrgan:
             if result.get("visual_verified"):
                 return "PARTIAL", "画像は生成され実画像検査も行いましたが、要求適合度が目標値に届いていません。"
             return "PARTIAL", "画像生成は成功しましたが、実画像の意味検査器官が未接続のため視覚的一致は未検証です。"
+        if result.get("recommendation_reasoning"):
+            if not result.get("recommendation_verified"):
+                return "PARTIAL", "推薦経路は起動しましたが、条件に合う候補を検証できません。"
+            if not result.get("candidate_ids"):
+                return "PARTIAL", "推薦結果は生成されましたが、候補トレースがありません。"
+            return "OK", "推薦条件を文脈から合成し、ローカル候補を順位付けして回答しています。"
         if result.get("rule_reasoning"):
             if not result.get("rule_verified"):
                 return "PARTIAL", "汎用ルール推論は起動しましたが、導出結果を検証できません。"
