@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 import fap_v87_76_session_continuity_gateway as g
-from fap_interaction_fabric import InteractionEndpoint
+from fap_interaction_fabric import InteractionEndpoint, InteractionRequest
 
 
 class V8776SessionGatewayTests(unittest.TestCase):
@@ -18,6 +18,20 @@ class V8776SessionGatewayTests(unittest.TestCase):
         if self.path.exists():
             self.path.unlink()
         self.core.clear_route_continuity(self.sid)
+
+    def test_builtin_repository_inspect_endpoint_dispatches(self):
+        dispatched = self.core.interactions.dispatch(
+            InteractionRequest(
+                "リポジトリを解析して",
+                channel="chat",
+            )
+        )
+        self.assertEqual(
+            dispatched.endpoint_id,
+            "repository_inspect",
+            repr(dispatched.to_dict()),
+        )
+        self.assertEqual(dispatched.state, "handled", repr(dispatched.to_dict()))
 
     def test_existing_session_store_is_reused_with_adaptive_context(self):
         first = self.core.chat("リポジトリを解析して", self.sid)
