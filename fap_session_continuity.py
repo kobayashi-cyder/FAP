@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
+import re
+from threading import RLock
 from typing import Any, Mapping, Sequence
 
 from fap_exponential_linear import (
@@ -13,6 +15,7 @@ from fap_exponential_linear import (
 
 
 _ALLOWED_ROLES = frozenset({"user", "assistant", "system", "tool"})
+_SAFE_ID = re.compile(r"^[0-9A-Za-z_.:-]{1,128}$")
 
 
 @dataclass(frozen=True)
@@ -174,6 +177,7 @@ class SessionRouteLedger:
         self.max_sessions = int(max_sessions)
         self.max_events_per_session = int(max_events_per_session)
         self._rows: OrderedDict[str, list[RouteContinuityEvent]] = OrderedDict()
+        self._lock = RLock()
 
     def record(
         self,
@@ -192,33 +196,36 @@ class SessionRouteLedger:
             if isinstance(tag, str) and str(tag).strip()
         )[:32]
 
-        rows = self._rows.pop(sid, [])
-        rows.append(
-            RouteContinuityEvent(
-                endpoint_id=endpoint,
-                state=state_value,
-                route_tags=tags,
+        with self._lock:
+            rows = self._rows.pop(sid, [])
+            rows.append(
+                RouteContinuityEvent(
+                    endpoint_id=endpoint,
+                    state=state_value,
+                    route_tags=tags,
+                )
             )
-        )
-        self._rows[sid] = rows[-self.max_events_per_session :]
-        while len(self._rows) > self.max_sessions:
-            self._rows.popitem(last=False)
+            self._rows[sid] = rows[-self.max_events_per_session :]
+            while len(self._rows) > self.max_sessions:
+                self._rows.popitem(last=False)
 
     def snapshot(self, session_id: str) -> RouteContinuitySnapshot:
         sid = self._safe_id(session_id, 80, "session_id")
-        rows = self._rows.pop(sid, [])
-        self._rows[sid] = rows
-        return RouteContinuitySnapshot(sid, tuple(rows))
+        with self._lock:
+            rows = self._rows.pop(sid, [])
+            self._rows[sid] = rows
+            return RouteContinuitySnapshot(sid, tuple(rows))
 
     def clear(self, session_id: str) -> None:
         sid = self._safe_id(session_id, 80, "session_id")
-        self._rows.pop(sid, None)
+        with self._lock:
+            self._rows.pop(sid, None)
 
     @staticmethod
     def _safe_id(value: str, limit: int, name: str) -> str:
         text = str(value or "").strip()
         if not text or len(text) > limit:
             raise ValueError(f"{name} is empty or oversized")
-        if any(not (ch.isalnum() or ch in "_.:-") for ch in text):
+        if not _SAFE_ID.fullmatch(text):
             raise ValueError(f"{name} contains unsupported characters")
         return text
