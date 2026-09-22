@@ -220,7 +220,7 @@ Promotion remains separate:
 
 # FAP V87.71 FCA Repository Evidence Capsule
 
-Status: CANDIDATE on `feature/v87-71-fca-repository-evidence`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #93 after Python 3.11/3.12 verification.
 
 V87.71 exports verified repository-coding evidence through the existing `fca-fap.exchange.v1` schema without exporting executable code or edit payloads.
 
