@@ -9,6 +9,7 @@ from typing import Mapping
 
 from fap_knowledge_retrieval import RepositoryKnowledgeIndex, RetrievalHit, sentences, terms
 from fap_epistemic_learning import EpistemicLedger, QuestionValueScorer
+from fap_reflective_conversation import is_context_only_followup
 
 
 QUESTION_CUES = re.compile(r"[？?]|(なぜ|どうして|どう|何|教えて|説明|について|とは|できますか|できる)")
@@ -496,6 +497,12 @@ class InquiryEngine:
     def run(self, text: str, history: list[Mapping]) -> dict | None:
         t = str(text or "").strip()
         if len(t) < 2:
+            return None
+
+        # Subjectless conversational clarification belongs to the reflective
+        # context resolver. Mass inquiry should not turn a short follow-up into
+        # a 256-question audit merely because history contains a known topic.
+        if is_context_only_followup(t):
             return None
 
         context = self.index.context_from_history(history)
