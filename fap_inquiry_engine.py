@@ -16,6 +16,33 @@ AUDIT_CUES = re.compile(r"(疑問|質問を出|問いを出|問い出し|問い�
 CURRENT_CUES = re.compile(r"(最新|現在|リアルタイム|今日|明日|今週|今月|今年|現在地|何号|\d+号|いつ上陸|今どこ)", re.I)
 COUNT_CUES = re.compile(r"(\d{1,3})\s*(?:問|件)")
 
+QUERY_FRAME = re.compile(
+    r"(?:の)?(?:意味|定義)(?:を)?(?:教えて|説明して)?(?:ください|下さい)?|"
+    r"(?:について|に関して)(?:教えて|説明して)?(?:ください|下さい)?|"
+    r"(?:とは|って)(?:何|なん)(?:ですか|でしょうか)?|"
+    r"(?:教えて|説明して)(?:ください|下さい)?|"
+    r"(?:できますか|できる[？?]?|可能ですか)|"
+    r"(?:してください|して下さい|お願いします)",
+    re.I,
+)
+
+
+def current_subject_anchor(text: str) -> str:
+    """Strip generic question/request framing before knowledge retrieval.
+
+    This is language-level parsing, not a topic whitelist. The returned anchor
+    keeps the user's candidate subject while removing phrases that otherwise
+    create accidental n-gram overlap with unrelated knowledge chunks.
+    """
+    value = str(text or "").strip()
+    if not value:
+        return ""
+    value = QUERY_FRAME.sub(" ", value)
+    value = re.sub(r"(?:という|と呼ばれる)\s*(?:語|言葉|名前)?", " ", value)
+    value = re.sub(r"[？?！!。．、,:：;；()（）\[\]{}「」『』]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
 CUES = {
     "known": re.compile(r"(である|です|は、|とは|known|is )", re.I),
     "definition": re.compile(r"(とは|定義|意味|である|is |means|defined)", re.I),
@@ -474,10 +501,11 @@ class InquiryEngine:
         context = self.index.context_from_history(history)
 
         # Ground the topic in the CURRENT turn before conversation context can
-        # influence retrieval. Otherwise a completely unrelated short question
-        # can inherit high-scoring science chunks from the previous discussion
-        # and produce a fluent but irrelevant answer.
-        direct_hits = self.index.search(t, "", 12)
+        # influence retrieval. Strip generic request phrasing first so words
+        # such as "meaning", "explain", or polite endings cannot accidentally
+        # match unrelated knowledge.
+        anchor = current_subject_anchor(t)
+        direct_hits = self.index.search(anchor, "", 12) if len(anchor) >= 2 else []
         contextual_reference = bool(
             re.search(r"(これ|それ|その話|この話|この件|続き|前の話|さっきの)", t, re.I)
         )
@@ -491,7 +519,7 @@ class InquiryEngine:
             # Context may refine ranking, but it is not allowed to introduce a
             # new subject that had zero relevance to the user's current words.
             direct_ids = {hit.chunk.chunk_id for hit in direct_hits}
-            contextual_hits = self.index.search(t, context, 12)
+            contextual_hits = self.index.search(anchor, context, 12)
             reranked = [hit for hit in contextual_hits if hit.chunk.chunk_id in direct_ids]
             seen = {hit.chunk.chunk_id for hit in reranked}
             reranked.extend(hit for hit in direct_hits if hit.chunk.chunk_id not in seen)
