@@ -167,12 +167,22 @@ class RepositoryCodingCoordinator:
             max_repairs=self.max_repairs,
         )
         command_tuple = tuple(commands)
-        repair = loop.run(
-            plan,
-            initial_edits,
-            command_tuple,
-            repairer=tracked_repairer if repairer is not None else None,
-        )
+        try:
+            repair = loop.run(
+                plan,
+                initial_edits,
+                command_tuple,
+                repairer=tracked_repairer if repairer is not None else None,
+            )
+        except Exception as exc:
+            return self._reject(
+                goal,
+                plan,
+                context,
+                None,
+                latest_edits,
+                (f"execution_pipeline_failed:{type(exc).__name__}:{exc}",),
+            )
         state = (
             "verified_candidate"
             if repair.state == "verified_candidate"
