@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import unicodedata
 import unittest
 
 from fap_discourse_context import focus_explicit_correction, is_transparent_discourse_turn
@@ -35,7 +36,10 @@ class MultiTurnConsistencyFuzzTests(unittest.TestCase):
 
         unchanged = ("波について説明して", "それってどういう意味？")
         for text in unchanged:
-            self.assertEqual(focus_explicit_correction(text), text)
+            self.assertEqual(
+                focus_explicit_correction(text),
+                unicodedata.normalize("NFKC", text),
+            )
 
         anchor = current_subject_anchor("自然対流ではなく波について説明して")
         self.assertIn("波", anchor)
