@@ -168,63 +168,6 @@ class FAPV8775Unified(v74.FAPV8774Unified):
             ],
         }
 
-    def interaction_request_metadata(
-        self,
-        intent,
-        text: str,
-        history: list[dict],
-    ) -> dict:
-        return {"intent": intent}
-
-    def interaction_pressure_hint(
-        self,
-        intent,
-        text: str,
-        history: list[dict],
-    ) -> float:
-        return 0.0
-
-    def route(self, intent, text: str, history: list[dict]) -> dict:
-        request = v74.v73.InteractionRequest(
-            text=text,
-            history=tuple(history or ()),
-            channel="chat",
-            pressure_hint=self.interaction_pressure_hint(
-                intent,
-                text,
-                history,
-            ),
-            metadata=self.interaction_request_metadata(
-                intent,
-                text,
-                history,
-            ),
-        )
-        dispatched = self.interactions.dispatch(request)
-        if dispatched.state == "handled" and dispatched.payload is not None:
-            result = dict(dispatched.payload)
-            result["interaction_dispatch"] = {
-                "contract": dispatched.contract,
-                "endpoint_id": dispatched.endpoint_id,
-                "demand": dispatched.demand.value,
-                "scale": dispatched.budget.scale,
-                "route_candidates": dispatched.budget.route_candidates,
-                "attempts": [
-                    {
-                        "endpoint_id": attempt.endpoint_id,
-                        "state": attempt.state,
-                        "reason": attempt.reason,
-                    }
-                    for attempt in dispatched.attempts
-                ],
-            }
-            return result
-        return super(v74.v73.FAPV8773Unified, self).route(
-            intent,
-            text,
-            history,
-        )
-
     def capabilities(self):
         caps = super().capabilities()
         for item in [
