@@ -255,8 +255,8 @@ class InteractionFabric:
     def _empty_dispatch(self, request: InteractionRequest, reason: str) -> InteractionDispatch:
         demand = estimate_interaction_demand(
             str(request.text or ""),
-            history_turns=len(request.history),
-            pressure_hint=request.pressure_hint,
+            history_turns=_history_turns(request.history),
+            pressure_hint=_safe_pressure_hint(request.pressure_hint),
         )
         budget = budget_for_demand(demand, policy=self.policy)
         return InteractionDispatch(
