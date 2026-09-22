@@ -52,7 +52,7 @@ class SemanticActionRoutingTests(unittest.TestCase):
                 "image_orchestrated": True,
                 "visual_verified": True,
                 "image_score": 0.95,
-                "artifacts": ["test.png"],
+                "artifacts": [{"name": "test.png", "path": "test.png"}],
             }
 
         core.image.run_generate = fake_generate
