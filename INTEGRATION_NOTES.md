@@ -266,3 +266,47 @@ FAP does not import FCA and FCA does not import FAP.
 A host application may inject this callable into FCA's `RepositoryCodingHostBinding`. FCA remains responsible for connectome-first selection and exchange-evidence gating; FAP remains responsible for sandboxed repository coding and verification.
 
 The injected proposal/repair providers are trusted host components. Their declarative edits remain constrained by the V87.66-V87.70 planner/executor/verifier stack.
+
+
+# FAP V87.73 Exponential-Linear Interaction Fabric
+
+Status: CANDIDATE on `feature/v87-73-exponential-linear-fabric`.
+
+V87.73 keeps FAP standalone while generalizing chat and repository coding behind
+one bounded interaction contract.
+
+## Added
+
+- `fap_exponential_linear.py`
+  - C1-continuous exponential-to-tangent-linear scale;
+  - hard maximum scale;
+  - generic structural demand estimator;
+  - shared bounded interaction budgets.
+
+- `fap_interaction_fabric.py`
+  - dynamic endpoint registration;
+  - channel isolation;
+  - scored provider-neutral routing;
+  - bounded candidate breadth;
+  - sanitized probe/handler failure reporting;
+  - no topic-specific routing branches.
+
+- `fap_repository_interaction.py`
+  - mounts V87.66-V87.72 repository coding as a fabric endpoint;
+  - per-request adaptive max-files/source-bytes/repair budgets;
+  - source/main remain unchanged because existing worktree verification is reused;
+  - scorer is injected rather than hardcoded.
+
+- `fap_v87_73_exponential_linear_gateway.py`
+  - existing V87.64 chat remains the mandatory standalone fallback;
+  - arbitrary future endpoints can be registered without editing the main route;
+  - FCA is optional and not imported.
+
+## Hard limits
+
+Adaptive expansion is bounded at 32 route candidates, 250k context characters,
+1MB repository source context, 96 reasoning steps, 4 repair rounds and 120k
+output characters.
+
+This release does not weaken the V87.69 explicit promotion gate and does not add
+automatic branch merge/main promotion.

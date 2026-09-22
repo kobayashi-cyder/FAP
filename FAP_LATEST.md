@@ -1,3 +1,33 @@
+# FAP V87.73 — Exponential-Linear Interaction Fabric
+
+V87.73 generalizes chat and repository coding behind one provider-neutral
+interaction fabric while keeping FAP fully standalone.
+
+The shared capacity law is exponential-linear:
+
+```text
+scale(x) = exp(alpha*x)                                  x <= knee
+         = exp(alpha*knee) * (1 + alpha*(x-knee))       x > knee
+```
+
+The linear branch is the tangent of the exponential at the knee, so value and
+first derivative are continuous. Every budget still has a hard cap.
+
+Generic request structure—not subject-specific vocabulary—produces a normalized
+demand value from request size, token/diversity structure, line structure,
+conversation depth and an explicit pressure hint. That demand expands bounded
+routing breadth, context, source bytes, reasoning steps, output size and repair
+depth.
+
+The new `InteractionFabric` supports dynamically registered endpoints for chat,
+coding or future capabilities. V87.73 mounts the existing V87.64 chat stack as a
+low-priority fallback, so FAP still works normally with no external connector.
+
+Repository coding can be mounted through `RepositoryCodingInteraction`. The
+same exponential-linear budget controls repository context breadth and bounded
+repair depth, while the existing V87.66-V87.72 worktree/verification boundaries
+remain unchanged. FCA is optional and is not imported or required.
+
 # FAP V87.64 — Multi-Concept Raster + Honest Quality Gate
 
 V87.64 fixes two problems exposed by the Pixel test:
