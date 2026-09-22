@@ -144,7 +144,7 @@ CONCEPTS: tuple[Concept, ...] = (
 def _norm(text: str) -> str:
     value = unicodedata.normalize("NFKC", str(text or "")).casefold()
     return re.sub(
-        r"[\s\-‐-–—_・･、。，．,:：;；!?！？'\"「」『』()（）\[\]{}]+",
+        r"[\s\-‐-–—_/／\\|｜・･、。，．,:：;；!?！？'\"「」『』()（）\[\]{}]+",
         "",
         value,
     )
