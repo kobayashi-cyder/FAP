@@ -51,6 +51,14 @@ def _nonnegative_int(value: object, default: int = 1) -> int:
         return max(0, int(default))
 
 
+def _safe_int(value: object, default: int = 0) -> int:
+    """Render runtime counters defensively when status data is partial or malformed."""
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return int(default)
+
+
 class SemanticConversationRouter:
     """Small data-driven semantic intent router for ordinary conversation.
 
@@ -201,13 +209,13 @@ class RuntimeSelfProfile:
         rule = status.get("generic_rule_reasoner") if isinstance(status, Mapping) else None
         if isinstance(rule, Mapping):
             lines.append(
-                f"- 汎用ルール推論: entities={int(rule.get('entities', 0))}, "
-                f"relations={int(rule.get('relations', 0))}, rules={int(rule.get('rules', 0))}"
+                f"- 汎用ルール推論: entities={_safe_int(rule.get('entities', 0))}, "
+                f"relations={_safe_int(rule.get('relations', 0))}, rules={_safe_int(rule.get('rules', 0))}"
             )
 
         derivation = status.get("generic_derivation") if isinstance(status, Mapping) else None
         if isinstance(derivation, Mapping):
-            lines.append(f"- 汎用記号導出: records={int(derivation.get('records', 0))}")
+            lines.append(f"- 汎用記号導出: records={_safe_int(derivation.get('records', 0))}")
 
         return "\n".join(lines)
 
