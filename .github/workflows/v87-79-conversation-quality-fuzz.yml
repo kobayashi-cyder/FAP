@@ -11,6 +11,9 @@ on:
       - "fap_inquiry_engine.py"
       - "tests/test_fap_conversation_quality.py"
       - "fap_v87_78_conversation_fuzz_gateway.py"
+      - "fap_v87_79_conversation_quality_gateway.py"
+      - "RUN_FAP_CHAT_LATEST.*"
+      - "FAP_LATEST.md"
       - ".github/workflows/v87-79-conversation-quality-fuzz.yml"
   pull_request:
     paths:
@@ -19,6 +22,9 @@ on:
       - "fap_inquiry_engine.py"
       - "tests/test_fap_conversation_quality.py"
       - "fap_v87_78_conversation_fuzz_gateway.py"
+      - "fap_v87_79_conversation_quality_gateway.py"
+      - "RUN_FAP_CHAT_LATEST.*"
+      - "FAP_LATEST.md"
       - ".github/workflows/v87-79-conversation-quality-fuzz.yml"
 
 jobs:
@@ -38,7 +44,8 @@ jobs:
             fap_conversation_quality_fuzz.py \
             fap_reflective_conversation.py \
             fap_inquiry_engine.py \
-            fap_v87_78_conversation_fuzz_gateway.py
+            fap_v87_78_conversation_fuzz_gateway.py \
+            fap_v87_79_conversation_quality_gateway.py
       - name: Run semantic quality fuzz
         run: python -m unittest tests.test_fap_conversation_quality -v
       - name: Run conversation regressions
@@ -46,3 +53,17 @@ jobs:
           python -m unittest tests.test_relevance_isolation -v
           python -m unittest tests.test_semantic_conversation -v
           python -m unittest tests.test_v87_78_conversation_fuzz_gateway -v
+
+      - name: Smoke V87.79 latest gateway
+        run: |
+          python - <<'PY'
+          import fap_v87_79_conversation_quality_gateway as g
+          status = g.CORE.chat_status()
+          assert status.get("version") == "87.79-unified-chat", status
+          full = g.CORE.status()
+          quality = full.get("conversation_quality_hardening") or {}
+          assert quality.get("enabled") is True, quality
+          assert quality.get("explicit_subject_history_hijack_blocked") is True, quality
+          assert quality.get("user_stated_topic_priority") is True, quality
+          assert quality.get("utterance_specific_branches_added") is False, quality
+          PY
