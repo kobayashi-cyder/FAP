@@ -25,6 +25,7 @@ class InteractionRequest:
     history: tuple[Mapping[str, Any], ...] = ()
     channel: str = "chat"
     pressure_hint: float = 0.0
+    metadata: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
