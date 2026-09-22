@@ -1,3 +1,29 @@
+# FAP V87.78 — Randomized Conversation Fuzz Hardening
+
+V87.78 stress-tests ordinary FAP conversation boundaries with a deterministic
+seeded corpus instead of adding utterance-specific fixes.
+
+The corpus generator reads aliases from the repository's declarative knowledge
+files and mixes them with randomized Unicode, punctuation, empty/long input,
+multi-turn history, malformed history containers, invalid or non-finite pressure
+hints, and non-finite metadata. The test oracle checks generic invariants:
+conversation routing must not raise, context remains bounded, dispatch remains
+well-formed, and outputs remain strict-JSON serializable.
+
+The first fuzz run exposed 853 boundary errors across 1,024 cases. Generic
+normalization reduced that to 424, and the final shared-boundary fix reduced it
+to zero on both Python 3.11 and 3.12.
+
+Runtime hardening is generic:
+- Interaction Fabric safely counts malformed or missing history instead of
+  calling `len()` blindly;
+- pressure hints are converted to a finite bounded value before demand
+  estimation;
+- Adaptive Session Context treats malformed history containers as empty or a
+  single mapping rather than raising;
+- non-finite session metadata is dropped before it can produce invalid JSON;
+- no generated utterance is hard-coded into routing or response logic.
+
 # FAP V87.77 — Repository Context Precision
 
 V87.77 tightens repository-scale coding while preserving the V87.66-V87.76
