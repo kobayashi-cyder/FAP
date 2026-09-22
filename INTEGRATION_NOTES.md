@@ -106,7 +106,7 @@ The existing `fap_code_generator.py` remains unchanged.
 
 # FAP V87.67 Worktree Patch Executor
 
-Status: CANDIDATE on `feature/v87-67-worktree-patch-executor`.
+Status: PROMOTED TO MAIN on 2026-09-22 via PR #89 after Python 3.11/3.12 verification.
 
 V87.67 introduces the first repository write capability, but only inside a detached temporary Git worktree. The source working tree and main branch are never edited by the executor.
 
@@ -129,3 +129,37 @@ V87.67 introduces the first repository write capability, but only inside a detac
 V87.67 does not run project tests, repair failing patches, commit candidate changes, create branches, push, merge, or promote anything.
 
 The next stage is V87.68: verification and bounded repair over an open V87.67 sandbox session.
+
+
+# FAP V87.68 Verification + Bounded Repair
+
+Status: CANDIDATE on `feature/v87-68-verification-repair-loop`.
+
+V87.68 separates candidate verification from patch application and adds a bounded retry controller.
+
+## Added
+
+- `fap_repository_verifier.py`
+  - internal Python `compile()` syntax validation without importing project modules;
+  - explicit focused/regression argv commands with `shell=False`;
+  - executable allowlist, command count limit, timeout limit and output cap;
+  - minimal verification environment without inherited token/secret variables by default;
+  - source working-tree status/digest checks before and after verification;
+  - rejection of unexpected modified or untracked sandbox files;
+  - deterministic verification states ending in `verified_candidate`.
+
+- `BoundedRepairLoop`
+  - each retry starts from a fresh detached V87.67 worktree;
+  - failing execution/verification evidence is passed to an external repair proposal provider;
+  - repair count is hard-bounded (default 2, maximum 4);
+  - no candidate is committed or promoted automatically.
+
+## Verification state
+
+`applied_in_sandbox -> static_pass -> focused_test_pass -> regression_pass -> verified_candidate`
+
+Any missing required check, syntax failure, required command failure, timeout, output overflow, sandbox contamination or source-tree mutation rejects the candidate.
+
+## Explicit boundary
+
+V87.68 still has no branch creation, commit, push, PR, merge or main-promotion capability. V87.69 may consume only `verified_candidate` evidence for an explicit promotion gate.
