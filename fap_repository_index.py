@@ -128,23 +128,24 @@ class RepositoryIndexer:
                     yield path
 
     def _scan_file(self, path: Path) -> FileRecord:
-        raw = path.read_bytes()
         rel = self._relative(path)
-        digest = sha256(raw).hexdigest()
+        size = path.stat().st_size
+        digest = _sha256_file(path)
         lang = _language_for(path)
-        if len(raw) > self.max_file_bytes:
+        if size > self.max_file_bytes:
             return FileRecord(
                 path=rel,
-                size=len(raw),
+                size=size,
                 sha256=digest,
                 language=lang,
                 parse_status="skipped:size_limit",
             )
 
+        raw = path.read_bytes()
         if path.suffix.lower() != ".py":
             return FileRecord(
                 path=rel,
-                size=len(raw),
+                size=size,
                 sha256=digest,
                 language=lang,
                 parse_status="text",
@@ -159,17 +160,17 @@ class RepositoryIndexer:
         except SyntaxError as exc:
             return FileRecord(
                 path=rel,
-                size=len(raw),
+                size=size,
                 sha256=digest,
                 language=lang,
                 parse_status=f"syntax_error:{exc.lineno or 0}",
             )
 
         symbols = tuple(_extract_python_symbols(tree, rel))
-        imports = tuple(sorted(set(_extract_python_imports(tree))))
+        imports = tuple(sorted(set(_extract_python_imports(tree, rel))))
         return FileRecord(
             path=rel,
-            size=len(raw),
+            size=size,
             sha256=digest,
             language=lang,
             parse_status="parsed",
@@ -221,15 +222,47 @@ def _language_for(path: Path) -> str:
     }.get(path.suffix.lower(), "text")
 
 
-def _extract_python_imports(tree: ast.AST) -> list[str]:
+def _extract_python_imports(tree: ast.AST, path: str) -> list[str]:
     found: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             found.extend(alias.name for alias in node.names)
         elif isinstance(node, ast.ImportFrom):
-            if node.level == 0 and node.module:
-                found.append(node.module)
+            base = _resolve_import_from(path, node.level, node.module)
+            if base:
+                found.append(base)
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                if base:
+                    found.append(f"{base}.{alias.name}")
+                elif node.level == 0 and not node.module:
+                    found.append(alias.name)
     return found
+
+
+def _resolve_import_from(path: str, level: int, module: str | None) -> str:
+    if level == 0:
+        return str(module or "")
+    package = path[:-3].replace("\\", ".").split(".")[:-1]
+    ascend = level - 1
+    if ascend > len(package):
+        return ""
+    base = package[: len(package) - ascend] if ascend else package
+    if module:
+        base.extend(str(module).split("."))
+    return ".".join(x for x in base if x)
+
+
+def _sha256_file(path: Path, chunk_size: int = 128 * 1024) -> str:
+    h = sha256()
+    with path.open("rb") as fh:
+        while True:
+            chunk = fh.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _extract_python_symbols(tree: ast.AST, path: str) -> list[SymbolRecord]:
