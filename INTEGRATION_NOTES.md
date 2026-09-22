@@ -102,3 +102,30 @@ The next stage may add a sandbox/worktree executor, but it must consume V87.66 p
 8. explicit promotion decision.
 
 The existing `fap_code_generator.py` remains unchanged.
+
+
+# FAP V87.67 Worktree Patch Executor
+
+Status: CANDIDATE on `feature/v87-67-worktree-patch-executor`.
+
+V87.67 introduces the first repository write capability, but only inside a detached temporary Git worktree. The source working tree and main branch are never edited by the executor.
+
+## Added
+
+- `fap_repository_executor.py`
+  - consumes `fap.repository.plan.v1`;
+  - rejects stale repository digests and stale per-file SHA-256 values;
+  - creates a detached temporary worktree from the current HEAD;
+  - allows only planned create/modify/delete operations;
+  - rejects absolute paths, traversal, `.git`, symlink path components and unplanned files;
+  - applies bounded UTF-8 edits only inside the worktree;
+  - exposes created files through intent-to-add so they are included in diff validation;
+  - runs `git diff --check`;
+  - returns a bounded structured diff/report;
+  - always removes one-shot worktrees.
+
+## Explicit boundary
+
+V87.67 does not run project tests, repair failing patches, commit candidate changes, create branches, push, merge, or promote anything.
+
+The next stage is V87.68: verification and bounded repair over an open V87.67 sandbox session.
