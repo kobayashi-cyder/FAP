@@ -36,6 +36,7 @@ class MultiTurnCase:
     history: tuple[dict, ...]
     expected_topic_id: str = ""
     expect_resolved: bool = False
+    expect_followup: bool = False
 
 
 def _unknown_token(rng: random.Random) -> str:
@@ -70,6 +71,7 @@ def generate_multiturn_cases(*, seed: int, rounds: int = 32) -> Iterable[MultiTu
                 history=tuple(history),
                 expected_topic_id=latest.concept_id,
                 expect_resolved=True,
+                expect_followup=True,
             )
         )
 
@@ -103,6 +105,7 @@ def generate_multiturn_cases(*, seed: int, rounds: int = 32) -> Iterable[MultiTu
                 history=tuple(_history_exchange(correction_old)),
                 expected_topic_id=correction_new.concept_id,
                 expect_resolved=True,
+                expect_followup=False,
             )
         )
 
@@ -117,6 +120,7 @@ def generate_multiturn_cases(*, seed: int, rounds: int = 32) -> Iterable[MultiTu
                 history=tuple(corrected_history),
                 expected_topic_id=correction_new.concept_id,
                 expect_resolved=True,
+                expect_followup=True,
             )
         )
 
@@ -131,6 +135,7 @@ def generate_multiturn_cases(*, seed: int, rounds: int = 32) -> Iterable[MultiTu
                 history=tuple(ack_history),
                 expected_topic_id=old.concept_id,
                 expect_resolved=True,
+                expect_followup=True,
             )
         )
 
