@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fap_inquiry_engine import InquiryEngine
 from fap_sol_gap_controller import PersistentGoalState
+from fap_v87_60_relevance_isolation_gateway import FAPV8760Unified
 
 
 class RelevanceIsolationTests(unittest.TestCase):
@@ -40,6 +41,17 @@ class RelevanceIsolationTests(unittest.TestCase):
             store = PersistentGoalState(Path(td))
             state = store.update("s", "この推論器を改善して完成させてください。")
             self.assertIn("改善", state["open_goal"])
+
+    def test_unrelated_unknown_turn_does_not_become_previous_science_answer_end_to_end(self):
+        core = FAPV8760Unified()
+        sid = "v8760-relevance-e2e"
+        first = core.chat("大気の運動について説明して", sid)
+        self.assertIn(first["verdict"], {"OK", "PARTIAL"})
+        second = core.chat("zxqvblorfという語の意味を教えてください", sid)
+        self.assertEqual(second["verdict"], "PARTIAL")
+        self.assertNotIn("エントロピー", second["reply"])
+        self.assertNotIn("コリオリ", second["reply"])
+        self.assertNotIn("私はFAPです", second["reply"])
 
 
 if __name__ == "__main__":
