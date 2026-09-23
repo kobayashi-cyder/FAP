@@ -82,4 +82,9 @@ class RepositoryTransactionBuilder:
 
     @staticmethod
     def equivalent(left: RepositoryEditTransaction, right: RepositoryEditTransaction) -> bool:
-        return left.plan_id == right.plan_id and left.digest == right.digest and left.members == right.members
+        return (
+            left.version == right.version
+            and left.plan_id == right.plan_id
+            and left.digest == right.digest
+            and left.members == right.members
+        )
