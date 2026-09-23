@@ -15,6 +15,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import fap_v87_81_coding_conversation_gateway as gateway
+from fap_pdf_document import PDFDocumentIngestor
+from fap_information_reasoner import InformationFundamentalsReasoner
 
 PDF_URL = "https://www.dnc.ac.jp/albums/abm.php?d=2144&f=abm00017564.pdf&n=2026_ol_27_joho1.pdf"
 
@@ -103,18 +105,20 @@ def main() -> None:
         pdf = Path(td) / "info1.pdf"
         download_pdf(pdf)
         core = gateway.FAPV8781Unified()
+        document = PDFDocumentIngestor(render_images=False).read(pdf)
+        info_reasoner = InformationFundamentalsReasoner()
+        print("pdf_pages:", document.page_count)
         for idx, section in enumerate(SECTIONS, start=1):
-            body = extract_pages(pdf, *section["pages"])
+            body = document.text_for_pages(*section["pages"])
             prompt = prompt_for(section, body)
+            deterministic, rule_evidence = info_reasoner.solve(body)
             response = core.chat(prompt, "common-test-2026-info1-" + str(idx))
             reply = str(response.get("reply") or "")
-            try:
-                distilled_probe = core.distilled.run(prompt, [])
-                print("distilled_probe:", str(distilled_probe.get("reply") or "")[:1200].replace("\n"," "))
-            except Exception as exc:
-                print("distilled_probe_error:", type(exc).__name__)
             pred = parse_answer(reply)
+            pred.update(deterministic)
             score, details = score_section(section, pred)
+            print("rule_answers:", json.dumps(deterministic, ensure_ascii=False))
+            print("rule_evidence:", json.dumps([e.__dict__ for e in rule_evidence], ensure_ascii=False))
             total += score
             results.append({
                 "section":section["name"],"score":score,"max_score":section["points"],
@@ -127,7 +131,7 @@ def main() -> None:
         "benchmark":"2026 Common Test Information I",
         "fap_version":gateway.VERSION,
         "score":total,"max_score":100,"percent":total,
-        "input_mode":"official PDF text extracted by pdftotext -layout; figures are not raster-vision inputs",
+        "input_mode":"FAP PDFDocumentIngestor page-aware local PDF ingestion; page images are supported but not yet used by the answer reasoner",
         "source_pdf":PDF_URL,"sections":results
     }
     (out_dir/"common_test_2026_info1.json").write_text(
@@ -137,7 +141,7 @@ def main() -> None:
         "# FAP 2026 Common Test - Information I","",
         "- FAP: " + gateway.VERSION,
         "- Score: **" + str(total) + "/100**",
-        "- Input mode: official PDF text extraction (pdftotext -layout); raster figures are not supplied to vision.","",
+        "- Input mode: FAP PDFDocumentIngestor (page-aware local PDF ingestion).","",
         "| Section | Score |","|---|---:|"
     ]
     for row in results:
