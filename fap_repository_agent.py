@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
+import sys
 from typing import Callable, Iterable
 
 from fap_repository_contracts import (
@@ -17,6 +18,7 @@ from fap_repository_promotion import (
 )
 from fap_repository_reader import RepositoryReadContext
 from fap_repository_repair_guard import GuardedRepairProvider
+from fap_repository_security_policy import RepositorySecurityPolicy
 from fap_repository_verifier import (
     BoundedRepairLoop,
     CandidateAttempt,
@@ -76,6 +78,7 @@ class RepositoryCodingCoordinator:
         planner: RepositoryPlanner | None = None,
         executor: RepositoryPatchExecutor | None = None,
         verifier: RepositoryVerifier | None = None,
+        security_policy: RepositorySecurityPolicy | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         self.planner = planner or RepositoryPlanner(
@@ -88,6 +91,13 @@ class RepositoryCodingCoordinator:
             max_files=max_files,
         )
         self.verifier = verifier or RepositoryVerifier()
+        self.security_policy = security_policy or RepositorySecurityPolicy(
+            allowed_executables=self.verifier.allowed_executables,
+            allowed_executable_paths=(sys.executable,),
+            max_files=max_files,
+            max_commands=self.verifier.max_commands,
+            max_timeout_sec=self.verifier.max_timeout_sec,
+        )
         self.max_repairs = int(max_repairs)
         if not 0 <= self.max_repairs <= 4:
             raise ValueError("max_repairs must be in [0, 4]")
@@ -151,7 +161,24 @@ class RepositoryCodingCoordinator:
                 ("proposal_provider_returned_no_edits",),
             )
 
+        command_tuple = tuple(commands)
+        preflight = self.security_policy.audit(
+            plan=plan,
+            edits=initial_edits,
+            commands=command_tuple,
+        )
+        if not preflight.allowed:
+            return self._reject(
+                goal,
+                plan,
+                context,
+                None,
+                initial_edits,
+                _security_errors(preflight),
+            )
+
         latest_edits = initial_edits
+        repair_security_errors: tuple[str, ...] = ()
         guarded_repairer: GuardedRepairProvider | None = None
         if repairer is not None:
             guarded_repairer = GuardedRepairProvider(
@@ -172,6 +199,14 @@ class RepositoryCodingCoordinator:
             next_edits = tuple(proposal)
             if not next_edits:
                 return ()
+            repair_preflight = self.security_policy.audit(
+                plan=plan,
+                edits=next_edits,
+                commands=command_tuple,
+            )
+            if not repair_preflight.allowed:
+                repair_security_errors = _security_errors(repair_preflight)
+                return ()
             latest_edits = next_edits
             return next_edits
 
@@ -180,7 +215,6 @@ class RepositoryCodingCoordinator:
             self.verifier,
             max_repairs=self.max_repairs,
         )
-        command_tuple = tuple(commands)
         try:
             repair = loop.run(
                 plan,
@@ -203,6 +237,8 @@ class RepositoryCodingCoordinator:
             else "rejected"
         )
         errors = () if state == "verified_candidate" else tuple(repair.errors)
+        if state != "verified_candidate" and repair_security_errors:
+            errors = tuple(dict.fromkeys(errors + repair_security_errors))
         return RepositoryCodingResult(
             version=CODING_RESULT_VERSION,
             goal=goal,
@@ -275,3 +311,13 @@ class RepositoryCodingCoordinator:
             final_edits=final_edits,
             errors=errors,
         )
+
+
+def _security_errors(report) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            f"security_policy:{finding.code}"
+            for finding in report.findings
+            if finding.severity == "fatal"
+        )
+    )
