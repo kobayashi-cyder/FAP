@@ -190,7 +190,7 @@ class RepositoryCodingCoordinator:
             current: tuple[FileEdit, ...],
             attempt: CandidateAttempt,
         ) -> Iterable[FileEdit] | None:
-            nonlocal latest_edits
+            nonlocal latest_edits, repair_security_errors
             if guarded_repairer is None:
                 return None
             proposal = guarded_repairer(current, attempt)
