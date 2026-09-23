@@ -54,6 +54,7 @@ jobs:
             fap_repository_test_selector.py \
             fap_repository_repair_guard.py \
             fap_repository_security_policy.py \
+            fap_repository_plan_quality.py \
             fap_repository_test_generation.py \
             fap_repository_agent.py \
             fap_repository_host.py \
@@ -70,6 +71,7 @@ jobs:
             tests.test_fap_repository_test_selector \
             tests.test_fap_repository_repair_guard \
             tests.test_fap_repository_security_policy \
+            tests.test_fap_repository_plan_quality \
             tests.test_fap_repository_test_generation \
             tests.test_fap_repository_collab \
             tests.test_fap_repository_ast_patch \
