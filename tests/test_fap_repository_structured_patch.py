@@ -9,6 +9,7 @@ import unittest
 from fap_repository_agent import RepositoryCodingCoordinator
 from fap_repository_ast_patch import ASTPatchSpec
 from fap_repository_python_symbol_edit import PythonSymbolRenameSpec
+from fap_repository_structured_planner import RepositoryStructuredPlanner
 from fap_repository_structured_patch import (
     CreateTextSpec,
     DeleteFileSpec,
