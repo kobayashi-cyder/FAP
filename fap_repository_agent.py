@@ -4,7 +4,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
-from fap_repository_contracts import CODING_RESULT_VERSION
+from fap_repository_contracts import (
+    CODING_RESULT_VERSION,
+    validate_contract_payload,
+)
 from fap_repository_executor import FileEdit, RepositoryPatchExecutor
 from fap_repository_planner import PatchPlan, RepositoryPlanner
 from fap_repository_promotion import (
@@ -45,7 +48,9 @@ class RepositoryCodingResult:
     errors: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        payload = asdict(self)
+        validate_contract_payload("coding_result", payload)
+        return payload
 
 
 class RepositoryCodingCoordinator:
