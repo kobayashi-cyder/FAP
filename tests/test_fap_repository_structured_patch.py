@@ -8,6 +8,8 @@ import unittest
 
 from fap_repository_agent import RepositoryCodingCoordinator
 from fap_repository_ast_patch import ASTPatchSpec
+from fap_repository_python_symbol_edit import PythonSymbolRenameSpec
+from fap_repository_structured_planner import RepositoryStructuredPlanner
 from fap_repository_structured_patch import (
     CreateTextSpec,
     DeleteFileSpec,
@@ -148,6 +150,56 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
             )
             self.assertEqual(self._git(root, "status", "--porcelain"), "")
 
+    def test_symbol_rename_composes_with_callsite_update_and_verifies(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._fixture(root)
+            original = (root / "calc.py").read_text(encoding="utf-8")
+            planner = RepositoryStructuredPlanner(root)
+            coordinator = RepositoryCodingCoordinator(root, planner=planner)
+
+            def specs(plan, context):
+                return (
+                    PythonSymbolRenameSpec(
+                        path="calc.py",
+                        old_name="add_one",
+                        new_name="increment",
+                    ),
+                    ExactReplaceSpec(
+                        path="calc.py",
+                        old="return value + 2",
+                        new="return value + 1",
+                    ),
+                    ExactReplaceSpec(
+                        path="calc.py",
+                        old="return value * 3",
+                        new="return value * 2",
+                    ),
+                    ExactReplaceSpec(
+                        path="tests/test_calc.py",
+                        old="from calc import add_one, times_two",
+                        new="from calc import increment, times_two",
+                    ),
+                    ExactReplaceSpec(
+                        path="tests/test_calc.py",
+                        old="add_one(3)",
+                        new="increment(3)",
+                    ),
+                )
+
+            provider = RepositoryStructuredProposalProvider(root, specs)
+            result = coordinator.run(
+                "Update calc.py and update tests/test_calc.py implementation and run tests",
+                provider,
+                self._commands(),
+            )
+
+            self.assertEqual(result.state, "verified_candidate", result.errors)
+            by_path = {edit.path: edit for edit in result.final_edits}
+            self.assertIn("def increment(", by_path["calc.py"].content or "")
+            self.assertIn("increment(3)", by_path["tests/test_calc.py"].content or "")
+            self.assertEqual((root / "calc.py").read_text(encoding="utf-8"), original)
+
     def test_create_text_compiles_when_plan_allows_create(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -179,6 +231,12 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
                 "replacement_body": "return value + 1",
             },
             {
+                "op": "python_symbol_rename",
+                "path": "calc.py",
+                "old_name": "add_one",
+                "new_name": "increment",
+            },
+            {
                 "op": "replace_exact",
                 "path": "README.md",
                 "old": "old",
@@ -198,8 +256,9 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
         typed = tuple(structured_spec_from_mapping(row) for row in rows)
         rendered = tuple(structured_spec_to_dict(item) for item in typed)
         self.assertEqual(rendered, rows)
-        self.assertIsInstance(typed[2], CreateTextSpec)
-        self.assertIsInstance(typed[3], DeleteFileSpec)
+        self.assertIsInstance(typed[1], PythonSymbolRenameSpec)
+        self.assertIsInstance(typed[3], CreateTextSpec)
+        self.assertIsInstance(typed[4], DeleteFileSpec)
 
     def test_exact_replace_requires_declared_match_count(self) -> None:
         with tempfile.TemporaryDirectory() as td:
