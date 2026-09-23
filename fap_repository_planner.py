@@ -98,6 +98,10 @@ class RepositoryPlanner:
         known_paths = set(self.reader._by_path)
         explicit_paths = set(_explicit_paths(goal))
         explicit_existing = explicit_paths & known_paths
+        preferred_existing = {
+            str(path).strip().replace("\\", "/")
+            for path in preferred_paths
+        } & known_paths
 
         files: list[PlannedFile] = []
         goal_tokens = _goal_tokens(goal)
@@ -122,6 +126,17 @@ class RepositoryPlanner:
                     operation = (
                         "modify"
                         if item.path in explicit_existing
+                        else "inspect"
+                    )
+                elif preferred_existing:
+                    # In a short multi-turn coding follow-up, keep the previous
+                    # repository targets authoritative while treating newly
+                    # retrieved files (for example tests mentioned by the
+                    # follow-up text) as context-only. Explicit current-turn
+                    # paths still take precedence above.
+                    operation = (
+                        "modify"
+                        if item.path in preferred_existing
                         else "inspect"
                     )
                 else:
