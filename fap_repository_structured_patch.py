@@ -10,6 +10,11 @@ from typing import Callable, Iterable
 from fap_repository_ast_patch import ASTPatchSpec, RepositoryASTFunctionPatcher
 from fap_repository_executor import FileEdit
 from fap_repository_planner import PatchPlan
+from fap_repository_python_symbol_edit import (
+    PythonSymbolRenameError,
+    PythonSymbolRenameSpec,
+    RepositoryPythonTopLevelRenamer,
+)
 from fap_repository_reader import RepositoryReadContext
 from fap_repository_verifier import CandidateAttempt
 
@@ -37,7 +42,13 @@ class DeleteFileSpec:
     path: str
 
 
-StructuredSpec = ASTPatchSpec | ExactReplaceSpec | CreateTextSpec | DeleteFileSpec
+StructuredSpec = (
+    ASTPatchSpec
+    | PythonSymbolRenameSpec
+    | ExactReplaceSpec
+    | CreateTextSpec
+    | DeleteFileSpec
+)
 StructuredSpecInput = StructuredSpec | Mapping[str, object]
 
 StructuredSpecProvider = Callable[
@@ -52,6 +63,7 @@ StructuredRepairSpecProvider = Callable[
 
 _SAFE_SEGMENT = re.compile(r"^[0-9A-Za-z_.-]+$")
 _SAFE_SYMBOL = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
+_SAFE_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def structured_spec_from_mapping(row: Mapping[str, object]) -> StructuredSpec:
@@ -67,6 +79,21 @@ def structured_spec_from_mapping(row: Mapping[str, object]) -> StructuredSpec:
         if not _SAFE_SYMBOL.fullmatch(symbol):
             raise StructuredPatchError("target_symbol is invalid")
         return ASTPatchSpec(path=path, target_symbol=symbol, replacement_body=body)
+
+    if op == "python_symbol_rename":
+        old_name = str(row.get("old_name") or "").strip()
+        new_name = str(row.get("new_name") or "").strip()
+        if (
+            not _SAFE_IDENTIFIER.fullmatch(old_name)
+            or not _SAFE_IDENTIFIER.fullmatch(new_name)
+            or old_name == new_name
+        ):
+            raise StructuredPatchError("python symbol rename names are invalid")
+        return PythonSymbolRenameSpec(
+            path=path,
+            old_name=old_name,
+            new_name=new_name,
+        )
 
     if op == "replace_exact":
         try:
@@ -101,6 +128,13 @@ def structured_spec_to_dict(spec: StructuredSpecInput) -> dict:
             "path": typed.path,
             "target_symbol": typed.target_symbol,
             "replacement_body": typed.replacement_body,
+        }
+    if isinstance(typed, PythonSymbolRenameSpec):
+        return {
+            "op": "python_symbol_rename",
+            "path": typed.path,
+            "old_name": typed.old_name,
+            "new_name": typed.new_name,
         }
     if isinstance(typed, ExactReplaceSpec):
         return {
@@ -142,6 +176,7 @@ class RepositoryStructuredProposalProvider:
         max_source_bytes: int = 1_000_000,
         max_total_output_bytes: int = 2_000_000,
         patcher: RepositoryASTFunctionPatcher | None = None,
+        renamer: RepositoryPythonTopLevelRenamer | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         if not self.root.is_dir():
@@ -157,6 +192,7 @@ class RepositoryStructuredProposalProvider:
         self.max_source_bytes = int(max_source_bytes)
         self.max_total_output_bytes = int(max_total_output_bytes)
         self.patcher = patcher or RepositoryASTFunctionPatcher()
+        self.renamer = renamer or RepositoryPythonTopLevelRenamer()
 
     def __call__(
         self,
@@ -245,6 +281,20 @@ class RepositoryStructuredProposalProvider:
             for spec in rows:
                 if isinstance(spec, ExactReplaceSpec):
                     current = self._apply_exact_replace(current, path, spec)
+                    continue
+                if isinstance(spec, PythonSymbolRenameSpec):
+                    try:
+                        current = self.renamer.rename(
+                            current,
+                            path=path,
+                            old_name=spec.old_name,
+                            new_name=spec.new_name,
+                        )
+                    except PythonSymbolRenameError as exc:
+                        raise StructuredPatchError(
+                            f"python_symbol_rename rejected for "
+                            f"{path}:{spec.old_name}:{exc}"
+                        ) from exc
                     continue
                 if isinstance(spec, ASTPatchSpec):
                     if not path.endswith(".py"):
@@ -363,7 +413,16 @@ class StructuredRepairProvider:
 
 
 def _coerce_spec(spec: StructuredSpecInput) -> StructuredSpec:
-    if isinstance(spec, (ASTPatchSpec, ExactReplaceSpec, CreateTextSpec, DeleteFileSpec)):
+    if isinstance(
+        spec,
+        (
+            ASTPatchSpec,
+            PythonSymbolRenameSpec,
+            ExactReplaceSpec,
+            CreateTextSpec,
+            DeleteFileSpec,
+        ),
+    ):
         return spec
     if isinstance(spec, Mapping):
         return structured_spec_from_mapping(spec)
