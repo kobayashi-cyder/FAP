@@ -1,0 +1,54 @@
+name: Coding horizontal verify
+
+on:
+  push:
+    branches:
+      - integration/coding-horizontal-v8781
+      - "horiz/coding-*"
+  pull_request:
+    branches:
+      - integration/coding-horizontal-v8781
+      - main
+
+jobs:
+  horizontal-coding:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Keep horizontal line on V87.81
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(tr -d '\r\n' < VERSION)" = "87.81"
+      - name: Compile coding modules
+        run: |
+          python -m compileall -q \
+            fap_repository_agent.py \
+            fap_repository_ast_patch.py \
+            fap_repository_collab.py \
+            fap_repository_executor.py \
+            fap_repository_index.py \
+            fap_repository_interaction.py \
+            fap_repository_planner.py \
+            fap_repository_reader.py \
+            fap_repository_structured_patch.py \
+            fap_repository_structured_planner.py \
+            fap_repository_test_selector.py \
+            fap_repository_verifier.py
+      - name: Run repository coding regressions
+        run: |
+          python -m unittest \
+            tests.test_fap_repository_structured_patch \
+            tests.test_fap_repository_structured_planner \
+            tests.test_fap_repository_test_selector \
+            tests.test_fap_repository_collab \
+            tests.test_fap_repository_ast_patch \
+            tests.test_fap_repository_planner \
+            tests.test_fap_repository_agent \
+            tests.test_fap_repository_interaction -v
