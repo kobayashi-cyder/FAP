@@ -50,6 +50,7 @@ jobs:
             fap_repository_structured_planner.py \
             fap_repository_structured_patch.py \
             fap_repository_test_selector.py \
+            fap_repository_repair_guard.py \
             fap_repository_agent.py \
             fap_repository_host.py \
             fap_repository_interaction.py \
@@ -61,6 +62,7 @@ jobs:
             tests.test_fap_repository_structured_patch \
             tests.test_fap_repository_structured_planner \
             tests.test_fap_repository_test_selector \
+            tests.test_fap_repository_repair_guard \
             tests.test_fap_repository_collab \
             tests.test_fap_repository_ast_patch \
             tests.test_fap_repository_planner \
