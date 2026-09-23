@@ -179,7 +179,7 @@ class RepositoryCodingInteraction:
         for raw in candidates:
             value = raw.strip()
             if value and len(value) <= 128 and all(
-                ch.isalnum() or ch in "_.:-" for ch in value
+                ch.isalnum() or ch in "_.:-" or ch == "-" for ch in value
             ):
                 return value
         return ""
