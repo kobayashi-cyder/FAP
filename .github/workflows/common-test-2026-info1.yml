@@ -2,6 +2,12 @@ name: FAP 2026 Common Test Information I
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "benchmarks/common_test_2026_info1.py"
+      - ".github/workflows/common-test-2026-info1.yml"
+      - "fap_*.py"
+      - "knowledge/**"
   push:
     branches:
       - eval/gpt-level-benchmarks-v8781
