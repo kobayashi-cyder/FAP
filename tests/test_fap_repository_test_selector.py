@@ -108,6 +108,50 @@ class RepositoryVerificationSelectorTests(unittest.TestCase):
                 ),
             )
 
+    def test_dependency_impact_finds_non_name_matched_test(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._git(root, "init", "-q")
+            self._git(root, "config", "user.email", "fap-tests@example.invalid")
+            self._git(root, "config", "user.name", "FAP Tests")
+            (root / "core.py").write_text(
+                "def normalize(value):\n"
+                "    return int(value)\n",
+                encoding="utf-8",
+            )
+            (root / "service.py").write_text(
+                "from core import normalize\n\n"
+                "def compute(value):\n"
+                "    return normalize(value) + 1\n",
+                encoding="utf-8",
+            )
+            (root / "tests").mkdir()
+            (root / "tests" / "__init__.py").write_text("", encoding="utf-8")
+            (root / "tests" / "test_behavior.py").write_text(
+                "import unittest\n"
+                "from service import compute\n\n"
+                "class BehaviorTests(unittest.TestCase):\n"
+                "    def test_compute(self):\n"
+                "        self.assertEqual(compute(2), 3)\n",
+                encoding="utf-8",
+            )
+            self._git(root, "add", ".")
+            self._git(root, "commit", "-qm", "dependency fixture")
+
+            coordinator = RepositoryCodingCoordinator(root)
+            plan = coordinator.planner.plan("Update core.py implementation")
+            selection = RepositoryVerificationSelector(root).select(plan)
+
+            self.assertIn("tests/test_behavior.py", selection.focused_tests)
+            self.assertIn(
+                "tests.test_behavior",
+                selection.commands[0].argv,
+            )
+            self.assertNotIn(
+                "focused_test_mapping_fell_back_to_discovery",
+                selection.warnings,
+            )
+
     def test_selected_commands_drive_verified_candidate_without_manual_test_list(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
