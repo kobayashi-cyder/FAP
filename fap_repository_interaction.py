@@ -16,6 +16,7 @@ from fap_repository_agent import (
 )
 from fap_repository_host import FAPRepositoryCodingHost
 from fap_repository_session import RepositorySessionLedger
+from fap_repository_structured_planner import RepositoryStructuredPlanner
 from fap_repository_verifier import VerificationCommand
 
 
@@ -86,11 +87,17 @@ class RepositoryCodingInteraction:
         )
         max_repairs = min(4, max(0, int(budget.repair_rounds)))
 
+        planner = RepositoryStructuredPlanner(
+            self.root,
+            max_files=max_files,
+            max_source_bytes=max_source_bytes,
+        )
         coordinator = RepositoryCodingCoordinator(
             self.root,
             max_files=max_files,
             max_source_bytes=max_source_bytes,
             max_repairs=max_repairs,
+            planner=planner,
         )
         session_id = self._session_id(request)
         repository_digest = coordinator.planner.reader.repository_digest
