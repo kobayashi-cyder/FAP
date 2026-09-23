@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import sys
 
-from fap_repository_contracts import VERIFICATION_SELECTION_VERSION
+from fap_repository_contracts import (\n    VERIFICATION_SELECTION_VERSION,\n    validate_contract_payload,\n)
 from fap_repository_planner import PatchPlan
 from fap_repository_verifier import VerificationCommand
 
