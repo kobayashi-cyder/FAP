@@ -41,6 +41,30 @@ Example cross-agent rows:
 
 The rows can be parsed with `structured_spec_from_mapping()` and serialized with `structured_spec_to_dict()`.
 
+### Mixed-operation structured planner
+
+`fap_repository_structured_planner.py` adds `RepositoryStructuredPlanner`.
+
+It resolves operations per explicit path instead of applying one broad create/modify/delete flag to every path in the goal. This allows one bounded task to express combinations such as:
+
+```text
+Update calc.py and create notes.md
+Delete obsolete.md and update calc.py
+calc.pyを修正して obsolete.mdを削除
+```
+
+The planner keeps the existing `PatchPlan` contract, repository digest, SHA preconditions and `write_enabled=False` boundary. Existing-file create requests and missing modify/delete targets still fail closed.
+
+To use it with the existing coordinator:
+
+```python
+from fap_repository_agent import RepositoryCodingCoordinator
+from fap_repository_structured_planner import RepositoryStructuredPlanner
+
+planner = RepositoryStructuredPlanner(repo_root)
+coordinator = RepositoryCodingCoordinator(repo_root, planner=planner)
+```
+
 ### Cross-chat handoff snapshot
 
 `fap_repository_collab.py` adds `RepositoryCodingCollaboration.snapshot()`.
@@ -64,7 +88,7 @@ It deliberately excludes source excerpts, generated code and provider messages. 
 The expanded provider still feeds the existing architecture:
 
 ```text
-RepositoryPlanner
+RepositoryStructuredPlanner (optional)
     -> structured proposal provider
     -> FileEdit
     -> detached Git worktree
@@ -80,16 +104,24 @@ No automatic promotion to `main` is introduced.
 Run:
 
 ```bash
-python -m unittest   tests.test_fap_repository_structured_patch   tests.test_fap_repository_collab   tests.test_fap_repository_ast_patch   tests.test_fap_repository_agent   tests.test_fap_repository_interaction -v
+python -m unittest \
+  tests.test_fap_repository_structured_patch \
+  tests.test_fap_repository_structured_planner \
+  tests.test_fap_repository_collab \
+  tests.test_fap_repository_ast_patch \
+  tests.test_fap_repository_planner \
+  tests.test_fap_repository_agent \
+  tests.test_fap_repository_interaction -v
 ```
 
-The branch workflow `.github/workflows/coding-collab-expansion.yml` runs the same focused regression lane on pushes to this collaboration branch.
+The branch workflow `.github/workflows/coding-collab-expansion.yml` runs the same focused regression lane on Python 3.11 and 3.12 for pushes to this collaboration branch.
 
 ## Continuation contract for another chat
 
 1. Fetch `collab/coding-expansion-v8780` before editing.
 2. Keep new work on this branch or a child branch; do not merge to `main` automatically.
 3. Prefer structured specs over unconstrained whole-file rewrites when a bounded edit can express the task.
-4. Preserve planner SHA preconditions and detached-worktree verification.
-5. Add tests with each new coding operation.
-6. If the branch diverges from `main`, rebase/merge deliberately and rerun the focused lane before proposing integration.
+4. Use `RepositoryStructuredPlanner` when a single request mixes create/modify/delete targets.
+5. Preserve planner SHA preconditions and detached-worktree verification.
+6. Add tests with each new coding operation.
+7. If the branch diverges from `main`, rebase/merge deliberately and rerun the focused lane before proposing integration.
