@@ -15,6 +15,8 @@ from fap_repository_agent import (
     RepositoryCodingCoordinator,
 )
 from fap_repository_host import FAPRepositoryCodingHost
+from fap_repository_session import RepositorySessionLedger
+from fap_repository_structured_planner import RepositoryStructuredPlanner
 from fap_repository_verifier import VerificationCommand
 
 
@@ -58,6 +60,10 @@ class RepositoryCodingInteraction:
         self.endpoint_id = endpoint_id
         self.priority = float(priority)
         self.cost = float(cost)
+        self.repository_sessions = RepositorySessionLedger(
+            max_sessions=128,
+            max_paths=32,
+        )
 
     def endpoint(self) -> InteractionEndpoint:
         return InteractionEndpoint(
@@ -81,12 +87,25 @@ class RepositoryCodingInteraction:
         )
         max_repairs = min(4, max(0, int(budget.repair_rounds)))
 
+        planner = RepositoryStructuredPlanner(
+            self.root,
+            max_files=max_files,
+            max_source_bytes=max_source_bytes,
+        )
         coordinator = RepositoryCodingCoordinator(
             self.root,
             max_files=max_files,
             max_source_bytes=max_source_bytes,
             max_repairs=max_repairs,
+            planner=planner,
         )
+        session_id = self._session_id(request)
+        repository_digest = coordinator.planner.reader.repository_digest
+        preferred_paths = (
+            self.repository_sessions.preferred_paths(session_id, repository_digest)
+            if session_id else ()
+        )
+
         host = FAPRepositoryCodingHost(
             self.root,
             proposer=self.proposer,
@@ -97,7 +116,23 @@ class RepositoryCodingInteraction:
         )
 
         observation = self._observation(request, budget)
-        response = host(request.text, observation)
+        response = host(
+            request.text,
+            observation,
+            preferred_paths=preferred_paths,
+        )
+        if session_id and response.repository_digest and response.plan_id:
+            self.repository_sessions.record(
+                session_id,
+                response.repository_digest,
+                response.plan_id,
+                state=response.state,
+                paths=response.paths,
+            )
+        session_snapshot = (
+            self.repository_sessions.snapshot(session_id)
+            if session_id else None
+        )
         data = response.to_dict()
         return {
             "ok": response.state == "verified_candidate",
@@ -111,6 +146,13 @@ class RepositoryCodingInteraction:
                 "exponential-linear-budget",
                 response.state,
             ],
+            "repository_session_continuity": {
+                "enabled": bool(session_id),
+                "session_id": session_id or "",
+                "preferred_paths_used": list(preferred_paths),
+                "remembered_paths": list(session_snapshot.paths) if session_snapshot else [],
+                "stores_source_text": False,
+            },
             "adaptive_repository_budget": {
                 "max_files": max_files,
                 "max_source_bytes": max_source_bytes,
@@ -119,6 +161,28 @@ class RepositoryCodingInteraction:
                 "demand": budget.demand,
             },
         }
+
+    @staticmethod
+    def _session_id(request: InteractionRequest) -> str:
+        metadata = request.metadata
+        if not isinstance(metadata, Mapping):
+            return ""
+        candidates = []
+        direct = metadata.get("session_id")
+        if isinstance(direct, str):
+            candidates.append(direct)
+        continuity = metadata.get("session_continuity")
+        if isinstance(continuity, Mapping):
+            nested = continuity.get("session_id")
+            if isinstance(nested, str):
+                candidates.append(nested)
+        for raw in candidates:
+            value = raw.strip()
+            if value and len(value) <= 128 and all(
+                ch.isalnum() or ch in "_.:-" for ch in value
+            ):
+                return value
+        return ""
 
     @staticmethod
     def _observation(

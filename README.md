@@ -4,8 +4,8 @@ FAPは、**小型・低RAM・高速応答を重視した実験的な認知アー
 
 ## Current release
 
-- Stable mainline: **V87.80**
-- Runtime version: `87.80-unified-chat`
+- Stable mainline: **V87.81**
+- Runtime version: `87.81-unified-chat`
 - Canonical version file: [`VERSION`](VERSION)
 - Detailed rolling changes: [`FAP_LATEST.md`](FAP_LATEST.md)
 - Release summary: [`CHANGELOG.md`](CHANGELOG.md)
@@ -771,7 +771,7 @@ FAPはまだ大規模言語モデルではありません。
 
 ## 14. 将来の方向
 
-現在の開発系列は **V87.80 以降**です。次版は固定予約せず、検証済み変更をまとめて `VERSION`・`FAP_LATEST.md`・ランチャー・ゲートウェイを同期して昇格します。
+現在の開発系列は **V87.81 以降**です。次版は固定予約せず、検証済み変更をまとめて `VERSION`・`FAP_LATEST.md`・ランチャー・ゲートウェイを同期して昇格します。
 
 ---
 

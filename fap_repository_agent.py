@@ -96,13 +96,14 @@ class RepositoryCodingCoordinator:
         commands: Iterable[VerificationCommand],
         *,
         repairer: RepairProvider | None = None,
+        preferred_paths: tuple[str, ...] = (),
     ) -> RepositoryCodingResult:
         goal = str(goal or "").strip()
         if not goal:
             raise ValueError("goal is required")
 
-        plan = self.planner.plan(goal)
-        context = self.planner.reader.read(goal)
+        plan = self.planner.plan(goal, preferred_paths=preferred_paths)
+        context = self.planner.reader.read(goal, preferred_paths=preferred_paths)
         if context.repository_digest != plan.task.repository_digest:
             return self._reject(
                 goal,
