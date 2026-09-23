@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import sys
 
+from fap_repository_contracts import VERIFICATION_SELECTION_VERSION
 from fap_repository_planner import PatchPlan
 from fap_repository_verifier import VerificationCommand
 
@@ -33,7 +34,7 @@ class RepositoryVerificationSelector:
     detached-worktree verification boundary.
     """
 
-    VERSION = "fap.repository.verification_selector.v1"
+    VERSION = VERIFICATION_SELECTION_VERSION
 
     def __init__(
         self,
