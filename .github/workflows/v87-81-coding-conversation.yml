@@ -49,6 +49,7 @@ jobs:
             fap_repository_planner.py \
             fap_repository_structured_planner.py \
             fap_repository_structured_patch.py \
+            fap_repository_python_symbol_edit.py \
             fap_repository_test_selector.py \
             fap_repository_repair_guard.py \
             fap_repository_agent.py \
@@ -60,6 +61,7 @@ jobs:
           python -m unittest \
             tests.test_fap_repository_contracts \
             tests.test_fap_repository_structured_patch \
+            tests.test_fap_repository_python_symbol_edit \
             tests.test_fap_repository_structured_planner \
             tests.test_fap_repository_test_selector \
             tests.test_fap_repository_repair_guard \
