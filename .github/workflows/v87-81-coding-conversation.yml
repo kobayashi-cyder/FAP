@@ -43,6 +43,7 @@ jobs:
       - name: Compile consolidated coding stack
         run: |
           python -m compileall -q \
+            fap_repository_contracts.py \
             fap_repository_session.py \
             fap_repository_reader.py \
             fap_repository_planner.py \
@@ -56,6 +57,7 @@ jobs:
       - name: Repository coding regressions
         run: |
           python -m unittest \
+            tests.test_fap_repository_contracts \
             tests.test_fap_repository_structured_patch \
             tests.test_fap_repository_structured_planner \
             tests.test_fap_repository_test_selector \

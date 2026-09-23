@@ -10,7 +10,10 @@ from fap_repository_agent import (
     RepairProvider,
     RepositoryCodingCoordinator,
 )
-from fap_repository_contracts import HOST_CONTRACT
+from fap_repository_contracts import (
+    HOST_CONTRACT,
+    validate_contract_payload,
+)
 from fap_repository_verifier import VerificationCommand
 
 
@@ -31,7 +34,9 @@ class RepositoryHostResponse:
     paths: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        payload = asdict(self)
+        validate_contract_payload("host_response", payload)
+        return payload
 
 
 class FAPRepositoryCodingHost:
