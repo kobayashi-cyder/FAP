@@ -86,6 +86,28 @@ class RepositoryReader:
             raise ValueError("index root does not match reader root")
         self._by_path = {rec.path: rec for rec in self.index.files}
 
+    def _normalize_preferred_paths(
+        self,
+        preferred_paths: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        if not isinstance(preferred_paths, tuple):
+            raise TypeError("preferred_paths must be a tuple")
+        if len(preferred_paths) > 32:
+            raise ValueError("preferred_paths exceeds 32 entries")
+        out: list[str] = []
+        for path in preferred_paths:
+            value = str(path or "").strip().replace("\\", "/")
+            if (
+                not value
+                or value.startswith("/")
+                or ".." in Path(value).parts
+                or ".git" in Path(value).parts
+            ):
+                raise ValueError("preferred_paths contains unsafe path")
+            if value in self._by_path and value not in out:
+                out.append(value)
+        return tuple(out)
+
     @property
     def repository_digest(self) -> str:
         payload = "\n".join(
@@ -94,12 +116,18 @@ class RepositoryReader:
         )
         return sha256(payload.encode("utf-8")).hexdigest()
 
-    def read(self, goal: str) -> RepositoryReadContext:
+    def read(
+        self,
+        goal: str,
+        *,
+        preferred_paths: tuple[str, ...] = (),
+    ) -> RepositoryReadContext:
         goal = str(goal or "").strip()
         if not goal:
             raise ValueError("goal is required")
+        preferred = self._normalize_preferred_paths(preferred_paths)
         tokens = _query_tokens(goal)
-        ranked = self._rank(tokens, goal)
+        ranked = self._rank(tokens, goal, preferred)
         selected = self._select_paths(ranked)
 
         out: list[SourceSlice] = []
@@ -121,7 +149,12 @@ class RepositoryReader:
             index_errors=tuple(self.index.errors),
         )
 
-    def _rank(self, tokens: tuple[str, ...], goal: str) -> list[tuple[str, float, tuple[str, ...]]]:
+    def _rank(
+        self,
+        tokens: tuple[str, ...],
+        goal: str,
+        preferred_paths: tuple[str, ...] = (),
+    ) -> list[tuple[str, float, tuple[str, ...]]]:
         low_goal = goal.casefold().replace("\\", "/")
         ranked: list[tuple[str, float, tuple[str, ...]]] = []
         for rec in self.index.files:
@@ -131,6 +164,9 @@ class RepositoryReader:
             if rec.path.casefold() in low_goal:
                 score += 30.0
                 reasons.append("exact_path")
+            if rec.path in preferred_paths:
+                score += 12.0
+                reasons.append("session_preferred")
 
             symbol_text = " ".join(
                 f"{sym.name} {sym.signature} {sym.parent or ''}"

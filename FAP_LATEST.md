@@ -1,3 +1,31 @@
+# FAP V87.81 — Coding + Conversation Consolidation
+
+V87.81 absorbs the verified coding-collaboration line into the current FAP
+mainline while preserving the V87.80 multi-turn conversation hardening.
+
+Coding improvements:
+- structured multi-edit proposals can compose multiple bounded edits per file;
+- mixed create/modify/delete goals are planned per explicit path;
+- Python verification commands can be selected automatically from the plan;
+- repository coding collaboration snapshots remain content-free;
+- the repository interaction uses structured planning by default;
+- a content-free repository session ledger preserves bounded path affinity across
+  short follow-up coding turns without storing source text, diffs or generated
+  code.
+
+Conversation improvements:
+- coding requests now participate more naturally in multi-turn conversation:
+  a short follow-up can reuse the prior repository path set when the repository
+  digest is unchanged;
+- V87.80 stale-topic blocking, correction focus and acknowledgement continuity
+  remain underneath V87.81 unchanged.
+
+Safety boundaries remain intact:
+- repository edits still run only in detached worktrees before verification;
+- SHA preconditions and fail-closed planning remain mandatory;
+- no automatic direct write or merge to main is introduced;
+- FCA remains optional and Qwen is not used.
+
 # FAP V87.80 — Multi-Turn Consistency Fuzz Hardening
 
 V87.80 extends the V87.79 conversation-quality work from single-turn semantic

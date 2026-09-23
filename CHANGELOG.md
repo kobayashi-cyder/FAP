@@ -1,5 +1,14 @@
 # Changelog
 
+## V87.81 — 2026-09-23
+
+- Absorbs the verified coding-collaboration branch into the mainline.
+- Adds structured multi-edit repository coding and mixed-operation planning.
+- Adds automatic verification-test selection support.
+- Adds content-free multi-turn repository path continuity for coding follow-ups.
+- Keeps V87.80 conversation consistency hardening unchanged underneath.
+- Adds a Python 3.11/3.12 coding + conversation regression lane.
+
 ## V87.80 — 2026-09-23
 
 Current stable mainline.

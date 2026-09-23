@@ -77,11 +77,19 @@ class RepositoryPlanner:
             max_total_bytes=self.max_source_bytes,
         )
 
-    def plan(self, goal: str) -> PatchPlan:
+    def plan(
+        self,
+        goal: str,
+        *,
+        preferred_paths: tuple[str, ...] = (),
+    ) -> PatchPlan:
         goal = str(goal or "").strip()
         if not goal:
             raise ValueError("goal is required")
-        context = self.reader.read(goal)
+        context = self.reader.read(
+            goal,
+            preferred_paths=preferred_paths,
+        )
         stale = any(item.stale for item in context.files)
 
         mutation = bool(MUTATE_WORDS.search(goal))
@@ -90,6 +98,10 @@ class RepositoryPlanner:
         known_paths = set(self.reader._by_path)
         explicit_paths = set(_explicit_paths(goal))
         explicit_existing = explicit_paths & known_paths
+        preferred_existing = {
+            str(path).strip().replace("\\", "/")
+            for path in preferred_paths
+        } & known_paths
 
         files: list[PlannedFile] = []
         goal_tokens = _goal_tokens(goal)
@@ -114,6 +126,17 @@ class RepositoryPlanner:
                     operation = (
                         "modify"
                         if item.path in explicit_existing
+                        else "inspect"
+                    )
+                elif preferred_existing:
+                    # In a short multi-turn coding follow-up, keep the previous
+                    # repository targets authoritative while treating newly
+                    # retrieved files (for example tests mentioned by the
+                    # follow-up text) as context-only. Explicit current-turn
+                    # paths still take precedence above.
+                    operation = (
+                        "modify"
+                        if item.path in preferred_existing
                         else "inspect"
                     )
                 else:
