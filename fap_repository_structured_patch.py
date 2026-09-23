@@ -16,6 +16,11 @@ from fap_repository_python_symbol_edit import (
     RepositoryPythonTopLevelRenamer,
 )
 from fap_repository_reader import RepositoryReadContext
+from fap_repository_shell_edit import (
+    RepositoryShellBlockEditor,
+    ShellBlockEditError,
+    ShellBlockSpec,
+)
 from fap_repository_verifier import CandidateAttempt
 
 
@@ -45,6 +50,7 @@ class DeleteFileSpec:
 StructuredSpec = (
     ASTPatchSpec
     | PythonSymbolRenameSpec
+    | ShellBlockSpec
     | ExactReplaceSpec
     | CreateTextSpec
     | DeleteFileSpec
@@ -95,6 +101,15 @@ def structured_spec_from_mapping(row: Mapping[str, object]) -> StructuredSpec:
             new_name=new_name,
         )
 
+    if op == "shell_block":
+        name = str(row.get("name") or "").strip()
+        body = str(row.get("body") or "")
+        return ShellBlockSpec(
+            path=path,
+            name=name,
+            body=body,
+        )
+
     if op == "replace_exact":
         try:
             expected_count = int(row.get("expected_count", 1))
@@ -135,6 +150,13 @@ def structured_spec_to_dict(spec: StructuredSpecInput) -> dict:
             "path": typed.path,
             "old_name": typed.old_name,
             "new_name": typed.new_name,
+        }
+    if isinstance(typed, ShellBlockSpec):
+        return {
+            "op": "shell_block",
+            "path": typed.path,
+            "name": typed.name,
+            "body": typed.body,
         }
     if isinstance(typed, ExactReplaceSpec):
         return {
@@ -177,6 +199,7 @@ class RepositoryStructuredProposalProvider:
         max_total_output_bytes: int = 2_000_000,
         patcher: RepositoryASTFunctionPatcher | None = None,
         renamer: RepositoryPythonTopLevelRenamer | None = None,
+        shell_editor: RepositoryShellBlockEditor | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         if not self.root.is_dir():
@@ -193,6 +216,9 @@ class RepositoryStructuredProposalProvider:
         self.max_total_output_bytes = int(max_total_output_bytes)
         self.patcher = patcher or RepositoryASTFunctionPatcher()
         self.renamer = renamer or RepositoryPythonTopLevelRenamer()
+        self.shell_editor = shell_editor or RepositoryShellBlockEditor(
+            max_body_chars=min(self.max_source_bytes, 1_000_000),
+        )
 
     def __call__(
         self,
@@ -281,6 +307,19 @@ class RepositoryStructuredProposalProvider:
             for spec in rows:
                 if isinstance(spec, ExactReplaceSpec):
                     current = self._apply_exact_replace(current, path, spec)
+                    continue
+                if isinstance(spec, ShellBlockSpec):
+                    try:
+                        current = self.shell_editor.replace_for_path(
+                            current,
+                            path=path,
+                            name=spec.name,
+                            body=spec.body,
+                        )
+                    except ShellBlockEditError as exc:
+                        raise StructuredPatchError(
+                            f"shell_block rejected for {path}:{spec.name}:{exc}"
+                        ) from exc
                     continue
                 if isinstance(spec, PythonSymbolRenameSpec):
                     try:
@@ -418,6 +457,7 @@ def _coerce_spec(spec: StructuredSpecInput) -> StructuredSpec:
         (
             ASTPatchSpec,
             PythonSymbolRenameSpec,
+            ShellBlockSpec,
             ExactReplaceSpec,
             CreateTextSpec,
             DeleteFileSpec,
