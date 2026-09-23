@@ -50,6 +50,83 @@ class RepositoryPythonTopLevelRenamerTests(unittest.TestCase):
                 new_name="renamed",
             )
 
+    def test_keyword_argument_name_is_not_silently_renamed(self) -> None:
+        source = (
+            "def old_name(value):\n"
+            "    return value + 1\n\n"
+            "def caller(value):\n"
+            "    return other(old_name=value), old_name(value)\n"
+        )
+        with self.assertRaisesRegex(
+            PythonSymbolRenameError,
+            "ambiguous_keyword_argument",
+        ):
+            RepositoryPythonTopLevelRenamer().rename(
+                source,
+                path="module.py",
+                old_name="old_name",
+                new_name="new_name",
+            )
+
+    def test_nested_same_name_definition_is_rejected(self) -> None:
+        source = (
+            "def old_name(value):\n"
+            "    return value + 1\n\n"
+            "def outer():\n"
+            "    def old_name():\n"
+            "        return 2\n"
+            "    return old_name()\n"
+        )
+        with self.assertRaisesRegex(
+            PythonSymbolRenameError,
+            "ambiguous_nested_definition",
+        ):
+            RepositoryPythonTopLevelRenamer().rename(
+                source,
+                path="module.py",
+                old_name="old_name",
+                new_name="new_name",
+            )
+
+    def test_exception_and_pattern_bindings_are_rejected(self) -> None:
+        exception_source = (
+            "def old_name(value):\n"
+            "    return value + 1\n\n"
+            "try:\n"
+            "    raise RuntimeError()\n"
+            "except RuntimeError as old_name:\n"
+            "    result = old_name\n"
+        )
+        with self.assertRaisesRegex(
+            PythonSymbolRenameError,
+            "ambiguous_exception_binding",
+        ):
+            RepositoryPythonTopLevelRenamer().rename(
+                exception_source,
+                path="module.py",
+                old_name="old_name",
+                new_name="new_name",
+            )
+
+        pattern_source = (
+            "def old_name(value):\n"
+            "    return value + 1\n\n"
+            "def match_value(value):\n"
+            "    match value:\n"
+            "        case old_name:\n"
+            "            return old_name\n"
+        )
+        with self.assertRaisesRegex(
+            PythonSymbolRenameError,
+            "ambiguous_pattern_binding",
+        ):
+            RepositoryPythonTopLevelRenamer().rename(
+                pattern_source,
+                path="module.py",
+                old_name="old_name",
+                new_name="new_name",
+            )
+
     def test_build_edit_uses_plan_precondition(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
