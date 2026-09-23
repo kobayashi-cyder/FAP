@@ -7,6 +7,7 @@ import unittest
 
 from fap_repository_js_ts import (
     JsFunctionBodySpec,
+    JsFunctionPatchError,
     RepositoryJsFunctionPatcher,
 )
 from fap_repository_structured_planner import RepositoryStructuredPlanner
