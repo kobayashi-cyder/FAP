@@ -39,6 +39,19 @@ class RepositoryJsonEditorTests(unittest.TestCase):
             self.assertNotIn("old", obj["feature"])
             self.assertEqual(edit.operation, "modify")
 
+    def test_valid_empty_and_dot_named_keys_can_be_set_and_deleted(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); self._fixture(root, '{"":0,".":1,"..":2}\n')
+            edit = RepositoryJsonEditor().build_edit(root, self._plan(root), (
+                JsonSetSpec("config.json", ("",), 10),
+                JsonSetSpec("config.json", (".",), 11),
+                JsonDeleteSpec("config.json", ("..",)),
+            ))
+            obj = json.loads(edit.content or "")
+            self.assertEqual(obj[""], 10)
+            self.assertEqual(obj["."], 11)
+            self.assertNotIn("..", obj)
+
     def test_non_object_root_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td); self._fixture(root, "[]\n")
