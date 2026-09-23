@@ -9,6 +9,7 @@ import unittest
 from fap_repository_agent import RepositoryCodingCoordinator
 from fap_repository_ast_patch import ASTPatchSpec
 from fap_repository_python_symbol_edit import PythonSymbolRenameSpec
+from fap_repository_shell_edit import ShellBlockSpec
 from fap_repository_structured_planner import RepositoryStructuredPlanner
 from fap_repository_structured_patch import (
     CreateTextSpec,
@@ -47,6 +48,14 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
             encoding="utf-8",
         )
         (root / "obsolete.md").write_text("old\n", encoding="utf-8")
+        (root / "run.ps1").write_text(
+            "Write-Host before\n"
+            "# FAP-BEGIN task\n"
+            "Write-Host old\n"
+            "# FAP-END task\n"
+            "Write-Host after\n",
+            encoding="utf-8",
+        )
         (root / "tests" / "test_calc.py").write_text(
             "import unittest\n"
             "from calc import add_one, times_two\n\n"
@@ -237,6 +246,12 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
                 "new_name": "increment",
             },
             {
+                "op": "shell_block",
+                "path": "run.ps1",
+                "name": "task",
+                "body": "Write-Host new",
+            },
+            {
                 "op": "replace_exact",
                 "path": "README.md",
                 "old": "old",
@@ -257,8 +272,34 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
         rendered = tuple(structured_spec_to_dict(item) for item in typed)
         self.assertEqual(rendered, rows)
         self.assertIsInstance(typed[1], PythonSymbolRenameSpec)
-        self.assertIsInstance(typed[3], CreateTextSpec)
-        self.assertIsInstance(typed[4], DeleteFileSpec)
+        self.assertIsInstance(typed[2], ShellBlockSpec)
+        self.assertIsInstance(typed[4], CreateTextSpec)
+        self.assertIsInstance(typed[5], DeleteFileSpec)
+
+    def test_shell_block_spec_builds_bounded_structured_edit(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._fixture(root)
+            coordinator = RepositoryCodingCoordinator(root)
+            plan = coordinator.planner.plan("Update run.ps1 implementation")
+            provider = RepositoryStructuredProposalProvider(root, lambda p, c: ())
+            edits = provider.build_edits(
+                plan,
+                (
+                    ShellBlockSpec(
+                        path="run.ps1",
+                        name="task",
+                        body="Write-Host new",
+                    ),
+                ),
+            )
+            self.assertEqual(len(edits), 1)
+            self.assertEqual(edits[0].path, "run.ps1")
+            content = edits[0].content or ""
+            self.assertIn("Write-Host before", content)
+            self.assertIn("Write-Host new", content)
+            self.assertIn("Write-Host after", content)
+            self.assertNotIn("Write-Host old", content)
 
     def test_exact_replace_requires_declared_match_count(self) -> None:
         with tempfile.TemporaryDirectory() as td:
