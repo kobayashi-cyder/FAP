@@ -10,7 +10,7 @@ from fap_repository_agent import (
     RepairProvider,
     RepositoryCodingCoordinator,
 )
-from fap_repository_contracts import HOST_CONTRACT, validate_contract_payload
+from fap_repository_contracts import (\n    HOST_CONTRACT,\n    validate_contract_payload,\n)
 from fap_repository_verifier import VerificationCommand
 
 
