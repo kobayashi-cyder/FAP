@@ -63,7 +63,7 @@ class RepositoryPythonTopLevelRenamer:
         if any(node.name == new_name for node in top):
             raise PythonSymbolRenameError("new_name already exists at top level")
 
-        self._reject_ambiguous_bindings(tree, old_name)
+        self._reject_ambiguous_bindings(tree, old_name, matches[0])
 
         tokens = []
         replaced = 0
@@ -131,10 +131,25 @@ class RepositoryPythonTopLevelRenamer:
         )
 
     @staticmethod
-    def _reject_ambiguous_bindings(tree: ast.AST, old_name: str) -> None:
+    def _reject_ambiguous_bindings(
+        tree: ast.AST,
+        old_name: str,
+        target: ast.AST,
+    ) -> None:
         for node in ast.walk(tree):
+            if (
+                node is not target
+                and isinstance(
+                    node,
+                    (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+                )
+                and node.name == old_name
+            ):
+                raise PythonSymbolRenameError("ambiguous_nested_definition")
             if isinstance(node, ast.arg) and node.arg == old_name:
                 raise PythonSymbolRenameError("ambiguous_argument_binding")
+            if isinstance(node, ast.keyword) and node.arg == old_name:
+                raise PythonSymbolRenameError("ambiguous_keyword_argument")
             if (
                 isinstance(node, ast.Name)
                 and node.id == old_name
@@ -143,6 +158,15 @@ class RepositoryPythonTopLevelRenamer:
                 raise PythonSymbolRenameError("ambiguous_name_binding")
             if isinstance(node, ast.Attribute) and node.attr == old_name:
                 raise PythonSymbolRenameError("ambiguous_attribute_reference")
+            if isinstance(node, ast.ExceptHandler) and node.name == old_name:
+                raise PythonSymbolRenameError("ambiguous_exception_binding")
+            if (
+                isinstance(node, (ast.MatchAs, ast.MatchStar))
+                and node.name == old_name
+            ):
+                raise PythonSymbolRenameError("ambiguous_pattern_binding")
+            if isinstance(node, ast.Nonlocal) and old_name in node.names:
+                raise PythonSymbolRenameError("ambiguous_nonlocal_binding")
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.split(".")[-1] == old_name or alias.asname == old_name:
