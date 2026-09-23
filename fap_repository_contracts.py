@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 
@@ -11,6 +12,7 @@ class RepositoryContract:
     version: str
     required_fields: tuple[str, ...]
     allowed_states: tuple[str, ...] = ()
+    version_field: str = "version"
 
 
 CODING_RESULT_VERSION = "fap.repository.coding.v1"
@@ -50,6 +52,7 @@ HOST_RESPONSE_CONTRACT = RepositoryContract(
         "paths",
     ),
     allowed_states=("verified_candidate", "rejected", "blocked"),
+    version_field="contract",
 )
 
 VERIFICATION_SELECTION_CONTRACT = RepositoryContract(
@@ -91,3 +94,36 @@ def require_contract_version(name: str, version: str) -> str:
             f"unsupported {contract.name} version: {actual or '<empty>'}"
         )
     return contract.version
+
+
+def validate_contract_payload(
+    name: str,
+    payload: Mapping[str, object],
+) -> RepositoryContract:
+    """Validate stable boundary metadata without rejecting additive fields."""
+
+    if not isinstance(payload, Mapping):
+        raise TypeError("repository contract payload must be a mapping")
+
+    contract = contract_for(name)
+    missing = tuple(
+        field for field in contract.required_fields if field not in payload
+    )
+    if missing:
+        raise ValueError(
+            f"missing {contract.name} fields: {','.join(missing)}"
+        )
+
+    require_contract_version(
+        contract.name,
+        str(payload.get(contract.version_field, "") or ""),
+    )
+
+    if contract.allowed_states:
+        state = str(payload.get("state", "") or "").strip()
+        if state not in contract.allowed_states:
+            raise ValueError(
+                f"unsupported {contract.name} state: {state or '<empty>'}"
+            )
+
+    return contract
