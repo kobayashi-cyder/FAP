@@ -30,6 +30,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y poppler-utils
+      - name: Verify long-request routing guard
+        run: |
+          python -m unittest tests.test_long_request_routing_envelope -v
       - name: Run FAP on official 2026 Common Test Information I
         run: |
           python benchmarks/common_test_2026_info1.py
