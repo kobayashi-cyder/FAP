@@ -1,3 +1,38 @@
+# FAP V87.80 — Multi-Turn Consistency Fuzz Hardening
+
+V87.80 extends the V87.79 conversation-quality work from single-turn semantic
+stability into multi-turn discourse consistency. The runtime remains FAP
+standalone; FCA is optional. The repository-coding safety sync derived from FCA
+PR #19 is already present in the underlying main baseline, while this release
+focuses on conversation continuity.
+
+The randomized multi-turn corpus now checks:
+- the newest grounded user topic wins over older topics;
+- a newer explicit but unknown subject blocks resurrection of an older known
+  topic;
+- declaratively configured acknowledgements are transparent and may preserve
+  the preceding grounded topic;
+- explicit correction structures such as A-not-B prioritize the asserted B side;
+- that corrected topic persists into a subsequent subjectless follow-up;
+- the same correction focus is used by reflective and inquiry subject parsing.
+
+The corpus exposed two general conversation defects:
+1. after a newer unknown subject, a subjectless follow-up could skip backward and
+   resurrect an older known topic;
+2. in an explicit correction, the rejected side could win semantic matching
+   simply because its alias was longer.
+
+The fixes are structural rather than topic-specific:
+- recent user turns form discourse boundaries; substantive unknown turns stop
+  backward topic search instead of being ignored;
+- transparent discourse markers are loaded from declarative knowledge data;
+- a shared grammar-level correction boundary focuses semantic matching on the
+  asserted replacement clause;
+- reflective conversation and inquiry anchoring share that correction focus.
+
+No generated concept, example topic or exact fuzz utterance is added as a
+topic-routing exception. Qwen is not used.
+
 # FAP V87.79 — Conversation Quality Fuzz Hardening
 
 V87.79 moves conversation testing from crash resistance to semantic quality.
