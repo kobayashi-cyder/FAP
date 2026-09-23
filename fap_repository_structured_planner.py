@@ -36,8 +36,13 @@ class RepositoryStructuredPlanner(RepositoryPlanner):
 
     VERSION = "fap.repository.structured_plan.v1"
 
-    def plan(self, goal: str) -> PatchPlan:
-        base = super().plan(goal)
+    def plan(
+        self,
+        goal: str,
+        *,
+        preferred_paths: tuple[str, ...] = (),
+    ) -> PatchPlan:
+        base = super().plan(goal, preferred_paths=preferred_paths)
         goal = str(goal or "").strip()
         hints = _explicit_path_intents(goal)
         if not hints:
