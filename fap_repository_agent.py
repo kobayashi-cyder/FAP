@@ -16,6 +16,7 @@ from fap_repository_promotion import (
     VerifiedCandidatePromoter,
 )
 from fap_repository_reader import RepositoryReadContext
+from fap_repository_repair_guard import GuardedRepairProvider
 from fap_repository_verifier import (
     BoundedRepairLoop,
     CandidateAttempt,
@@ -151,15 +152,21 @@ class RepositoryCodingCoordinator:
             )
 
         latest_edits = initial_edits
+        guarded_repairer: GuardedRepairProvider | None = None
+        if repairer is not None:
+            guarded_repairer = GuardedRepairProvider(
+                repairer,
+                max_seen=max(4, (self.max_repairs + 1) * 2),
+            )
 
         def tracked_repairer(
             current: tuple[FileEdit, ...],
             attempt: CandidateAttempt,
         ) -> Iterable[FileEdit] | None:
             nonlocal latest_edits
-            if repairer is None:
+            if guarded_repairer is None:
                 return None
-            proposal = repairer(current, attempt)
+            proposal = guarded_repairer(current, attempt)
             if proposal is None:
                 return None
             next_edits = tuple(proposal)
