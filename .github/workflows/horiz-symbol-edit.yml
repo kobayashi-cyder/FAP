@@ -1,0 +1,25 @@
+name: Horizontal symbol editing
+
+on:
+  push:
+    branches:
+      - horiz/coding-symbol-edit
+  pull_request:
+    paths:
+      - "fap_repository_python_symbol_edit.py"
+      - "tests/test_fap_repository_python_symbol_edit.py"
+      - ".github/workflows/horiz-symbol-edit.yml"
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m compileall -q fap_repository_python_symbol_edit.py
+      - run: python -m unittest tests.test_fap_repository_python_symbol_edit -v
