@@ -77,6 +77,24 @@ class RepositoryJsonEditorTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "indent"):
                 RepositoryJsonEditor().build_edit(root, self._plan(root), (JsonSetSpec("config.json", ("x",), 1),), indent=1000)
 
+    def test_explicit_null_intermediate_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); self._fixture(root, '{"feature":null}\n')
+            with self.assertRaisesRegex(RuntimeError, "intermediate key is not an object"):
+                RepositoryJsonEditor().build_edit(root, self._plan(root), (JsonSetSpec("config.json", ("feature", "enabled"), True),))
+
+    def test_unpaired_surrogate_result_is_rejected_before_file_edit(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); self._fixture(root)
+            with self.assertRaisesRegex(RuntimeError, "not strictly serializable"):
+                RepositoryJsonEditor().build_edit(root, self._plan(root), (JsonSetSpec("config.json", ("x",), "\ud800"),))
+
+    def test_unpaired_surrogate_from_source_is_rejected_after_edit(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); self._fixture(root, '{"x":"\\ud800","feature":{}}\n')
+            with self.assertRaisesRegex(RuntimeError, "not strictly serializable"):
+                RepositoryJsonEditor().build_edit(root, self._plan(root), (JsonSetSpec("config.json", ("feature", "enabled"), True),))
+
 
 if __name__ == "__main__":
     unittest.main()
