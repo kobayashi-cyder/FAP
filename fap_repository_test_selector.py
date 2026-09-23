@@ -9,6 +9,7 @@ from fap_repository_contracts import (
     VERIFICATION_SELECTION_VERSION,
     validate_contract_payload,
 )
+from fap_repository_impact import RepositoryImpactAnalyzer
 from fap_repository_planner import PatchPlan
 from fap_repository_verifier import VerificationCommand
 
@@ -70,10 +71,25 @@ class RepositoryVerificationSelector:
         )
         python_targets = tuple(path for path in mutated if path.endswith(".py"))
         test_files = self._test_files()
-        focused = self._focused_tests(python_targets, test_files)
-
         commands: list[VerificationCommand] = []
         warnings: list[str] = []
+
+        name_focused = self._focused_tests(python_targets, test_files)
+        impact_focused, impact_warnings = self._impact_tests(
+            python_targets,
+            test_files,
+        )
+        warnings.extend(impact_warnings)
+        direct_tests = tuple(
+            path
+            for path in python_targets
+            if path.startswith("tests/") and path in test_files
+        )
+        focused = tuple(
+            dict.fromkeys(
+                (*direct_tests, *impact_focused, *name_focused)
+            )
+        )[: self.max_focused_tests]
 
         if "focused_tests" in required:
             if focused:
@@ -158,6 +174,40 @@ class RepositoryVerificationSelector:
             rel = path.relative_to(self.root).as_posix()
             rows.append(rel)
         return tuple(rows)
+
+    def _impact_tests(
+        self,
+        python_targets: tuple[str, ...],
+        test_files: tuple[str, ...],
+    ) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        if not python_targets or not test_files:
+            return (), ()
+
+        analyzer = RepositoryImpactAnalyzer(
+            self.root,
+            max_depth=2,
+            max_impacted=max(64, self.max_focused_tests * 8),
+        )
+        seeds = tuple(
+            path
+            for path in python_targets
+            if path in analyzer.known_paths
+        )
+        if not seeds:
+            return (), ()
+
+        report = analyzer.analyze(seeds)
+        warnings: list[str] = []
+        if report.truncated:
+            warnings.append("dependency_impact_truncated")
+        if report.index_errors:
+            warnings.append("dependency_index_errors_present")
+
+        known_tests = set(test_files)
+        selected = tuple(
+            path for path in report.test_paths if path in known_tests
+        )
+        return selected[: self.max_focused_tests], tuple(warnings)
 
     def _focused_tests(
         self,
