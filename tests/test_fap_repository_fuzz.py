@@ -71,6 +71,29 @@ class RepositoryCodingFuzzerTests(unittest.TestCase):
         self.assertNotIn("SECRET", repr(categories))
         self.assertNotIn("/private/path", repr(categories))
 
+    def test_failure_classifier_only_keeps_typed_structural_second_fields(self) -> None:
+        categories = classify_failure(
+            (
+                "proposal_provider_failed:hunter2",
+                "command_policy:SECRET",
+                "focused_command_failed:test_calc",
+                "plan_not_ready:insufficient_context",
+                "plan_not_ready:hunter2",
+            )
+        )
+        self.assertEqual(
+            categories,
+            (
+                "proposal_provider_failed",
+                "command_policy",
+                "focused_command_failed:test_calc",
+                "plan_not_ready:insufficient_context",
+                "plan_not_ready",
+            ),
+        )
+        self.assertNotIn("hunter2", repr(categories))
+        self.assertNotIn("SECRET", repr(categories))
+
     def test_empty_conjunctions_fail_closed_for_multiple_clauses(self) -> None:
         fuzzer = RepositoryCodingFuzzer(
             FuzzLexicon(
