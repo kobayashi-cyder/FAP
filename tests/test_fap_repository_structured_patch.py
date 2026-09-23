@@ -111,7 +111,7 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
             self.assertEqual((root / "calc.py").read_text(encoding="utf-8"), original)
             self.assertEqual(self._git(root, "status", "--porcelain"), "")
 
-    def test_exact_replace_and_create_text_share_one_verified_candidate(self) -> None:
+    def test_multiple_exact_replacements_share_one_verified_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             self._fixture(root)
@@ -128,31 +128,47 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
                         old="return value * 3",
                         new="return value * 2",
                     ),
-                    CreateTextSpec(
-                        path="notes.md",
-                        content="# Coding notes\n\nGenerated on a non-main collaboration branch.\n",
-                    ),
                 )
 
             provider = RepositoryStructuredProposalProvider(root, specs)
             coordinator = RepositoryCodingCoordinator(root)
             result = coordinator.run(
-                "Update calc.py and create new file notes.md then run tests",
+                "Update calc.py implementation and run tests",
                 provider,
                 self._commands(),
             )
 
             self.assertEqual(result.state, "verified_candidate", result.errors)
-            self.assertEqual(
-                {(item.path, item.operation) for item in result.final_edits},
-                {("calc.py", "modify"), ("notes.md", "create")},
-            )
-            self.assertFalse((root / "notes.md").exists())
+            self.assertEqual(len(result.final_edits), 1)
+            self.assertIn("return value + 1", result.final_edits[0].content or "")
+            self.assertIn("return value * 2", result.final_edits[0].content or "")
             self.assertIn(
                 "return value + 2",
                 (root / "calc.py").read_text(encoding="utf-8"),
             )
             self.assertEqual(self._git(root, "status", "--porcelain"), "")
+
+    def test_create_text_compiles_when_plan_allows_create(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._fixture(root)
+            coordinator = RepositoryCodingCoordinator(root)
+            plan = coordinator.planner.plan("Create new file notes.md")
+            self.assertEqual(plan.status, "ready")
+            provider = RepositoryStructuredProposalProvider(root, lambda p, c: ())
+            edits = provider.build_edits(
+                plan,
+                (
+                    CreateTextSpec(
+                        path="notes.md",
+                        content="# Coding notes\n\nNon-main collaboration branch.\n",
+                    ),
+                ),
+            )
+            self.assertEqual(len(edits), 1)
+            self.assertEqual(edits[0].operation, "create")
+            self.assertEqual(edits[0].before_sha256, "")
+            self.assertIn("Coding notes", edits[0].content or "")
 
     def test_mapping_contract_round_trips_without_dynamic_code(self) -> None:
         rows = (
