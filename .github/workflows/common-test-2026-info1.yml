@@ -1,0 +1,35 @@
+name: FAP 2026 Common Test Information I
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - eval/gpt-level-benchmarks-v8781
+    paths:
+      - "benchmarks/common_test_2026_info1.py"
+      - ".github/workflows/common-test-2026-info1.yml"
+      - "fap_*.py"
+      - "knowledge/**"
+
+jobs:
+  information-i:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PDF text extractor
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y poppler-utils
+      - name: Run FAP on official 2026 Common Test Information I
+        run: |
+          python benchmarks/common_test_2026_info1.py
+      - name: Upload measured score
+        uses: actions/upload-artifact@v4
+        with:
+          name: common-test-2026-info1-score
+          path: benchmark_results/
+          if-no-files-found: error
