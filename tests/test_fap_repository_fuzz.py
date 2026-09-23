@@ -50,6 +50,42 @@ class RepositoryCodingFuzzerTests(unittest.TestCase):
         )
         self.assertNotIn("SECRET", repr(categories))
 
+    def test_failure_classifier_redacts_two_field_and_unstructured_messages(self) -> None:
+        categories = classify_failure(
+            (
+                "ValueError: SECRET=/private/path",
+                "SECRET=/private/path",
+                "proposal_provider_failed:SECRET=/private/path",
+                "proposal_provider_failed:RuntimeError:SECRET=/private/path",
+            )
+        )
+        self.assertEqual(
+            categories,
+            (
+                "exception:ValueError",
+                "unclassified_failure",
+                "proposal_provider_failed",
+                "proposal_provider_failed:RuntimeError",
+            ),
+        )
+        self.assertNotIn("SECRET", repr(categories))
+        self.assertNotIn("/private/path", repr(categories))
+
+    def test_empty_conjunctions_fail_closed_for_multiple_clauses(self) -> None:
+        fuzzer = RepositoryCodingFuzzer(
+            FuzzLexicon(
+                verbs=("fix",),
+                targets=("a.py", "b.py"),
+                conjunctions=(),
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "conjunctions must be non-empty"):
+            fuzzer.generate(seed=0, count=1, max_clauses=2)
+
+        rows = fuzzer.generate(seed=0, count=2, max_clauses=1)
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(" and " not in row.goal for row in rows))
+
     def test_small_lexicon_fails_when_unique_space_exhausted(self) -> None:
         fuzzer = RepositoryCodingFuzzer(
             FuzzLexicon(verbs=("fix",), targets=("a.py",), conjunctions=(" and ",))

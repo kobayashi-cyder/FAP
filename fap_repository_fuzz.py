@@ -2,7 +2,24 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import random
+import re
 from typing import Iterable
+
+
+_SAFE_CATEGORY = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_SAFE_STRUCTURAL_TOKEN = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
+_SAFE_EXCEPTION = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,79}(?:Error|Exception)$")
+_STRUCTURED_SECOND_FIELD = frozenset(
+    {
+        "proposal_provider_failed",
+        "execution_pipeline_failed",
+        "command_policy",
+        "focused_command_failed",
+        "regression_command_failed",
+        "plan_not_ready",
+    }
+)
+_FALLBACK_FAILURE = "unclassified_failure"
 
 
 @dataclass(frozen=True)
@@ -50,6 +67,10 @@ class RepositoryCodingFuzzer:
             raise ValueError("count must be in [1, 100000]")
         if not 1 <= int(max_clauses) <= 8:
             raise ValueError("max_clauses must be in [1, 8]")
+        if int(max_clauses) > 1 and not self.lexicon.conjunctions:
+            raise ValueError(
+                "conjunctions must be non-empty when max_clauses > 1"
+            )
 
         rng = random.Random(int(seed))
         out: list[CodingFuzzCase] = []
@@ -100,15 +121,31 @@ class RepositoryCodingFuzzer:
 
 
 def classify_failure(errors: Iterable[str]) -> tuple[str, ...]:
-    """Collapse arbitrary error text into bounded stable categories."""
+    """Collapse arbitrary error text into bounded, non-sensitive categories."""
+
     out: list[str] = []
     for raw in errors:
         text = str(raw or "").strip()
         if not text:
             continue
-        pieces = text.split(":")
-        category = ":".join(pieces[:2]) if len(pieces) >= 2 else pieces[0]
-        category = category[:160]
+
+        pieces = [piece.strip() for piece in text.split(":")]
+        first = pieces[0] if pieces else ""
+
+        if _SAFE_EXCEPTION.fullmatch(first):
+            category = f"exception:{first}"
+        elif not _SAFE_CATEGORY.fullmatch(first):
+            category = _FALLBACK_FAILURE
+        elif (
+            first in _STRUCTURED_SECOND_FIELD
+            and len(pieces) >= 2
+            and _SAFE_STRUCTURAL_TOKEN.fullmatch(pieces[1])
+        ):
+            category = f"{first}:{pieces[1]}"
+        else:
+            category = first
+
         if category not in out:
             out.append(category)
+
     return tuple(out)
