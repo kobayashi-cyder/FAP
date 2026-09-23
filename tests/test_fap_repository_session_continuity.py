@@ -142,7 +142,7 @@ class RepositorySessionContinuityTests(unittest.TestCase):
             )
             self.assertEqual(second.state, "handled")
             payload = second.payload or {}
-            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["ok"], payload)
             continuity = payload["repository_session_continuity"]
             self.assertEqual(continuity["session_id"], "coding-chat-1")
             self.assertIn("calc.py", continuity["preferred_paths_used"])
