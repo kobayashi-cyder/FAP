@@ -2,6 +2,16 @@
 
 FAPは、**小型・低RAM・高速応答を重視した実験的な認知アーキテクチャ**です。
 
+## Current release
+
+- Stable mainline: **V87.80**
+- Runtime version: `87.80-unified-chat`
+- Canonical version file: [`VERSION`](VERSION)
+- Detailed rolling changes: [`FAP_LATEST.md`](FAP_LATEST.md)
+- Release summary: [`CHANGELOG.md`](CHANGELOG.md)
+
+`README.md` の旧バージョン節は設計の変遷を示す履歴です。現在版の判定には `VERSION` と `FAP_LATEST.md` を使用してください。
+
 巨大な言語モデルをそのまま小さくするのではなく、
 
 * 会話
@@ -482,7 +492,9 @@ FAP本体へ組み込み
 
 ---
 
-## 9. バージョン履歴
+## 9. バージョン履歴（旧世代の設計履歴）
+
+V87系の詳細な更新履歴は [`FAP_LATEST.md`](FAP_LATEST.md) を参照してください。以下は初期世代の設計履歴です。
 
 ### V39
 
@@ -670,7 +682,7 @@ chmod +x RUN_FAP_CHAT_LATEST.sh
 ./RUN_FAP_CHAT_LATEST.sh
 ```
 
-Linuxランチャーは利用可能なローカルポートを選び、V87.39統合Chatを
+Linuxランチャーは利用可能なローカルポートを選び、V87.80統合Chatを
 バックグラウンド起動して、開くべきURLを表示します。Cコンパイラが
 利用できればV87.38/V87.39のネイティブライブラリも自動ビルドします。
 
@@ -759,19 +771,7 @@ FAPはまだ大規模言語モデルではありません。
 
 ## 14. 将来の方向
 
-予定候補:
-
-```text
-V54  会話データセット蒸留
-V55  会話回路の自動更新
-V56  意味表現器官
-V57  長期知識蒸留
-V58  自己評価
-V59  自己修正
-V60  統合認知ループ
-```
-
-番号や内容は開発状況により変更されます。
+現在の開発系列は **V87.80 以降**です。次版は固定予約せず、検証済み変更をまとめて `VERSION`・`FAP_LATEST.md`・ランチャー・ゲートウェイを同期して昇格します。
 
 ---
 

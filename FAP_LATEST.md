@@ -444,9 +444,9 @@ New derivations can be added as data records without adding theorem-specific
 Python branches. V87.56 image orchestration and all earlier chat, science,
 research, media and local fallback paths remain underneath V87.57.
 
-# FAP latest development snapshot
+# Historical V87.64 development snapshot
 
-Current mainline: **V87.64 — Multi-Concept Raster + Honest Quality Gate**.
+The following section records the V87.64-era baseline. The authoritative current mainline is declared at the top of this file and in `VERSION`.
 
 V87.56 reconnects image generation to the current unified FAP chat and replaces
 the old one-shot `txt2img` path with a generate → inspect → repair → select
