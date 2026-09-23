@@ -33,6 +33,16 @@ def _compact(text: str) -> str:
     return re.sub(r"[\s\-‐‑–—_・･、。，．,:：;；!?！？'\"]+", "", _norm(text))
 
 
+def _routing_window(text: str, max_chars: int = 1200) -> str:
+    value = str(text or "")
+    if len(value) <= max_chars:
+        return value
+    head = value.split("\n\n", 1)[0].strip()
+    if head and len(head) <= max_chars:
+        return head
+    return value[:max_chars]
+
+
 def _hits(text: str, aliases: Sequence[str]) -> list[str]:
     value = _compact(text)
     found: list[str] = []
@@ -124,10 +134,11 @@ class SemanticConversationRouter:
         value = str(text or "").strip()
         if not value:
             return None
+        route_text = _routing_window(value)
         ranked: list[tuple[float, ConversationIntent, list[str], list[str]]] = []
         for intent in self.intents:
-            subjects = _hits(value, intent.subject_aliases)
-            actions = _hits(value, intent.action_aliases)
+            subjects = _hits(route_text, intent.subject_aliases)
+            actions = _hits(route_text, intent.action_aliases)
             if len(subjects) < intent.min_subject_hits or len(actions) < intent.min_action_hits:
                 continue
             score = 2.0 * len(subjects) + 1.5 * len(actions)
