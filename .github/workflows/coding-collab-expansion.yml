@@ -6,10 +6,13 @@ on:
       - collab/coding-expansion-v8780
     paths:
       - "fap_repository_structured_patch.py"
+      - "fap_repository_structured_planner.py"
       - "fap_repository_collab.py"
       - "tests/test_fap_repository_structured_patch.py"
+      - "tests/test_fap_repository_structured_planner.py"
       - "tests/test_fap_repository_collab.py"
       - "fap_repository_ast_patch.py"
+      - "fap_repository_planner.py"
       - "fap_repository_agent.py"
       - "fap_repository_interaction.py"
       - "docs/CODING_COLLAB_V8780.md"
@@ -17,10 +20,13 @@ on:
   pull_request:
     paths:
       - "fap_repository_structured_patch.py"
+      - "fap_repository_structured_planner.py"
       - "fap_repository_collab.py"
       - "tests/test_fap_repository_structured_patch.py"
+      - "tests/test_fap_repository_structured_planner.py"
       - "tests/test_fap_repository_collab.py"
       - "fap_repository_ast_patch.py"
+      - "fap_repository_planner.py"
       - "fap_repository_agent.py"
       - "fap_repository_interaction.py"
       - "docs/CODING_COLLAB_V8780.md"
@@ -39,7 +45,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Compile coding expansion
         run: |
-          python -m compileall -q             fap_repository_structured_patch.py             fap_repository_collab.py
+          python -m compileall -q \
+            fap_repository_structured_patch.py \
+            fap_repository_structured_planner.py \
+            fap_repository_collab.py
       - name: Run coding expansion and repository regressions
         run: |
-          python -m unittest             tests.test_fap_repository_structured_patch             tests.test_fap_repository_collab             tests.test_fap_repository_ast_patch             tests.test_fap_repository_agent             tests.test_fap_repository_interaction -v
+          python -m unittest \
+            tests.test_fap_repository_structured_patch \
+            tests.test_fap_repository_structured_planner \
+            tests.test_fap_repository_collab \
+            tests.test_fap_repository_ast_patch \
+            tests.test_fap_repository_planner \
+            tests.test_fap_repository_agent \
+            tests.test_fap_repository_interaction -v
