@@ -81,6 +81,39 @@ goal
   -> detached-worktree verification
 ```
 
+### Dependency-aware impact analysis
+
+`fap_repository_impact.py` adds `RepositoryImpactAnalyzer`.
+
+The repository index already records Python import edges. The impact analyzer walks those edges in reverse with explicit depth/count bounds, so changing a low-level file can discover indirect dependents and tests without importing or executing project code. For example:
+
+```text
+core.py
+  <- service.py
+      <- tests/test_service.py
+```
+
+A change to `core.py` can therefore select `tests/test_service.py` even though the test filename does not match `core.py`.
+
+### Integrated structured coding agent
+
+`fap_repository_structured_agent.py` adds `RepositoryStructuredCodingAgent`.
+
+It combines the collaboration branch components into one non-promoting pipeline:
+
+```text
+goal
+  -> RepositoryStructuredPlanner
+  -> RepositoryImpactAnalyzer / RepositoryVerificationSelector
+  -> RepositoryStructuredProposalProvider
+  -> detached-worktree execution
+  -> focused + regression verification
+  -> optional bounded structured repair
+  -> verified candidate
+```
+
+The agent has no automatic promotion method. A verified result stays outside the source working tree and outside `main` until an explicit existing promotion path is used.
+
 ### Cross-chat handoff snapshot
 
 `fap_repository_collab.py` adds `RepositoryCodingCollaboration.snapshot()`.
@@ -138,7 +171,8 @@ The branch workflow `.github/workflows/coding-collab-expansion.yml` runs the sam
 2. Keep new work on this branch or a child branch; do not merge to `main` automatically.
 3. Prefer structured specs over unconstrained whole-file rewrites when a bounded edit can express the task.
 4. Use `RepositoryStructuredPlanner` when a single request mixes create/modify/delete targets.
-5. Use `RepositoryVerificationSelector` when the host should infer bounded Python test commands automatically.
-6. Preserve planner SHA preconditions and detached-worktree verification.
-7. Add tests with each new coding operation.
-8. If the branch diverges from `main`, rebase/merge deliberately and rerun the focused lane before proposing integration.
+5. Use `RepositoryImpactAnalyzer` / `RepositoryVerificationSelector` to cover indirect dependents and bounded Python tests.
+6. Use `RepositoryStructuredCodingAgent` when one host should execute the full non-promoting plan → edit → verify → repair cycle.
+7. Preserve planner SHA preconditions and detached-worktree verification.
+8. Add tests with each new coding operation.
+9. If the branch diverges from `main`, rebase/merge deliberately and rerun the focused lane before proposing integration.
