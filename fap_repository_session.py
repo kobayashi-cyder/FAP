@@ -7,7 +7,7 @@ from threading import RLock
 from typing import Iterable
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
-_SAFE_ID = re.compile(r"^[0-9A-Za-z_.:--]{1,128}$")
+_SAFE_ID = re.compile(r"^[-0-9A-Za-z_.:]{1,128}$")
 
 
 @dataclass(frozen=True)
