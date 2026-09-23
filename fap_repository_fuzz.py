@@ -9,16 +9,20 @@ from typing import Iterable
 _SAFE_CATEGORY = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _SAFE_STRUCTURAL_TOKEN = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
 _SAFE_EXCEPTION = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,79}(?:Error|Exception)$")
-_STRUCTURED_SECOND_FIELD = frozenset(
+_EXCEPTION_SECOND_FIELD = frozenset(
     {
         "proposal_provider_failed",
         "execution_pipeline_failed",
         "command_policy",
-        "focused_command_failed",
-        "regression_command_failed",
-        "plan_not_ready",
     }
 )
+_COMMAND_SECOND_FIELD = frozenset(
+    {
+        "focused_command_failed",
+        "regression_command_failed",
+    }
+)
+_SAFE_PLAN_STATUSES = frozenset({"stale_context", "insufficient_context"})
 _FALLBACK_FAILURE = "unclassified_failure"
 
 
@@ -137,9 +141,21 @@ def classify_failure(errors: Iterable[str]) -> tuple[str, ...]:
         elif not _SAFE_CATEGORY.fullmatch(first):
             category = _FALLBACK_FAILURE
         elif (
-            first in _STRUCTURED_SECOND_FIELD
+            first in _EXCEPTION_SECOND_FIELD
+            and len(pieces) >= 2
+            and _SAFE_EXCEPTION.fullmatch(pieces[1])
+        ):
+            category = f"{first}:{pieces[1]}"
+        elif (
+            first in _COMMAND_SECOND_FIELD
             and len(pieces) >= 2
             and _SAFE_STRUCTURAL_TOKEN.fullmatch(pieces[1])
+        ):
+            category = f"{first}:{pieces[1]}"
+        elif (
+            first == "plan_not_ready"
+            and len(pieces) >= 2
+            and pieces[1] in _SAFE_PLAN_STATUSES
         ):
             category = f"{first}:{pieces[1]}"
         else:
