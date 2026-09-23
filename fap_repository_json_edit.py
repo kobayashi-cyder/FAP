@@ -110,7 +110,7 @@ def _reject_constant(value: str) -> Any:
 
 def _keys(raw: Iterable[str]) -> tuple[str, ...]:
     keys = tuple(str(x) for x in raw)
-    if not keys or any(not x or x in {".", ".."} for x in keys):
+    if not keys:
         raise JsonEditError("JSON key path must be non-empty")
     return keys
 
