@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
+from fap_repository_contracts import CODING_RESULT_VERSION
 from fap_repository_executor import FileEdit, RepositoryPatchExecutor
 from fap_repository_planner import PatchPlan, RepositoryPlanner
 from fap_repository_promotion import (
@@ -191,7 +192,7 @@ class RepositoryCodingCoordinator:
         )
         errors = () if state == "verified_candidate" else tuple(repair.errors)
         return RepositoryCodingResult(
-            version="fap.repository.coding.v1",
+            version=CODING_RESULT_VERSION,
             goal=goal,
             state=state,
             plan=plan,
@@ -207,7 +208,7 @@ class RepositoryCodingCoordinator:
         commands: Iterable[VerificationCommand],
         approval: PromotionApproval,
     ) -> PromotionReport:
-        if result.version != "fap.repository.coding.v1":
+        if result.version != CODING_RESULT_VERSION:
             raise ValueError(f"unsupported coding result version: {result.version}")
         if result.state != "verified_candidate" or result.repair is None:
             return PromotionReport(
@@ -253,7 +254,7 @@ class RepositoryCodingCoordinator:
         errors: tuple[str, ...],
     ) -> RepositoryCodingResult:
         return RepositoryCodingResult(
-            version="fap.repository.coding.v1",
+            version=CODING_RESULT_VERSION,
             goal=goal,
             state="rejected",
             plan=plan,
