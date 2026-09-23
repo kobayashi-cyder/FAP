@@ -36,6 +36,16 @@ def _compact(text: str) -> str:
     return re.sub(r"[\s\-‐‑–—_・･、。，．,:：;；!?！？'\"]+", "", _norm(text))
 
 
+def _routing_window(text: str, max_chars: int = 1200) -> str:
+    value = str(text or "")
+    if len(value) <= max_chars:
+        return value
+    head = value.split("\n\n", 1)[0].strip()
+    if head and len(head) <= max_chars:
+        return head
+    return value[:max_chars]
+
+
 def _hits(text: str, aliases: Sequence[str]) -> list[str]:
     value = _compact(text)
     out: list[str] = []
@@ -115,8 +125,9 @@ class SemanticActionRouter:
         return ranked[0] if ranked else None
 
     def match(self, text: str) -> dict | None:
-        resource_hit = self._best(text, self.resources)
-        action_hit = self._best(text, self.actions)
+        route_text = _routing_window(text)
+        resource_hit = self._best(route_text, self.resources)
+        action_hit = self._best(route_text, self.actions)
         if resource_hit is None or action_hit is None:
             return None
         resource = resource_hit[1]
