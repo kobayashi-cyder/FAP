@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import subprocess
 import sys
@@ -8,6 +9,7 @@ import unittest
 
 from fap_repository_agent import RepositoryCodingCoordinator
 from fap_repository_executor import FileEdit
+from fap_repository_planner import RepositoryPlanner
 from fap_repository_promotion import PromotionApproval
 from fap_repository_verifier import VerificationCommand
 
@@ -184,6 +186,52 @@ class RepositoryV8770Tests(unittest.TestCase):
                 (root / "calc.py").read_text(encoding="utf-8"),
                 original,
             )
+
+    def test_plan_quality_rejects_broken_plan_before_proposal(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._fixture(root)
+
+            class MissingRegressionPlanner(RepositoryPlanner):
+                def plan(self, goal, *, preferred_paths=()):
+                    plan = super().plan(
+                        goal,
+                        preferred_paths=preferred_paths,
+                    )
+                    return replace(
+                        plan,
+                        required_checks=tuple(
+                            check
+                            for check in plan.required_checks
+                            if check != "regression_tests"
+                        ),
+                    )
+
+            coordinator = RepositoryCodingCoordinator(
+                root,
+                planner=MissingRegressionPlanner(root),
+            )
+            proposal_called = False
+
+            def proposer(plan, context):
+                nonlocal proposal_called
+                proposal_called = True
+                return ()
+
+            result = coordinator.run(
+                "Fix calc.py implementation and run tests",
+                proposer,
+                self._commands(),
+            )
+
+            self.assertEqual(result.state, "rejected")
+            self.assertFalse(proposal_called)
+            self.assertIn(
+                "plan_quality:missing_regression_tests",
+                result.errors,
+            )
+            self.assertIsNone(result.repair)
+            self.assertEqual(self._git(root, "status", "--porcelain"), "")
 
     def test_proposal_provider_exception_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as td:

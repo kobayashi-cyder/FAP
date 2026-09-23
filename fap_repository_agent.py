@@ -10,6 +10,7 @@ from fap_repository_contracts import (
     validate_contract_payload,
 )
 from fap_repository_executor import FileEdit, RepositoryPatchExecutor
+from fap_repository_plan_quality import RepositoryPlanQualityGate
 from fap_repository_planner import PatchPlan, RepositoryPlanner
 from fap_repository_promotion import (
     PromotionApproval,
@@ -79,6 +80,7 @@ class RepositoryCodingCoordinator:
         executor: RepositoryPatchExecutor | None = None,
         verifier: RepositoryVerifier | None = None,
         security_policy: RepositorySecurityPolicy | None = None,
+        plan_quality_gate: RepositoryPlanQualityGate | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
         self.planner = planner or RepositoryPlanner(
@@ -91,6 +93,9 @@ class RepositoryCodingCoordinator:
             max_files=max_files,
         )
         self.verifier = verifier or RepositoryVerifier()
+        self.plan_quality_gate = plan_quality_gate or RepositoryPlanQualityGate(
+            max_files=max_files,
+        )
         self.security_policy = security_policy or RepositorySecurityPolicy(
             allowed_executables=self.verifier.allowed_executables,
             allowed_executable_paths=(sys.executable,),
@@ -138,6 +143,17 @@ class RepositoryCodingCoordinator:
                 None,
                 (),
                 (f"plan_not_ready:{plan.status}",),
+            )
+
+        quality = self.plan_quality_gate.assess(plan)
+        if not quality.acceptable:
+            return self._reject(
+                goal,
+                plan,
+                context,
+                None,
+                (),
+                _plan_quality_errors(quality),
             )
 
         try:
@@ -319,5 +335,15 @@ def _security_errors(report) -> tuple[str, ...]:
             f"security_policy:{finding.code}"
             for finding in report.findings
             if finding.severity == "fatal"
+        )
+    )
+
+
+def _plan_quality_errors(report) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            f"plan_quality:{issue.code}"
+            for issue in report.issues
+            if issue.severity == "fatal"
         )
     )
