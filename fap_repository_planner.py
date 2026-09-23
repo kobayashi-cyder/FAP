@@ -77,11 +77,19 @@ class RepositoryPlanner:
             max_total_bytes=self.max_source_bytes,
         )
 
-    def plan(self, goal: str) -> PatchPlan:
+    def plan(
+        self,
+        goal: str,
+        *,
+        preferred_paths: tuple[str, ...] = (),
+    ) -> PatchPlan:
         goal = str(goal or "").strip()
         if not goal:
             raise ValueError("goal is required")
-        context = self.reader.read(goal)
+        context = self.reader.read(
+            goal,
+            preferred_paths=preferred_paths,
+        )
         stale = any(item.stale for item in context.files)
 
         mutation = bool(MUTATE_WORDS.search(goal))
