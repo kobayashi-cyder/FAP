@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import subprocess
 import tempfile
@@ -36,6 +37,20 @@ class RepositoryTransactionBuilderTests(unittest.TestCase):
             right = builder.build(plan, (b, a))
             self.assertTrue(builder.equivalent(left, right))
             self.assertEqual(len(left.digest), 64)
+
+    def test_protocol_version_is_part_of_equivalence(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            plan = self._fixture(root)
+            by_path = {x.path: x for x in plan.files}
+            edits = (
+                FileEdit("a.py", "modify", by_path["a.py"].before_sha256, "A = 2\n"),
+                FileEdit("b.py", "modify", by_path["b.py"].before_sha256, "B = 2\n"),
+            )
+            builder = RepositoryTransactionBuilder()
+            transaction = builder.build(plan, edits)
+            unsupported = replace(transaction, version="fap.repository.transaction.v999")
+            self.assertFalse(builder.equivalent(transaction, unsupported))
 
     def test_missing_planned_mutation_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as td:
