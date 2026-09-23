@@ -28,6 +28,7 @@ class RepositoryHostResponse:
     reason: str
     attempts: int
     repairs_used: int
+    paths: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -76,7 +77,13 @@ class FAPRepositoryCodingHost:
         if self.coordinator.root != self.root:
             raise ValueError("coordinator root does not match host root")
 
-    def __call__(self, goal: str, observation: str = "") -> RepositoryHostResponse:
+    def __call__(
+        self,
+        goal: str,
+        observation: str = "",
+        *,
+        preferred_paths: tuple[str, ...] = (),
+    ) -> RepositoryHostResponse:
         goal = str(goal or "").strip()
         if not goal:
             return self._blocked("empty_goal")
@@ -89,12 +96,19 @@ class FAPRepositoryCodingHost:
                 self.proposer,
                 self.commands,
                 repairer=self.repairer,
+                preferred_paths=preferred_paths,
             )
         except Exception as exc:
             return self._blocked(f"repository_host_failed:{type(exc).__name__}")
 
         plan_id = result.plan.plan_id
         repository_digest = result.plan.task.repository_digest
+        paths = tuple(dict.fromkeys(
+            item.path for item in result.plan.files
+            if item.operation in {"modify", "create", "delete"}
+        ))[:32]
+        if not paths:
+            paths = tuple(dict.fromkeys(item.path for item in result.plan.files))[:32]
         if result.state == "verified_candidate" and result.repair is not None:
             return RepositoryHostResponse(
                 contract=HOST_CONTRACT,
@@ -112,6 +126,7 @@ class FAPRepositoryCodingHost:
                 reason="repository_coding_verified_candidate",
                 attempts=len(result.repair.attempts),
                 repairs_used=result.repair.repairs_used,
+                paths=paths,
             )
 
         attempts = len(result.repair.attempts) if result.repair is not None else 0
@@ -129,6 +144,7 @@ class FAPRepositoryCodingHost:
             reason=_reason_code(result.errors),
             attempts=attempts,
             repairs_used=repairs_used,
+            paths=paths,
         )
 
     @staticmethod
@@ -143,6 +159,7 @@ class FAPRepositoryCodingHost:
             reason=reason,
             attempts=0,
             repairs_used=0,
+            paths=(),
         )
 
 
