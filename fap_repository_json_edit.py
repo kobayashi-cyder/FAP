@@ -35,14 +35,7 @@ class RepositoryJsonEditor:
 
     VERSION = "fap.repository.json_edit.v1"
 
-    def build_edit(
-        self,
-        root: str | Path,
-        plan: PatchPlan,
-        specs: Iterable[JsonSpec],
-        *,
-        indent: int = 2,
-    ) -> FileEdit:
+    def build_edit(self, root: str | Path, plan: PatchPlan, specs: Iterable[JsonSpec], *, indent: int = 2) -> FileEdit:
         rows = tuple(specs)
         if not rows:
             raise JsonEditError("at least one JSON edit spec is required")
@@ -77,11 +70,7 @@ class RepositoryJsonEditor:
             if sha256(raw).hexdigest() != planned.before_sha256:
                 raise JsonEditError("STALE_PLAN: JSON source hash changed")
             try:
-                document = json.loads(
-                    raw.decode("utf-8"),
-                    object_pairs_hook=_strict_object,
-                    parse_constant=_reject_constant,
-                )
+                document = json.loads(raw.decode("utf-8"), object_pairs_hook=_strict_object, parse_constant=_reject_constant)
             except (UnicodeDecodeError, json.JSONDecodeError, JsonEditError) as exc:
                 raise JsonEditError("JSON source is invalid or ambiguous") from exc
 
@@ -98,22 +87,12 @@ class RepositoryJsonEditor:
                 raise JsonEditError("unsupported JSON edit spec")
 
         try:
-            content = json.dumps(
-                document,
-                ensure_ascii=False,
-                sort_keys=True,
-                indent=int(indent),
-                allow_nan=False,
-            ) + "\n"
+            content = json.dumps(document, ensure_ascii=False, sort_keys=True, indent=int(indent), allow_nan=False) + "\n"
+            content.encode("utf-8", errors="strict")
             json.loads(content, object_pairs_hook=_strict_object, parse_constant=_reject_constant)
-        except (TypeError, ValueError, json.JSONDecodeError, JsonEditError) as exc:
+        except (TypeError, ValueError, UnicodeEncodeError, json.JSONDecodeError, JsonEditError) as exc:
             raise JsonEditError("JSON result is not strictly serializable") from exc
-        return FileEdit(
-            path=path,
-            operation=planned.operation,
-            before_sha256=planned.before_sha256,
-            content=content,
-        )
+        return FileEdit(path=path, operation=planned.operation, before_sha256=planned.before_sha256, content=content)
 
 
 def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -139,10 +118,9 @@ def _keys(raw: Iterable[str]) -> tuple[str, ...]:
 def _set_path(document: dict[str, Any], keys: tuple[str, ...], value: Any) -> None:
     cursor = document
     for key in keys[:-1]:
-        current = cursor.get(key)
-        if current is None:
-            current = {}
-            cursor[key] = current
+        if key not in cursor:
+            cursor[key] = {}
+        current = cursor[key]
         if not isinstance(current, dict):
             raise JsonEditError(f"intermediate key is not an object: {key}")
         cursor = current
