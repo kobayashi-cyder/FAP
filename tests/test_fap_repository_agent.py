@@ -148,6 +148,43 @@ class RepositoryV8770Tests(unittest.TestCase):
                 original,
             )
 
+    def test_repair_cycle_guard_stops_unchanged_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._fixture(root)
+            original = (root / "calc.py").read_text(encoding="utf-8")
+            coordinator = RepositoryCodingCoordinator(root, max_repairs=4)
+            calls = []
+
+            def proposer(plan, context):
+                return (
+                    self._edit_for(
+                        plan,
+                        original.replace("value + 1", "value + 2"),
+                    ),
+                )
+
+            def repairer(current, attempt):
+                calls.append(attempt.round_index)
+                return current
+
+            result = coordinator.run(
+                "Fix calc.py implementation and run tests",
+                proposer,
+                self._commands(),
+                repairer=repairer,
+            )
+
+            self.assertEqual(result.state, "rejected")
+            self.assertIsNotNone(result.repair)
+            self.assertEqual(len(result.repair.attempts), 1)
+            self.assertEqual(calls, [0])
+            self.assertIn("value + 2", result.final_edits[0].content or "")
+            self.assertEqual(
+                (root / "calc.py").read_text(encoding="utf-8"),
+                original,
+            )
+
     def test_proposal_provider_exception_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
