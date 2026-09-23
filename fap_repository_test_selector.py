@@ -167,31 +167,60 @@ class RepositoryVerificationSelector:
         if not python_targets or not test_files:
             return ()
 
-        selected: list[str] = []
-        stems = {
-            Path(path).stem.casefold()
-            for path in python_targets
-            if not path.startswith("tests/")
-        }
         direct_tests = {
             path
             for path in python_targets
             if path.startswith("tests/") and path in test_files
         }
+        aliases = tuple(dict.fromkeys(
+            alias
+            for target in python_targets
+            if not target.startswith("tests/")
+            for alias in _target_aliases(target)
+        ))
+
+        ranked: list[tuple[int, str]] = []
         for path in test_files:
             if path in direct_tests:
-                selected.append(path)
+                ranked.append((10_000, path))
                 continue
-            name = Path(path).stem.casefold()
-            if any(
-                name == f"test_{stem}"
-                or name == f"{stem}_test"
-                or name.startswith(f"test_{stem}_")
-                for stem in stems
-            ):
-                selected.append(path)
 
-        return tuple(dict.fromkeys(selected))[: self.max_focused_tests]
+            name = Path(path).stem.casefold()
+            best = 0
+            for alias in aliases:
+                specificity = alias.count("_") + 1
+                if name == f"test_{alias}" or name == f"{alias}_test":
+                    score = 3_000 + specificity * 100 + len(alias)
+                elif name.startswith(f"test_{alias}_"):
+                    score = 2_000 + specificity * 100 + len(alias)
+                else:
+                    continue
+                best = max(best, score)
+            if best:
+                ranked.append((best, path))
+
+        ranked.sort(key=lambda item: (-item[0], item[1]))
+        return tuple(path for _, path in ranked[: self.max_focused_tests])
+
+
+def _target_aliases(path: str) -> tuple[str, ...]:
+    value = str(path).replace("\\", "/")
+    parts = list(Path(value).with_suffix("").parts)
+    while parts and parts[0].casefold() in {"src", "lib", "app", "python"}:
+        parts.pop(0)
+
+    cleaned = []
+    for part in parts:
+        token = re.sub(r"[^0-9A-Za-z_]+", "_", part).strip("_").casefold()
+        if token:
+            cleaned.append(token)
+    if not cleaned:
+        return ()
+
+    aliases = []
+    for width in range(min(3, len(cleaned)), 0, -1):
+        aliases.append("_".join(cleaned[-width:]))
+    return tuple(dict.fromkeys(aliases))
 
 
 def _module_name(path: str) -> str:

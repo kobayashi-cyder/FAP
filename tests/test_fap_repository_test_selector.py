@@ -65,6 +65,49 @@ class RepositoryVerificationSelectorTests(unittest.TestCase):
             self.assertIn("tests.test_calc", selection.commands[0].argv)
             self.assertFalse(selection.warnings)
 
+    def test_path_specific_mapping_outranks_generic_match(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self._fixture(root)
+
+            (root / "pkg").mkdir()
+            (root / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+            (root / "pkg" / "service.py").write_text(
+                "def value() -> int:\n"
+                "    return 1\n",
+                encoding="utf-8",
+            )
+            (root / "tests" / "test_pkg_service.py").write_text(
+                "import unittest\n\n"
+                "class PackageServiceTests(unittest.TestCase):\n"
+                "    def test_placeholder(self):\n"
+                "        self.assertTrue(True)\n",
+                encoding="utf-8",
+            )
+            (root / "tests" / "test_service_extra.py").write_text(
+                "import unittest\n\n"
+                "class GenericServiceTests(unittest.TestCase):\n"
+                "    def test_placeholder(self):\n"
+                "        self.assertTrue(True)\n",
+                encoding="utf-8",
+            )
+            self._git(root, "add", ".")
+            self._git(root, "commit", "-qm", "nested fixture")
+
+            coordinator = RepositoryCodingCoordinator(root)
+            plan = coordinator.planner.plan(
+                "Update pkg/service.py implementation"
+            )
+            selection = RepositoryVerificationSelector(root).select(plan)
+
+            self.assertEqual(
+                selection.focused_tests[:2],
+                (
+                    "tests/test_pkg_service.py",
+                    "tests/test_service_extra.py",
+                ),
+            )
+
     def test_selected_commands_drive_verified_candidate_without_manual_test_list(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
