@@ -9,6 +9,7 @@ from typing import Mapping
 
 from fap_knowledge_retrieval import RepositoryKnowledgeIndex, RetrievalHit, sentences, terms
 from fap_epistemic_learning import EpistemicLedger, QuestionValueScorer
+from fap_discourse_context import focus_explicit_correction
 from fap_reflective_conversation import is_context_only_followup
 
 
@@ -35,7 +36,7 @@ def current_subject_anchor(text: str) -> str:
     keeps the user's candidate subject while removing phrases that otherwise
     create accidental n-gram overlap with unrelated knowledge chunks.
     """
-    value = str(text or "").strip()
+    value = focus_explicit_correction(text)
     if not value:
         return ""
     value = QUERY_FRAME.sub(" ", value)

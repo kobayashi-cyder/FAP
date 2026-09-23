@@ -5,6 +5,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Mapping
 
+from fap_discourse_context import focus_explicit_correction, is_transparent_discourse_turn
+
 
 @dataclass(frozen=True)
 class Concept:
@@ -227,8 +229,9 @@ class ReflectiveConversationOrgan:
     )
 
     def _rank(self, text: str) -> list[tuple[float, Concept]]:
+        focused = focus_explicit_correction(text)
         return sorted(
-            ((_topic_score(c, text), c) for c in CONCEPTS),
+            ((_topic_score(c, focused), c) for c in CONCEPTS),
             key=lambda x: (-x[0], x[1].concept_id),
         )
 
@@ -241,25 +244,51 @@ class ReflectiveConversationOrgan:
     def _from_history(self, history: list[Mapping]) -> Concept | None:
         recent = list(history[-12:])
 
-        # The user's own recent subject is stronger continuity evidence than
-        # concepts merely mentioned inside an assistant explanation. Otherwise
-        # a reply about one topic can silently shift the next follow-up to a
-        # related noun that happened to appear in that reply.
-        for preferred_role in ("user", None):
-            for row in reversed(recent):
-                role = str(row.get("role") or "").strip().lower()
-                if preferred_role == "user":
-                    if role != "user":
-                        continue
-                elif role == "user":
-                    continue
+        # Resolve from user turns first, but do not skip across a newer
+        # substantive unknown subject to resurrect an older known topic.
+        # Context-only references and declarative transparent discourse markers
+        # (acknowledgements, etc.) may pass through to the preceding topic.
+        user_turn_seen = False
+        for row in reversed(recent):
+            role = str(row.get("role") or "").strip().lower()
+            if role != "user":
+                continue
 
-                value = str(row.get("text", "")).strip()
-                if not value:
-                    continue
-                concept, score = self._match(value)
-                if concept is not None and score > 0:
-                    return concept
+            value = str(row.get("text", "")).strip()
+            if not value:
+                continue
+            user_turn_seen = True
+
+            if is_context_only_followup(value):
+                continue
+
+            concept, score = self._match(value)
+            if concept is not None and score > 0:
+                return concept
+
+            if is_transparent_discourse_turn(value):
+                continue
+
+            # A newer substantive user turn exists but is not grounded in the
+            # local concept registry. Fail closed instead of borrowing an older
+            # topic from deeper history.
+            return None
+
+        # Assistant-only history is a compatibility fallback. Once any user
+        # turn was present, assistant vocabulary must not invent continuity.
+        if user_turn_seen:
+            return None
+
+        for row in reversed(recent):
+            role = str(row.get("role") or "").strip().lower()
+            if role == "user":
+                continue
+            value = str(row.get("text", "")).strip()
+            if not value:
+                continue
+            concept, score = self._match(value)
+            if concept is not None and score > 0:
+                return concept
         return None
 
     @staticmethod
