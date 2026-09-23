@@ -105,8 +105,14 @@ def main() -> None:
         core = gateway.FAPV8781Unified()
         for idx, section in enumerate(SECTIONS, start=1):
             body = extract_pages(pdf, *section["pages"])
-            response = core.chat(prompt_for(section, body), "common-test-2026-info1-" + str(idx))
+            prompt = prompt_for(section, body)
+            response = core.chat(prompt, "common-test-2026-info1-" + str(idx))
             reply = str(response.get("reply") or "")
+            try:
+                distilled_probe = core.distilled.run(prompt, [])
+                print("distilled_probe:", str(distilled_probe.get("reply") or "")[:1200].replace("\n"," "))
+            except Exception as exc:
+                print("distilled_probe_error:", type(exc).__name__)
             pred = parse_answer(reply)
             score, details = score_section(section, pred)
             total += score
