@@ -1,0 +1,25 @@
+name: Horizontal JavaScript TypeScript coding
+
+on:
+  push:
+    branches:
+      - horiz/coding-js-ts
+  pull_request:
+    paths:
+      - "fap_repository_js_ts.py"
+      - "tests/test_fap_repository_js_ts.py"
+      - ".github/workflows/horiz-js-ts-coding.yml"
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m compileall -q fap_repository_js_ts.py
+      - run: python -m unittest tests.test_fap_repository_js_ts -v
