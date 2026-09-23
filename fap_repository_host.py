@@ -10,10 +10,10 @@ from fap_repository_agent import (
     RepairProvider,
     RepositoryCodingCoordinator,
 )
+from fap_repository_contracts import HOST_CONTRACT
 from fap_repository_verifier import VerificationCommand
 
 
-HOST_CONTRACT = "fap.repository.host.v1"
 _SAFE_REASON = re.compile(r"[^0-9A-Za-z_.:-]+")
 
 
