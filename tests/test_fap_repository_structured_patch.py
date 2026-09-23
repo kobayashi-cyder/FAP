@@ -166,6 +166,16 @@ class RepositoryStructuredPatchTests(unittest.TestCase):
                         new_name="increment",
                     ),
                     ExactReplaceSpec(
+                        path="calc.py",
+                        old="return value + 2",
+                        new="return value + 1",
+                    ),
+                    ExactReplaceSpec(
+                        path="calc.py",
+                        old="return value * 3",
+                        new="return value * 2",
+                    ),
+                    ExactReplaceSpec(
                         path="tests/test_calc.py",
                         old="from calc import add_one, times_two",
                         new="from calc import increment, times_two",
