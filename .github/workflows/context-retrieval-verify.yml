@@ -1,0 +1,25 @@
+name: FAP repository context fusion verify
+
+on:
+  push:
+    branches:
+      - feature/v87-81-context-fusion-mainline\n      - main
+  pull_request:
+    paths:
+      - "fap_repository_context_retrieval.py"
+      - "tests/test_fap_repository_context_retrieval.py"
+      - ".github/workflows/horiz-context-retrieval.yml"
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m compileall -q fap_repository_context_retrieval.py
+      - run: python -m unittest tests.test_fap_repository_context_retrieval -v
