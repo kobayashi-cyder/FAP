@@ -65,6 +65,22 @@ planner = RepositoryStructuredPlanner(repo_root)
 coordinator = RepositoryCodingCoordinator(repo_root, planner=planner)
 ```
 
+### Automatic verification selector
+
+`fap_repository_test_selector.py` adds `RepositoryVerificationSelector`.
+
+It derives bounded `VerificationCommand` argv vectors from the current `PatchPlan` instead of requiring every caller to hand-build a test list. For Python changes it maps files such as `calc.py` to focused tests such as `tests/test_calc.py`, then adds bounded `unittest discover` regression coverage when required by the plan. If required tests are unavailable, it emits warnings and leaves the command set incomplete so the existing verifier still fails closed.
+
+This means a coding host can now perform:
+
+```text
+goal
+  -> structured plan
+  -> structured edits
+  -> automatic focused/regression test selection
+  -> detached-worktree verification
+```
+
 ### Cross-chat handoff snapshot
 
 `fap_repository_collab.py` adds `RepositoryCodingCollaboration.snapshot()`.
@@ -122,6 +138,7 @@ The branch workflow `.github/workflows/coding-collab-expansion.yml` runs the sam
 2. Keep new work on this branch or a child branch; do not merge to `main` automatically.
 3. Prefer structured specs over unconstrained whole-file rewrites when a bounded edit can express the task.
 4. Use `RepositoryStructuredPlanner` when a single request mixes create/modify/delete targets.
-5. Preserve planner SHA preconditions and detached-worktree verification.
-6. Add tests with each new coding operation.
-7. If the branch diverges from `main`, rebase/merge deliberately and rerun the focused lane before proposing integration.
+5. Use `RepositoryVerificationSelector` when the host should infer bounded Python test commands automatically.
+6. Preserve planner SHA preconditions and detached-worktree verification.
+7. Add tests with each new coding operation.
+8. If the branch diverges from `main`, rebase/merge deliberately and rerun the focused lane before proposing integration.
