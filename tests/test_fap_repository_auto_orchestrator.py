@@ -64,7 +64,7 @@ class _Chat:
         )
         return SimpleNamespace(
             state="verified_candidate",
-            plan=self.coordinator.planner.plan,
+            plan=self.coordinator.planner.current_plan,
             errors=(),
         )
 
@@ -177,7 +177,7 @@ class RepositoryAutoCodingOrchestratorTests(unittest.TestCase):
             "Fix a.py",
             branch="horiz/auto-test",
         )
-        chat.coordinator.planner.plan = SimpleNamespace(
+        chat.coordinator.planner.current_plan = SimpleNamespace(
             plan_id="plan-2",
             task=SimpleNamespace(repository_digest="digest-a"),
         )
