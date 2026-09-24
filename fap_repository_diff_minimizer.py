@@ -18,6 +18,7 @@ class DiffFootprint:
     changed_lines: int
     similarity: float
     byte_delta: int
+    changed_bytes: int
     score: float
 
     def to_dict(self) -> dict:
@@ -29,6 +30,7 @@ class CandidateFootprint:
     files: tuple[DiffFootprint, ...]
     total_changed_lines: int
     total_byte_delta: int
+    total_changed_bytes: int
     score: float
 
     def to_dict(self) -> dict:
@@ -61,6 +63,7 @@ class RepositoryDiffMinimizer:
             files=tuple(footprints),
             total_changed_lines=sum(x.changed_lines for x in footprints),
             total_byte_delta=sum(abs(x.byte_delta) for x in footprints),
+            total_changed_bytes=sum(x.changed_bytes for x in footprints),
             score=round(sum(x.score for x in footprints), 6),
         )
 
@@ -70,7 +73,8 @@ class RepositoryDiffMinimizer:
             raise ValueError("at least one candidate is required")
         index = min(range(len(measured)), key=lambda i: (
             measured[i].score, measured[i].total_changed_lines,
-            measured[i].total_byte_delta, len(measured[i].files), i,
+            measured[i].total_changed_bytes, measured[i].total_byte_delta,
+            len(measured[i].files), i,
         ))
         return index, measured[index]
 
@@ -80,6 +84,13 @@ class RepositoryDiffMinimizer:
         pure = PurePosixPath(value)
         if pure.is_absolute() or any(part in ("", ".", "..") for part in pure.parts):
             raise ValueError(f"edit path escapes repository: {value}")
+        current = self.root
+        for part in pure.parts:
+            current = current / part
+            if current.is_symlink():
+                raise ValueError(f"symlink path component rejected: {value}")
+            if not current.exists():
+                break
         candidate = (self.root / pure).resolve(strict=False)
         try:
             candidate.relative_to(self.root)
@@ -110,18 +121,34 @@ class RepositoryDiffMinimizer:
         else:
             raise ValueError(f"unsupported edit operation: {edit.operation}")
         try:
+            before_raw = before.encode("utf-8", errors="strict")
             after_raw = after.encode("utf-8", errors="strict")
         except UnicodeEncodeError as exc:
             raise ValueError(f"edit content is not UTF-8 encodable: {rel}") from exc
-        before_lines, after_lines = before.splitlines(), after.splitlines()
+        before_lines, after_lines = before.splitlines(keepends=True), after.splitlines(keepends=True)
         matcher = SequenceMatcher(a=before_lines, b=after_lines, autojunk=False)
         changed = sum(max(i2-i1, j2-j1) for tag, i1, i2, j1, j2 in matcher.get_opcodes() if tag != "equal")
         similarity = matcher.ratio()
-        before_bytes = len(before.encode("utf-8"))
-        byte_delta = len(after_raw) - before_bytes
-        score = changed + abs(byte_delta) / 4096.0 + (1.0 - similarity)
-        return DiffFootprint(rel, edit.operation, before_bytes, len(after_raw), changed,
-                             round(similarity, 6), byte_delta, round(score, 6))
+        changed_bytes = self._linear_changed_bytes(before_raw, after_raw)
+        byte_delta = len(after_raw) - len(before_raw)
+        score = changed + changed_bytes / 4096.0 + (1.0 - similarity)
+        return DiffFootprint(rel, edit.operation, len(before_raw), len(after_raw), changed,
+                             round(similarity, 6), byte_delta, changed_bytes, round(score, 6))
+
+    @staticmethod
+    def _linear_changed_bytes(before: bytes, after: bytes) -> int:
+        """Bound byte-surface measurement to O(n) via common prefix/suffix trimming."""
+        limit = min(len(before), len(after))
+        prefix = 0
+        while prefix < limit and before[prefix] == after[prefix]:
+            prefix += 1
+        suffix = 0
+        remaining_before = len(before) - prefix
+        remaining_after = len(after) - prefix
+        suffix_limit = min(remaining_before, remaining_after)
+        while suffix < suffix_limit and before[len(before) - 1 - suffix] == after[len(after) - 1 - suffix]:
+            suffix += 1
+        return max(len(before) - prefix - suffix, len(after) - prefix - suffix)
 
     @staticmethod
     def _read_fresh(path: Path, expected_sha: str, rel: str) -> str:

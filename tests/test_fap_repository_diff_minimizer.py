@@ -57,7 +57,50 @@ class RepositoryDiffMinimizerTests(unittest.TestCase):
             except OSError: self.skipTest("symlinks unavailable")
             digest = sha256(target.read_bytes()).hexdigest()
             edit = FileEdit(path="link.py", operation="modify", before_sha256=digest, content="x=2\n")
-            with self.assertRaisesRegex(ValueError, "unavailable"):
+            with self.assertRaisesRegex(ValueError, "symlink|unavailable"):
+                RepositoryDiffMinimizer(root).measure((edit,))
+
+    def test_crlf_normalization_counts_changed_lines(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); source = "".join(f"line {i}\r\n" for i in range(100))
+            (root / "a.txt").write_bytes(source.encode())
+            digest = sha256(source.encode()).hexdigest()
+            edit = FileEdit(path="a.txt", operation="modify", before_sha256=digest, content=source.replace("\r\n", "\n"))
+            footprint = RepositoryDiffMinimizer(root).measure((edit,))
+            self.assertEqual(footprint.total_changed_lines, 100)
+            self.assertGreater(footprint.total_changed_bytes, 0)
+
+    def test_equal_size_replacement_counts_changed_bytes(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); source = "a" * 20000 + "\n"
+            (root / "a.txt").write_text(source, encoding="utf-8")
+            digest = sha256(source.encode()).hexdigest()
+            edit = FileEdit(path="a.txt", operation="modify", before_sha256=digest, content="b" * 20000 + "\n")
+            footprint = RepositoryDiffMinimizer(root).measure((edit,))
+            self.assertEqual(footprint.total_byte_delta, 0)
+            self.assertGreaterEqual(footprint.total_changed_bytes, 20000)
+            self.assertGreater(footprint.score, 2.0)
+
+    def test_repeated_byte_small_edit_has_bounded_surface(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); source = "a" * 100000 + "\n"
+            (root / "a.txt").write_text(source, encoding="utf-8")
+            digest = sha256(source.encode()).hexdigest()
+            edit = FileEdit(path="a.txt", operation="modify", before_sha256=digest, content="b" + source[1:])
+            footprint = RepositoryDiffMinimizer(root).measure((edit,))
+            self.assertEqual(footprint.total_byte_delta, 0)
+            self.assertEqual(footprint.total_changed_bytes, 1)
+
+    def test_symlink_directory_component_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); real = root / "real"; real.mkdir(); source = real / "a.py"
+            source.write_text("x=1\n", encoding="utf-8")
+            link = root / "link"
+            try: link.symlink_to(real, target_is_directory=True)
+            except OSError: self.skipTest("symlinks unavailable")
+            digest = sha256(source.read_bytes()).hexdigest()
+            edit = FileEdit(path="link/a.py", operation="modify", before_sha256=digest, content="x=2\n")
+            with self.assertRaisesRegex(ValueError, "symlink path component"):
                 RepositoryDiffMinimizer(root).measure((edit,))
 
 
