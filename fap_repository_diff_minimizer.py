@@ -129,12 +129,26 @@ class RepositoryDiffMinimizer:
         matcher = SequenceMatcher(a=before_lines, b=after_lines, autojunk=False)
         changed = sum(max(i2-i1, j2-j1) for tag, i1, i2, j1, j2 in matcher.get_opcodes() if tag != "equal")
         similarity = matcher.ratio()
-        byte_matcher = SequenceMatcher(a=before_raw, b=after_raw, autojunk=False)
-        changed_bytes = sum(max(i2-i1, j2-j1) for tag, i1, i2, j1, j2 in byte_matcher.get_opcodes() if tag != "equal")
+        changed_bytes = self._linear_changed_bytes(before_raw, after_raw)
         byte_delta = len(after_raw) - len(before_raw)
         score = changed + changed_bytes / 4096.0 + (1.0 - similarity)
         return DiffFootprint(rel, edit.operation, len(before_raw), len(after_raw), changed,
                              round(similarity, 6), byte_delta, changed_bytes, round(score, 6))
+
+    @staticmethod
+    def _linear_changed_bytes(before: bytes, after: bytes) -> int:
+        """Bound byte-surface measurement to O(n) via common prefix/suffix trimming."""
+        limit = min(len(before), len(after))
+        prefix = 0
+        while prefix < limit and before[prefix] == after[prefix]:
+            prefix += 1
+        suffix = 0
+        remaining_before = len(before) - prefix
+        remaining_after = len(after) - prefix
+        suffix_limit = min(remaining_before, remaining_after)
+        while suffix < suffix_limit and before[len(before) - 1 - suffix] == after[len(after) - 1 - suffix]:
+            suffix += 1
+        return max(len(before) - prefix - suffix, len(after) - prefix - suffix)
 
     @staticmethod
     def _read_fresh(path: Path, expected_sha: str, rel: str) -> str:
