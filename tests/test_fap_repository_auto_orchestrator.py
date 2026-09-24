@@ -26,14 +26,14 @@ class _Planner:
         self.root = Path(".").resolve()
         self.reader = _Reader()
         self.calls = []
-        self.plan = SimpleNamespace(
+        self.current_plan = SimpleNamespace(
             plan_id="plan-1",
             task=SimpleNamespace(repository_digest="digest-a"),
         )
 
     def plan(self, goal, *, preferred_paths=()):
         self.calls.append((goal, preferred_paths))
-        return self.plan
+        return self.current_plan
 
 
 class _Coordinator:
@@ -48,7 +48,6 @@ class _Chat:
         self.coordinator = _Coordinator(root)
         self.bridge = RepositoryChatBridge()
         self.run_calls = []
-        self.result_plan = self.coordinator.planner.plan
 
     def prepare(self, current_text, *, history=(), branch, base_commit=""):
         return self.bridge.build(
