@@ -81,6 +81,16 @@ class RepositoryDiffMinimizerTests(unittest.TestCase):
             self.assertGreaterEqual(footprint.total_changed_bytes, 20000)
             self.assertGreater(footprint.score, 2.0)
 
+    def test_repeated_byte_small_edit_has_bounded_surface(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); source = "a" * 100000 + "\n"
+            (root / "a.txt").write_text(source, encoding="utf-8")
+            digest = sha256(source.encode()).hexdigest()
+            edit = FileEdit(path="a.txt", operation="modify", before_sha256=digest, content="b" + source[1:])
+            footprint = RepositoryDiffMinimizer(root).measure((edit,))
+            self.assertEqual(footprint.total_byte_delta, 0)
+            self.assertEqual(footprint.total_changed_bytes, 1)
+
     def test_symlink_directory_component_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td); real = root / "real"; real.mkdir(); source = real / "a.py"
