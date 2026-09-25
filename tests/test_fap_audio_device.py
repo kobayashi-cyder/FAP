@@ -102,6 +102,16 @@ class NamedSoundDevice(FakeSoundDevice):
         self.default = MissingDefault()
 
 
+class WideChannelSoundDevice(FakeSoundDevice):
+    def __init__(self):
+        super().__init__()
+        self.devices[1]["max_output_channels"] = 6
+
+    def check_output_settings(self, *, device, samplerate, channels, dtype):
+        if device != 1 or samplerate != 44100 or channels != 6 or dtype != "int16":
+            raise ValueError("native multichannel layout required")
+
+
 class AudioDeviceCompatibilityTests(unittest.TestCase):
     def test_probe_falls_back_to_native_rates_and_stereo(self):
         sd = FakeSoundDevice()
@@ -179,6 +189,14 @@ class AudioDeviceCompatibilityTests(unittest.TestCase):
         io.play(PCM16Audio(22050, (100,) * 1000))
         self.assertGreater(sd.query_count, before)
         self.assertEqual(len(sd.play_calls), 1)
+
+    def test_native_multichannel_layout_is_used_when_mono_stereo_rejected(self):
+        sd = WideChannelSoundDevice()
+        io = AdaptiveSoundDeviceIO(sounddevice_module=sd)
+        profile = io.refresh()
+        self.assertEqual(profile.output_channels, 6)
+        io.play(PCM16Audio(22050, (100,) * 100))
+        self.assertEqual(sd.play_calls[0]["channels"], 6)
 
     def test_downmix_averages_real_channel_rows(self):
         mono = _mono_rows([[1000, -1000], [3000, 1000]], 2)
