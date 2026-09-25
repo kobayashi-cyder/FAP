@@ -66,3 +66,45 @@ is intentionally small and measurable. A future FAP-specific neural
 encoder/decoder can replace \`FAPSTTModel\` behind the same API after a speech
 corpus is collected and evaluated. The same contract allows a learned acoustic
 model/vocoder to replace the formant TTS without changing old FAP versions.
+
+
+## Fluent conversation layer
+
+The branch also provides fap_speech_fluent.py for conversational use instead of
+fixed-duration push-to-talk turns.
+
+Implemented:
+- adaptive RMS voice-activity detection with a short pre-roll;
+- automatic end-of-turn after sustained trailing silence;
+- bounded microphone wait and utterance duration;
+- clause-sized TTS chunks to reduce perceived time-to-first-audio;
+- cooperative interruption between speech chunks;
+- bounded text-only turn history (raw microphone audio is not retained);
+- confidence gating before text reaches the FAP handler;
+- a shell-free LocalJSONSTTBackend boundary for plugging in a local
+  free-dictation recognizer without coupling FAP to one model.
+
+Minimal use with the built-in STT/TTS remains possible:
+
+~~~python
+from fap_speech import FAPSTTModel, FAPTTSModel
+from fap_speech_fluent import FluentConversationRuntime
+
+voice = FluentConversationRuntime(
+    FAPSTTModel.load("runtime/fap-stt.json"),
+    FAPTTSModel(),
+    chat,
+)
+voice.run()
+~~~
+
+For fluent unrestricted dictation, the acoustic-prototype FAPSTTModel is still
+too limited. Configure LocalJSONSTTBackend with a trusted local recognizer that
+accepts a temporary WAV path and emits UTF-8 JSON containing text and optional
+confidence. The conversation/runtime layer stays the same when the STT backend
+is upgraded.
+
+Current interruption is cooperative at TTS chunk boundaries. True sub-chunk
+barge-in, echo cancellation, simultaneous full-duplex capture/playback, and
+device-specific latency claims remain unverified until exercised on real audio
+hardware.
