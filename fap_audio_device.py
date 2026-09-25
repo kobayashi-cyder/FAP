@@ -217,11 +217,14 @@ class AdaptiveSoundDeviceIO:
         if max_channels <= 0:
             return None, 0, None
 
-        # Prefer mono. Some devices/drivers reject mono even when they expose >=1
-        # channels, so stereo is the second candidate when available.
+        # Prefer mono, then stereo, then the device's full exposed layout.
+        # This covers microphones that only accept stereo and HDMI/USB devices
+        # that reject 1/2-channel opens but accept their native 4/6/8 channels.
         channel_candidates = [1]
         if max_channels >= 2:
             channel_candidates.append(2)
+        if max_channels not in channel_candidates:
+            channel_candidates.append(max_channels)
         default_rate = _device_value(info, "default_samplerate")
         checker = sd.check_input_settings if direction == "input" else sd.check_output_settings
         for rate in _candidate_rates(preferred_rate, default_rate):
@@ -300,7 +303,10 @@ class AdaptiveSoundDeviceIO:
             samplerate=source_rate,
             channels=profile.input_channels,
             dtype="int16",
-            blocksize=frame_n,
+            # Let PortAudio/host API choose its native buffer size. read(frame_n)
+            # still requests FAP's logical VAD frame length without forcing a
+            # hardware buffer size that may be invalid on another device.
+            blocksize=0,
             device=profile.input_device,
             latency="low",
         ) as stream:
