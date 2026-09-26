@@ -1,0 +1,22 @@
+{
+  "schema": "fca-fap.exchange.v1",
+  "source_project": "FCA",
+  "source_commit": "10e5143e981bff6a437eaba70e3895f306468436",
+  "capability": "bounded_hypothesis_competition",
+  "mechanism": {
+    "source_surface": "fca/hypothesis.py",
+    "pattern": "bounded_candidate_competition",
+    "adaptation": "FAP-neutral candidate keys; ranking only, no inference or completion authority"
+  },
+  "evidence": {
+    "source_status": "implemented_in_fca_with_tests",
+    "fap_tests": "candidates/goal_completion_loop/tests/test_hypothesis_competition.py"
+  },
+  "constraints": [
+    "FAP planner remains authoritative for plan construction.",
+    "FAP critic and verification remain authoritative for success/completion.",
+    "Hypotheses are candidates, never verified facts or evidence.",
+    "Selection is bounded by max_active and cannot execute actions.",
+    "This import does not introduce FCA connectome control into FAP."
+  ]
+}

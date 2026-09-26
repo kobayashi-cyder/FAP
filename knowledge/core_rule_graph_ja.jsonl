@@ -1,0 +1,8 @@
+{"kind":"semantic_relation","id":"side_count","aliases":["辺の数","辺はいくつ","number of sides"],"unit":"","label":"辺の数"}
+{"kind":"semantic_relation","id":"triangulation_count","aliases":["三角形分割数","分割できる三角形の数","triangulation count"],"unit":"","label":"1頂点からの三角形分割数"}
+{"kind":"semantic_relation","id":"interior_angle_sum_degrees","aliases":["内角の和","内角和","内角の合計","sum of interior angles","interior angle sum"],"unit":"°","label":"内角の和"}
+{"kind":"semantic_entity","id":"euclidean_triangle","title":"三角形","aliases":["三角形","直角三角形","鋭角三角形","鈍角三角形","triangle","right triangle"],"types":["polygon","euclidean_polygon"],"properties":{"side_count":3}}
+{"kind":"semantic_entity","id":"euclidean_quadrilateral","title":"四角形","aliases":["四角形","長方形","正方形","平行四辺形","quadrilateral","rectangle","square","parallelogram"],"types":["polygon","euclidean_polygon"],"properties":{"side_count":4}}
+{"kind":"semantic_constant","id":"straight_angle_degrees","value":180,"unit":"°","reason":"ユークリッド幾何で一直線がつくる平角は 180°。"}
+{"kind":"semantic_rule","id":"polygon_vertex_triangulation","relation":"triangulation_count","subject_type":"polygon","requires":["side_count"],"expression":"side_count-2","label":"頂点からの三角形分割","explanation":"{subject} は1つの頂点から対角線を引くと、辺数 {side_count} から {result} 個の三角形に分割できます。"}
+{"kind":"semantic_rule","id":"polygon_interior_sum_from_triangulation","relation":"interior_angle_sum_degrees","subject_type":"euclidean_polygon","requires":["triangulation_count","straight_angle_degrees"],"expression":"triangulation_count*straight_angle_degrees","label":"三角形分割による内角和","explanation":"{subject} を {triangulation_count} 個の三角形に分割し、各三角形の角度和を平角 {straight_angle_degrees}° とみなすと、合計は {result}° になります。"}

@@ -1,0 +1,42 @@
+name: Public Main Smoke Verify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "VERSION"
+      - ".github/workflows/public-main-smoke.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "VERSION"
+      - ".github/workflows/public-main-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-main-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify public release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s VERSION
+          test -s README.md
+          version="$(tr -d '\r\n ' < VERSION)"
+          test -n "$version"
+          grep -Fq "Stable mainline: **V${version}**" README.md
+          echo "Public FAP release metadata is consistent: V${version}"

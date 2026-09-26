@@ -1,0 +1,78 @@
+name: FAP 1.0.01 dynamic sparse verify
+
+on:
+  push:
+    branches:
+      - side/1.0.01-dynamic-sparse-routing
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "fap_dynamic_sparse_routing.py"
+      - "fap_interaction_fabric.py"
+      - "fap_v1_0_01_sparse_benchmark.py"
+      - "fap_v1_0_01_dynamic_sparse_routing_gateway.py"
+      - "tests/test_fap_dynamic_sparse_routing.py"
+      - "tests/test_fap_interaction_fabric.py"
+      - "fap_semantic_fabric.py"
+      - "tests/test_fap_semantic_fabric.py"
+      - "scripts/check_version_consistency.py"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "FAP_LATEST.md"
+      - "README.md"
+      - "VERSION"
+      - "docs/DYNAMIC_SPARSE_ROUTING_1_0_01.md"
+      - "docs/INTELLIGENCE_TARGET_1_0_01.md"
+      - ".github/workflows/fap-1-0-01-dynamic-sparse.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile
+        run: |
+          python -m py_compile             fap_dynamic_sparse_routing.py             fap_interaction_fabric.py             fap_v1_0_01_sparse_benchmark.py             fap_v1_0_01_dynamic_sparse_routing_gateway.py             tests/test_fap_dynamic_sparse_routing.py             tests/test_fap_interaction_fabric.py             scripts/check_version_consistency.py
+      - name: Dynamic sparse unit tests
+        run: python -m unittest discover -s tests -p "test_fap_dynamic_sparse_routing.py" -v
+      - name: Interaction fabric regressions
+        run: python -m unittest discover -s tests -p "test_fap_interaction_fabric.py" -v
+      - name: Semantic fabric regressions
+        run: python -m unittest discover -s tests -p "test_fap_semantic_fabric.py" -v
+      - name: r001 adaptive budget regressions
+        run: python -m unittest -v tests.test_fap_revision_r001
+      - name: Version contract
+        run: python scripts/check_version_consistency.py
+      - name: Gateway preflight
+        run: |
+          python - <<'PY'
+          import fap_v1_0_01_dynamic_sparse_routing_gateway as gateway
+          status = gateway.CORE.chat_status()
+          print(status)
+          if status.get("version") != "1.0.01-unified-chat":
+              raise SystemExit("wrong gateway version")
+          if status.get("mainline_version") != "1.0.01":
+              raise SystemExit("wrong mainline version")
+          routing = status.get("dynamic_sparse_routing", {})
+          if not routing.get("interaction_fabric_integrated"):
+              raise SystemExit("dynamic sparse routing not reported integrated")
+          PY
+      - name: Mechanism benchmark
+        run: |
+          python - <<'PY'
+          from fap_v1_0_01_sparse_benchmark import run_sparse_routing_benchmark
+          report = run_sparse_routing_benchmark()
+          print(report.to_dict())
+          if report.passed != report.total:
+              raise SystemExit(
+                  f"dynamic sparse benchmark failed: {report.passed}/{report.total}"
+              )
+          PY
