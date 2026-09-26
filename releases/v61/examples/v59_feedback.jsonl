@@ -1,0 +1,3 @@
+{"turn_id":"t1","text":"A shop discounts 20% then adds 10% tax; what is final price from 1000?","intent":"math","domain":"math","selected_skills":["math","reason"],"verified":true,"verified_success":false,"teacher_used":true,"latency_ms":8.0,"error":"quantity relation composed incorrectly","metadata":{"gap_path":["word_problem","quantity_relation","multi_step"]}}
+{"turn_id":"t2","text":"Why does this controller become unstable?","intent":"why","domain":"reasoning","selected_skills":["knowledge","science","reason"],"verify_feedback":"good","teacher_used":false,"latency_ms":7.0}
+{"turn_id":"t3","text":"雑談しよう","intent":"chat","domain":"language","selected_skills":["memory","verbalize"],"verified":false,"latency_ms":2.0}

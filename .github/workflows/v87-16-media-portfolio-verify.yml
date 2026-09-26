@@ -1,0 +1,35 @@
+name: V87.16 Media Portfolio Verify
+
+on:
+  push:
+    branches:
+      - v87.16-media-portfolio
+      - main
+    paths:
+      - "releases/v87_16/**"
+      - "releases/v87_13/media_generation/**"
+      - "releases/v87_15/observed_media/**"
+      - ".github/workflows/v87-16-media-portfolio-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_16/**"
+      - "releases/v87_13/media_generation/**"
+      - "releases/v87_15/observed_media/**"
+      - ".github/workflows/v87-16-media-portfolio-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Run V87.16 tests
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio
+        run: pytest -q releases/v87_16/media_portfolio/tests

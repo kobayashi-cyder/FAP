@@ -1,0 +1,96 @@
+{
+  "files": [
+    {
+      "bytes": 3319,
+      "path": "README_V67.md",
+      "sha256": "c84678f8e790c79635c6d251dd3d782ea64898c1a8fcbd07154d71fdd62d50c6"
+    },
+    {
+      "bytes": 2001,
+      "path": "RELEASE_REPORT_V67.md",
+      "sha256": "9149e5a5b9402710bef7ef8425c501f36fa5ed370e7521e39bd9fb30b41398b0"
+    },
+    {
+      "bytes": 42,
+      "path": "RUN_V67_DEMO.bat",
+      "sha256": "1cea4bac24689de9b8ff5edc02e9fe17ca2bbbbff4433d5491889a459c404a71"
+    },
+    {
+      "bytes": 4,
+      "path": "VERSION.txt",
+      "sha256": "1233875b8fbdeece05e6394ea8b1f04cbc4213f7de86e6e53d06fdded0320d57"
+    },
+    {
+      "bytes": 281,
+      "path": "demo_v67_code_factory.json",
+      "sha256": "276820f58efd9eb4a33050ab97bb11de0b1a812a15c603c50d0733355c6ad2bd"
+    },
+    {
+      "bytes": 2706,
+      "path": "examples/run_v67_demo.py",
+      "sha256": "1c1c91fb49bdfdbe6f668f2cd05bbefd7a6a9e4420545f1ce63d0bc8fa8d0265"
+    },
+    {
+      "bytes": 878,
+      "path": "fap_autonomy/__init__.py",
+      "sha256": "ab59d008973590a6aeeeee74c4a79aab0ef111b08214fd30d4cfc4609239e37c"
+    },
+    {
+      "bytes": 4042,
+      "path": "fap_autonomy/code_ir.py",
+      "sha256": "f6442f1056fb3180f3146b76a021194e4219c7b1a1f5c8f982350c479c652be4"
+    },
+    {
+      "bytes": 1662,
+      "path": "fap_autonomy/code_lineage.py",
+      "sha256": "520345ff311506cd6ed0b5a657389745a5d0d0a1bffa2b2f8a7aa44b11b6f18d"
+    },
+    {
+      "bytes": 3888,
+      "path": "fap_autonomy/native_patch_generator.py",
+      "sha256": "ae525ff8fa0f6c50716423fa169e9d3035af673aed28cd030c583c978b280435"
+    },
+    {
+      "bytes": 2602,
+      "path": "fap_autonomy/patch_engine.py",
+      "sha256": "17b2b7777a594985bd600458da0baf21144ba74f788a44778dfc440866a0ef36"
+    },
+    {
+      "bytes": 4212,
+      "path": "fap_autonomy/repo_context.py",
+      "sha256": "befeab0baccd9130ad34731016b04a0c459c69ef4081b2c7d4005da0f93199e8"
+    },
+    {
+      "bytes": 7821,
+      "path": "fap_autonomy/repository_code_factory.py",
+      "sha256": "3901c5b6f2e0423dfebf33d2f95161a8d5f8d795749133ba5d6e5bf64451f765"
+    },
+    {
+      "bytes": 1430,
+      "path": "fap_autonomy/v67_coordinator.py",
+      "sha256": "782d53035d25b7dd6beb73d341ecae1ecc20733479a3dffc9b18e36ef12b56df"
+    },
+    {
+      "bytes": 12090,
+      "path": "tests/test_v67_code_factory.py",
+      "sha256": "41f3986e896ed44540d9259af94396a6b04a86136bb4d7f8eff364429bf19c76"
+    }
+  ],
+  "name": "Native Repository Code Factory Stage 1",
+  "scope": [
+    "safe Code IR -> Python source",
+    "repository context/symbol index",
+    "SHA-bound patch application",
+    "diagnostic missing-import repair",
+    "bounded test-repair loop",
+    "hash-chained lineage",
+    "non-executable candidate publication"
+  ],
+  "validation": {
+    "compileall": "PASS",
+    "delta_tests": "28/28 PASS",
+    "synthetic_demo": "PASS",
+    "warnings_as_errors": "PASS"
+  },
+  "version": "V67"
+}

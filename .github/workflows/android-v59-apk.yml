@@ -1,0 +1,43 @@
+name: Build Public FAP 1.0.01 Android Adapter
+
+on:
+  push:
+    branches:
+      - 'side/public-1.0.01-android-voice-port-*'
+    paths:
+      - 'android-v59/**'
+      - '.github/workflows/android-v59-apk.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android-v59/**'
+      - '.github/workflows/android-v59-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Install Android SDK 37
+        run: yes | sdkmanager 'platforms;android-37' 'build-tools;36.0.0'
+      - name: Build debug APK
+        run: gradle -p android-v59 :app:assembleDebug --stacktrace
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FAP-1.0.01-Android-debug
+          path: android-v59/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
