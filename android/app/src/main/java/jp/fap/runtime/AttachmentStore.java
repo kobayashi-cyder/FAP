@@ -16,7 +16,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -118,9 +121,23 @@ public final class AttachmentStore {
         }
 
         String sha = hex(digest.digest());
-        String preview = isTextLike(mime, safe)
-                ? readTextPreview(output)
-                : AttachmentAnalyzer.analyze(app, output, safe, mime);
+        String preview;
+        if (isTextLike(mime, safe)) {
+            String rawText = readTextPreview(output);
+            if (looksDelimitedTable(mime, safe)) {
+                char delimiter = safe.toLowerCase(Locale.ROOT).endsWith(".tsv")
+                        ? '\t'
+                        : ',';
+                preview = profileDelimitedTable(
+                        rawText,
+                        delimiter,
+                        output.length() > MAX_TEXT_PREVIEW_BYTES);
+            } else {
+                preview = rawText;
+            }
+        } else {
+            preview = AttachmentAnalyzer.analyze(app, output, safe, mime);
+        }
 
         Attachment attachment = new Attachment(
                 id,
@@ -222,6 +239,206 @@ public final class AttachmentStore {
         } catch (Throwable ignored) {
             return "";
         }
+    }
+
+    private static boolean looksDelimitedTable(String mime, String name) {
+        String m = mime == null ? "" : mime.toLowerCase(Locale.ROOT);
+        String n = name == null ? "" : name.toLowerCase(Locale.ROOT);
+        return m.contains("csv")
+                || m.contains("tab-separated")
+                || n.endsWith(".csv")
+                || n.endsWith(".tsv");
+    }
+
+    private static String profileDelimitedTable(
+            String raw,
+            char delimiter,
+            boolean sampled) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) return "表データ · empty";
+
+        String[] lines = value.split("\\r?\\n");
+        ArrayList<List<String>> rows = new ArrayList<>();
+        for (String line : lines) {
+            if (line == null || line.isEmpty()) continue;
+            if (line.startsWith("…[preview truncated]")) break;
+            rows.add(parseDelimitedLine(line, delimiter));
+            if (rows.size() >= 4000) break;
+        }
+        if (rows.isEmpty()) return "表データ · no rows";
+
+        int columns = 0;
+        for (List<String> row : rows) columns = Math.max(columns, row.size());
+        columns = Math.min(columns, 80);
+        if (columns <= 0) return "表データ · no columns";
+
+        List<String> header = rows.get(0);
+        boolean hasHeader = looksLikeHeader(rows);
+        int start = hasHeader ? 1 : 0;
+        int dataRows = Math.max(0, rows.size() - start);
+
+        StringBuilder out = new StringBuilder();
+        out.append("表データ解析 · delimiter=")
+                .append(delimiter == '\t' ? "TAB" : "COMMA")
+                .append(" · rowsSampled=")
+                .append(dataRows)
+                .append(" · columns=")
+                .append(columns)
+                .append(" · header=")
+                .append(hasHeader ? "yes" : "no");
+        if (sampled) out.append(" · sourceTruncated=yes");
+
+        for (int col = 0; col < columns && col < 24; col++) {
+            String name = hasHeader && col < header.size()
+                    ? cleanCell(header.get(col))
+                    : "col" + (col + 1);
+            if (name.isEmpty()) name = "col" + (col + 1);
+
+            int present = 0;
+            int missing = 0;
+            int numeric = 0;
+            double sum = 0.0;
+            double min = Double.POSITIVE_INFINITY;
+            double max = Double.NEGATIVE_INFINITY;
+            LinkedHashMap<String, Integer> freq = new LinkedHashMap<>();
+
+            for (int r = start; r < rows.size(); r++) {
+                List<String> row = rows.get(r);
+                String cell = col < row.size() ? cleanCell(row.get(col)) : "";
+                if (cell.isEmpty()) {
+                    missing++;
+                    continue;
+                }
+                present++;
+                Double number = parseNumber(cell);
+                if (number != null && Double.isFinite(number)) {
+                    numeric++;
+                    sum += number;
+                    min = Math.min(min, number);
+                    max = Math.max(max, number);
+                }
+                if (freq.size() < 128 || freq.containsKey(cell)) {
+                    freq.put(cell, freq.getOrDefault(cell, 0) + 1);
+                }
+            }
+
+            out.append("\n- ")
+                    .append(name)
+                    .append(": present=")
+                    .append(present)
+                    .append(", missing=")
+                    .append(missing);
+
+            if (numeric > 0 && numeric >= Math.max(2, present * 3 / 5)) {
+                out.append(", numeric=")
+                        .append(numeric)
+                        .append(", min=")
+                        .append(formatNumber(min))
+                        .append(", max=")
+                        .append(formatNumber(max))
+                        .append(", mean=")
+                        .append(formatNumber(sum / numeric));
+            } else {
+                String top = topValue(freq);
+                if (!top.isEmpty()) out.append(", top=").append(top);
+            }
+        }
+
+        if (columns > 24) {
+            out.append("\n… +").append(columns - 24).append(" columns");
+        }
+
+        out.append("\n\n[先頭データ]\n");
+        int previewChars = Math.min(12000, value.length());
+        out.append(value, 0, previewChars);
+        if (value.length() > previewChars) out.append("\n…[table preview truncated]");
+        return out.toString();
+    }
+
+    private static boolean looksLikeHeader(ArrayList<List<String>> rows) {
+        if (rows.size() < 2) return true;
+        List<String> first = rows.get(0);
+        List<String> second = rows.get(1);
+        int n = Math.max(first.size(), second.size());
+        int firstText = 0;
+        int secondNumeric = 0;
+        for (int i = 0; i < n; i++) {
+            String a = i < first.size() ? cleanCell(first.get(i)) : "";
+            String b = i < second.size() ? cleanCell(second.get(i)) : "";
+            if (!a.isEmpty() && parseNumber(a) == null) firstText++;
+            if (!b.isEmpty() && parseNumber(b) != null) secondNumeric++;
+        }
+        return firstText >= Math.max(1, n / 2)
+                && secondNumeric >= Math.max(1, n / 3);
+    }
+
+    private static List<String> parseDelimitedLine(String line, char delimiter) {
+        ArrayList<String> out = new ArrayList<>();
+        StringBuilder cell = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == '"') {
+                if (quoted && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    cell.append('"');
+                    i++;
+                } else {
+                    quoted = !quoted;
+                }
+                continue;
+            }
+            if (ch == delimiter && !quoted) {
+                out.add(cell.toString());
+                cell.setLength(0);
+            } else {
+                cell.append(ch);
+            }
+        }
+        out.add(cell.toString());
+        return out;
+    }
+
+    private static String cleanCell(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static Double parseNumber(String value) {
+        if (value == null) return null;
+        String v = value.trim()
+                .replace(",", "")
+                .replace("￥", "")
+                .replace("$", "")
+                .replace("%", "");
+        if (v.isEmpty()) return null;
+        try {
+            return Double.parseDouble(v);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static String formatNumber(double value) {
+        double abs = Math.abs(value);
+        if (abs >= 1_000_000.0 || (abs > 0 && abs < 0.001)) {
+            return String.format(Locale.ROOT, "%.4e", value);
+        }
+        return String.format(Locale.ROOT, "%.4f", value)
+                .replaceAll("0+$", "")
+                .replaceAll("\\.$", "");
+    }
+
+    private static String topValue(Map<String, Integer> freq) {
+        String best = "";
+        int bestCount = 0;
+        for (Map.Entry<String, Integer> entry : freq.entrySet()) {
+            if (entry.getValue() > bestCount) {
+                best = entry.getKey();
+                bestCount = entry.getValue();
+            }
+        }
+        if (best.isEmpty()) return "";
+        if (best.length() > 60) best = best.substring(0, 60) + "…";
+        return best + " (" + bestCount + ")";
     }
 
     private static String sanitizeName(String name) {
