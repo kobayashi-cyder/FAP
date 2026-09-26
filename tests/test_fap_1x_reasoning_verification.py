@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
+from fap_1x_algebra_solver import GenericLinearEquationSolver
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
 from fap_1x_confidence_calibrator import ConfidenceCalibrator
 from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
@@ -22,6 +23,32 @@ def mcq(question: str, choices: tuple[str, str, str, str]) -> str:
         + "\n\n"
         + "\n".join(f"{letter}) {value}" for letter, value in zip("ABCD", choices))
     )
+
+
+class GenericLinearEquationSolverTests(unittest.TestCase):
+    def test_solves_unseen_integer_equation_and_substitutes(self):
+        solver = GenericLinearEquationSolver()
+        out = solver.run("Solve for x: 7x + 5 = 40")
+        self.assertIsNotNone(out)
+        self.assertTrue(out["algebra_verified"])
+        self.assertIn("x=5", out["reply"])
+
+    def test_solves_fractional_result(self):
+        solver = GenericLinearEquationSolver()
+        out = solver.run("Solve for y: 6y - 1 = 8")
+        self.assertIsNotNone(out)
+        self.assertEqual(out["algebra_result"]["value"], "3/2")
+
+    def test_mcq_answer_position_is_not_hardcoded(self):
+        solver = GenericLinearEquationSolver()
+        prompt = mcq("Solve for z: 4z + 3 = 23", ("4", "6", "5", "7"))
+        out = solver.run(prompt)
+        self.assertIsNotNone(out)
+        self.assertIn("Answer: $C", out["reply"])
+
+    def test_nonlinear_equation_declines(self):
+        solver = GenericLinearEquationSolver()
+        self.assertIsNone(solver.run("Solve for x: x^2 = 9"))
 
 
 class ProblemDecomposerTests(unittest.TestCase):
