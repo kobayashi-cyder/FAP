@@ -7,17 +7,19 @@ from typing import Mapping
 
 import fap_v87_80_multiturn_consistency_gateway as v80
 from fap_response_redundancy import ResponseRedundancyPlanner
+from fap_response_series_executor import ResponseSeriesExecutor
 
 base = v80.base
 VERSION = "87.81-unified-chat"
 
 
 class FAPV8781Unified(v80.FAPV8780Unified):
-    """V87.80 plus coding continuity and large-scale response-series redundancy."""
+    """V87.80 plus coding continuity and executed response-series redundancy."""
 
     def __init__(self):
         super().__init__()
         self.response_redundancy = ResponseRedundancyPlanner()
+        self.response_series = ResponseSeriesExecutor(base.ROOT)
 
     def _pre_response_plan(self, text: str, history: list[dict]) -> dict:
         history_turns = min(128, len(history or ()))
@@ -56,14 +58,14 @@ class FAPV8781Unified(v80.FAPV8780Unified):
         return metadata
 
     def route(self, intent, text: str, history: list[dict]) -> dict:
-        result = dict(super().route(intent, text, history))
+        primary = dict(super().route(intent, text, history))
         try:
-            confidence = float(result.get("confidence", 0.72))
+            confidence = float(primary.get("confidence", 0.72))
         except (TypeError, ValueError, OverflowError):
             confidence = 0.72
         confidence = min(1.0, max(0.0, confidence))
 
-        dispatch = result.get("interaction_dispatch")
+        dispatch = primary.get("interaction_dispatch")
         if not isinstance(dispatch, Mapping):
             dispatch = {}
         try:
@@ -71,7 +73,7 @@ class FAPV8781Unified(v80.FAPV8780Unified):
         except (TypeError, ValueError, OverflowError):
             route_candidates = 1
 
-        critic = result.get("critic")
+        critic = primary.get("critic")
         disagreement = bool(
             isinstance(critic, Mapping)
             and (
@@ -79,7 +81,7 @@ class FAPV8781Unified(v80.FAPV8780Unified):
                 or critic.get("verdict") not in {None, "", "OK"}
             )
         )
-        tags = [str(x) for x in result.get("route_tags", [])]
+        tags = [str(x) for x in primary.get("route_tags", [])]
         counterexample = any("counterexample" in x.lower() for x in tags)
 
         plan = self.response_redundancy.plan(
@@ -92,12 +94,16 @@ class FAPV8781Unified(v80.FAPV8780Unified):
             verification_depth=2 if disagreement else 1,
             retries=1 if disagreement else 0,
             intent_count=0,
-            has_route=bool(result.get("route") or dispatch.get("endpoint_id")),
+            has_route=bool(primary.get("route") or dispatch.get("endpoint_id")),
         )
+
+        result = self.response_series.run(text, history, primary, plan)
         result["response_redundancy"] = plan.to_dict()
 
+        tags = [str(x) for x in result.get("route_tags", [])]
         for tag in (
             "response-series-redundancy",
+            "response-series-executed",
             f"response-lanes:{plan.active_lanes}",
             f"response-synthesis:{plan.synthesis_width}",
         ):
@@ -121,6 +127,9 @@ class FAPV8781Unified(v80.FAPV8780Unified):
             "response-synthesis-committee:8-max",
             "partial-salient-coverage",
             "uncertainty-adaptive-response-expansion",
+            "executed-response-lane-voting",
+            "verified-specialist-answer-takeover",
+            "read-only-specialist-redundancy",
         ]:
             if item not in caps:
                 caps.append(item)
@@ -145,13 +154,18 @@ class FAPV8781Unified(v80.FAPV8780Unified):
                 "response_redundancy": {
                     "enabled": True,
                     "contract": self.response_redundancy.CONTRACT,
+                    "execution_contract": self.response_series.CONTRACT,
                     "max_lanes": self.response_redundancy.MAX_LANES,
                     "max_synthesis_width": self.response_redundancy.MAX_SYNTHESIS,
                     "adaptive_expansion": True,
+                    "lane_votes_execute": True,
+                    "verified_specialist_can_replace_weak_primary": True,
+                    "safe_specialists": list(self.response_series.SAFE_SPECIALISTS),
+                    "side_effecting_specialists_redundantly_executed": False,
                     "partial_coverage_allowed": True,
                     "coverage_target_range": [0.55, 0.90],
                     "topic_specific_branches": False,
-                    "native_parity_revision": "1.0.01-cpp-native-r003",
+                    "native_parity_revision": "1.0.01-cpp-native-r004",
                 },
             }
         )
@@ -199,10 +213,10 @@ def main():
         raise SystemExit(f"missing UI: {base.WEB_FILE}")
     print("FAP V87.81 CODING + CONVERSATION CONSOLIDATION")
     print(f"UI: http://{base.HOST}:{base.PORT}/")
-    print("Response series expand adaptively up to 64 independent lanes.")
+    print("Response series expand adaptively up to 64 lanes and every planned lane votes.")
+    print("Read-only factual/reflective/rule/derivation specialists can replace a weak primary answer.")
+    print("Side-effecting artifact, repository-write and network endpoints are never redundantly replayed.")
     print("Synthesis committee expands up to 8 lanes; exhaustive coverage is not required.")
-    print("Short coding follow-ups may reuse bounded prior repository paths.")
-    print("Repository continuity stores hashes/path metadata only, never source text.")
     print("FCA: optional, not required.")
     print("Qwen: not used")
     ThreadingHTTPServer((base.HOST, base.PORT), Handler).serve_forever()

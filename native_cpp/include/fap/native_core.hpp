@@ -8,7 +8,7 @@
 
 namespace fap::cppcore {
 
-inline constexpr const char* kVersion = "1.0.01-cpp-native-r003";
+inline constexpr const char* kVersion = "1.0.01-cpp-native-r004";
 
 struct Signal {
     std::string kind;

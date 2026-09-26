@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from pathlib import Path
+import unittest
+
+from fap_response_redundancy import ResponseRedundancyPlanner
+from fap_response_series_executor import ResponseSeriesExecutor
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class ResponseSeriesExecutorTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.planner = ResponseRedundancyPlanner()
+        self.executor = ResponseSeriesExecutor(ROOT)
+
+    def test_verified_factual_specialist_replaces_weak_primary(self) -> None:
+        text = "真空中の光速は何ですか？"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.8,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=6,
+            verification_depth=5,
+            retries=2,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "分からないため確定回答できません。",
+                "confidence": 0.2,
+                "needs_teacher": True,
+            },
+            plan,
+        )
+        self.assertIn("299,792,458", out["reply"])
+        execution = out["response_series_execution"]
+        self.assertTrue(execution["selection_changed_primary"])
+        self.assertIn("factual", execution["consensus_sources"])
+        self.assertEqual(execution["executed_lane_votes"], plan.active_lanes)
+        self.assertFalse(execution["side_effecting_specialists_executed"])
+
+    def test_unknown_subject_preserves_primary(self) -> None:
+        text = "xyzzy_opaque_unknown_subject_7391 について答えて"
+        plan = self.planner.plan(text, uncertainty=0.2, confidence=0.85)
+        primary = {
+            "ok": True,
+            "reply": "このローカル知識だけでは確定回答できません。",
+            "confidence": 0.7,
+            "needs_teacher": True,
+        }
+        out = self.executor.run(text, [], primary, plan)
+        self.assertEqual(out["reply"], primary["reply"])
+        self.assertEqual(out["response_series_execution"]["selected"], "primary")
+
+    def test_duplicate_verified_answer_builds_consensus_without_padding(self) -> None:
+        text = "プランク定数は何ですか？"
+        primary = {
+            "ok": True,
+            "reply": "プランク定数 h は 6.62607015×10^-34 J·s です。SIでは正確に定義されています。",
+            "confidence": 0.99,
+            "factual_qa": True,
+            "local": True,
+        }
+        plan = self.planner.plan(text, uncertainty=0.1, confidence=0.99, has_route=True)
+        out = self.executor.run(text, [], primary, plan)
+        execution = out["response_series_execution"]
+        self.assertEqual(execution["selected"], "primary")
+        self.assertIn("factual", execution["consensus_sources"])
+        self.assertEqual(out["reply"], primary["reply"])
+
+    def test_large_plan_makes_every_planned_lane_vote(self) -> None:
+        text = ("前提、反例、制約、代替案、検証方法を分けて考えてください。" * 12)
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.95,
+            confidence=0.2,
+            disagreement=True,
+            counterexample=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+            intent_count=5,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {"ok": True, "reply": "暫定回答です。", "confidence": 0.5},
+            plan,
+        )
+        execution = out["response_series_execution"]
+        self.assertGreaterEqual(plan.active_lanes, 48)
+        self.assertEqual(execution["executed_lane_votes"], plan.active_lanes)
+        self.assertLessEqual(execution["candidate_count"], 5)
+        self.assertGreaterEqual(execution["safe_specialist_calls"], 4)
+
+
+if __name__ == "__main__":
+    unittest.main()
