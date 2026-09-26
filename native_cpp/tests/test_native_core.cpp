@@ -180,7 +180,7 @@ void test_c_api_ui_bridge() {
     fap_native_string_free(json);
     fap_native_engine_destroy(engine);
 
-    require(payload.find("\"version\":\"1.0.01-cpp-native-r005\"") != std::string::npos,
+    require(payload.find("\"version\":\"1.0.01-cpp-native-r006\"") != std::string::npos,
             "C API JSON version missing");
     require(payload.find("\"budget\"") != std::string::npos,
             "C API JSON budget missing");
