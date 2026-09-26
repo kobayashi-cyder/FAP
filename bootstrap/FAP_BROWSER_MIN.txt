@@ -1,0 +1,5 @@
+/FAP_GIT.cmd
+/RUN_FAP_BROWSER_SELF_IMPROVE.ps1
+/fap_browser_operator.py
+/fap_browser_preflight.py
+/bootstrap/
