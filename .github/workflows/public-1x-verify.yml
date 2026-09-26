@@ -24,7 +24,7 @@ jobs:
       - name: Compile 1.x components
         run: |
           python -m py_compile fap_revision_r001.py fap_dynamic_sparse_routing.py fap_interaction_fabric.py fap_v1_0_01_sparse_benchmark.py
-          python -m py_compile fap_1x_runtime.py fap_1x_standard_runtime.py fap_1x_reasoning_core.py fap_1x_problem_decomposer.py fap_1x_candidate_verifier.py fap_1x_search_controller.py fap_1x_confidence_calibrator.py fap_1x_grounded_retrieval.py fap_1x_algebra_solver.py fap_1x_external_eval.py fap_1x_reasoning_holdout.py fap_1x_e2e_benchmark.py fap_semantic_memory.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
+          python -m py_compile fap_1x_runtime.py fap_1x_standard_runtime.py fap_1x_reasoning_core.py fap_1x_problem_decomposer.py fap_1x_candidate_verifier.py fap_1x_search_controller.py fap_1x_confidence_calibrator.py fap_1x_grounded_retrieval.py fap_1x_algebra_solver.py fap_1x_external_eval.py fap_1x_reasoning_holdout.py fap_1x_reasoning_stress.py fap_1x_e2e_benchmark.py fap_semantic_memory.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
       - name: Focused 1.x tests
         run: |
           python -m unittest -v tests.test_fap_dynamic_sparse_routing tests.test_fap_interaction_fabric tests.test_fap_1x_runtime tests.test_fap_1x_standard_runtime tests.test_fap_1x_reasoning_core tests.test_fap_1x_reasoning_verification tests.test_fap_semantic_memory
@@ -36,6 +36,8 @@ jobs:
         run: python fap_1x_e2e_benchmark.py
       - name: Generated reasoning holdout
         run: python fap_1x_reasoning_holdout.py
+      - name: Multi-seed reasoning stress
+        run: python fap_1x_reasoning_stress.py
 
   native-cpp:
     runs-on: ubuntu-latest
