@@ -136,6 +136,74 @@ public final class ChatLogStore {
         return entries.size();
     }
 
+    public synchronized boolean updateText(long id, String text) {
+        String clean = text == null ? "" : text;
+        if (clean.length() > MAX_TEXT_CHARS) {
+            clean = clean.substring(0, MAX_TEXT_CHARS);
+        }
+        for (int i = 0; i < entries.size(); i++) {
+            Entry old = entries.get(i);
+            if (old.id != id) continue;
+            entries.set(i, new Entry(
+                    old.id,
+                    old.timestampMs,
+                    old.role,
+                    old.channel,
+                    old.surface,
+                    clean));
+            persist();
+            return true;
+        }
+        return false;
+    }
+
+    public synchronized String exportJsonLines() {
+        StringBuilder out = new StringBuilder();
+        for (Entry entry : entries) {
+            try {
+                out.append(entry.toJson().toString()).append("\n");
+            } catch (Throwable ignored) {
+            }
+        }
+        return out.toString();
+    }
+
+    public synchronized boolean importJsonLines(String jsonl) {
+        if (jsonl == null) return false;
+        ArrayList<Entry> imported = new ArrayList<>();
+        long fallbackId = 1L;
+        long maxId = 0L;
+        for (String line : jsonl.split("\\r?\\n")) {
+            String clean = line == null ? "" : line.trim();
+            if (clean.isEmpty()) continue;
+            try {
+                Entry entry = Entry.fromJson(new JSONObject(clean), fallbackId++);
+                if (entry.text == null || entry.text.isEmpty()) continue;
+                imported.add(entry);
+                maxId = Math.max(maxId, entry.id);
+                if (imported.size() >= MAX_ENTRIES) break;
+            } catch (Throwable ignored) {
+            }
+        }
+        entries.clear();
+        entries.addAll(imported);
+        nextId = Math.max(1L, maxId + 1L);
+        persist();
+        return !entries.isEmpty();
+    }
+
+    public synchronized String suggestedTitle() {
+        for (Entry entry : entries) {
+            if (!SURFACE_FRONT.equals(entry.surface) || !"user".equals(entry.role)) continue;
+            String title = entry.text == null ? "" : entry.text
+                    .replaceAll("\\s+", " ")
+                    .trim();
+            if (title.isEmpty()) continue;
+            return title.substring(0, Math.min(48, title.length()));
+        }
+        return "新しいチャット";
+    }
+
     public synchronized long lastId() {
         return entries.isEmpty() ? 0L : entries.get(entries.size() - 1).id;
     }
