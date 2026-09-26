@@ -12,6 +12,7 @@ from fap_interaction_fabric import (
     InteractionRequest,
 )
 from fap_semantic_memory import SemanticMemoryStore
+from fap_1x_problem_decomposer import ProblemDecomposer
 from fap_speech import SpeechRuntime, wrap_text_handler
 
 
@@ -50,6 +51,7 @@ class FAP1xRuntime:
             else None
         )
         self._histories: dict[str, list[dict[str, Any]]] = {}
+        self.task_decomposer = ProblemDecomposer()
 
     @staticmethod
     def _session_id(value: str) -> str:
@@ -246,6 +248,54 @@ class FAP1xRuntime:
             task_families=("coding",),
             task_forms=("repository_change",),
             failure_specialties=("verification", "repair"),
+        )
+
+    def _auto_channel(self, text: str) -> tuple[str, dict[str, Any]]:
+        decomposition = self.task_decomposer.decompose(text)
+        descriptors = self.fabric.endpoint_descriptors
+
+        if decomposition.task_kind == "coding":
+            if any(
+                "coding" in row["channels"] or "*" in row["channels"]
+                for row in descriptors
+            ):
+                return "coding", decomposition.to_dict()
+
+        if decomposition.task_kind == "calculation":
+            for row in descriptors:
+                channels = set(row["channels"])
+                if "tool" not in channels and "*" not in channels:
+                    continue
+                capabilities = {str(x).lower() for x in row["capabilities"]}
+                forms = {str(x).lower() for x in row["task_forms"]}
+                families = {str(x).lower() for x in row["task_families"]}
+                if (
+                    capabilities & {"calculator", "calculation", "computation", "math", "numeric"}
+                    or forms & {"calculation", "numeric", "arithmetic"}
+                    or families & {"math", "calculation"}
+                ):
+                    return "tool", decomposition.to_dict()
+
+        return "chat", decomposition.to_dict()
+
+    def auto_turn(
+        self,
+        text: str,
+        *,
+        session_id: str = "default",
+        pressure_hint: float = 0.0,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> InteractionDispatch:
+        channel, decomposition = self._auto_channel(text)
+        enriched = dict(metadata) if isinstance(metadata, Mapping) else {}
+        enriched["auto_channel"] = channel
+        enriched["task_decomposition"] = decomposition
+        return self.run_turn(
+            text,
+            session_id=session_id,
+            channel=channel,
+            pressure_hint=pressure_hint,
+            metadata=enriched,
         )
 
     def dispatch(
