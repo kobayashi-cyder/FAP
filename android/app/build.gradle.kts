@@ -60,3 +60,9 @@ chaquopy {
         buildPython("python3.13")
     }
 }
+
+
+dependencies {
+    implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+}
