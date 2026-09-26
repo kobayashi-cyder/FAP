@@ -71,7 +71,7 @@ public final class AgentOrchestrator {
 
     public void setAgentModeEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_ENABLED, enabled).apply();
-        chatLog.append(
+        chatLog.appendBack(
                 "system",
                 "agent",
                 enabled ? "Agent mode: ON" : "Agent mode: OFF");
@@ -92,7 +92,7 @@ public final class AgentOrchestrator {
         String clean = text == null ? "" : text.trim();
         if (clean.isEmpty()) return;
 
-        ChatLogStore.Entry entry = chatLog.append("user", channel, clean);
+        ChatLogStore.Entry entry = chatLog.appendFront("user", channel, clean);
         if (entry == null) return;
         prefs.edit()
                 .putLong(KEY_LAST_USER_ID, Math.max(
@@ -105,7 +105,16 @@ public final class AgentOrchestrator {
     }
 
     public void reconcileAsync() {
+        GitContextProvider.refreshIfDueAsync(app, chatLog);
         executor.execute(this::reconcileBlocking);
+    }
+
+    public void refreshGitContextAsync(boolean force) {
+        if (force) {
+            GitContextProvider.forceRefreshAsync(app, chatLog);
+        } else {
+            GitContextProvider.refreshIfDueAsync(app, chatLog);
+        }
     }
 
     public void onBrowserResult(String originalPrompt, String response) {
@@ -114,8 +123,13 @@ public final class AgentOrchestrator {
 
         executor.execute(() -> {
             String logged = cleanResponse + "\n[core] pixel_browser:chatgpt_web";
-            if (!chatLog.containsRecent("assistant", "browser", logged, 32)) {
-                chatLog.append("assistant", "browser", logged);
+            if (!chatLog.containsRecent(
+                    "system",
+                    "browser-raw",
+                    ChatLogStore.SURFACE_BACK,
+                    logged,
+                    32)) {
+                chatLog.appendBack("system", "browser-raw", logged);
             }
 
             long pendingUserId = prefs.getLong(KEY_PENDING_USER_ID, 0L);
@@ -147,7 +161,7 @@ public final class AgentOrchestrator {
 
             PythonFapEngine.Result result = engine.processAgent(
                     synthesis,
-                    chatLog.recentJson(MAX_CONTEXT_LOGS),
+                    chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
                     "browser-synthesis");
 
             appendAgentReply(result, "agent:web");
@@ -179,7 +193,7 @@ public final class AgentOrchestrator {
 
         PythonFapEngine.Result result = engine.processAgent(
                 entry.text,
-                chatLog.recentJson(MAX_CONTEXT_LOGS),
+                chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
                 entry.channel);
 
         if (allowBrowser
@@ -196,11 +210,14 @@ public final class AgentOrchestrator {
                     .apply();
             pendingBrowserListener = listener;
 
-            chatLog.append(
+            chatLog.appendBack(
                     "system",
                     "agent",
-                    "ローカル推論の確信度が不足したため、Chrome/ChatGPTへ1回だけ外部調査を委譲します。"
-                            + " user=#" + entry.id);
+                    "Chrome/ChatGPTへ外部調査を1回だけ委譲"
+                            + " · user=#" + entry.id
+                            + " · localSkill=" + result.skill
+                            + " · confidence=" + String.format("%.2f", result.confidence)
+                            + " · state=" + result.state);
 
             boolean opened = PixelBrowserController.askChatGpt(
                     app,
@@ -232,7 +249,7 @@ public final class AgentOrchestrator {
 
         if (inflightId > 0L) {
             ChatLogStore.Entry inflight = findEntry(inflightId);
-            if (inflight == null || chatLog.hasAssistantAfter(inflightId)) {
+            if (inflight == null || chatLog.hasFrontAssistantAfter(inflightId)) {
                 prefs.edit()
                         .remove(KEY_INFLIGHT_USER_ID)
                         .remove(KEY_INFLIGHT_STARTED_AT)
@@ -251,7 +268,7 @@ public final class AgentOrchestrator {
             prefs.edit().putLong(KEY_LAST_USER_ID, cursor).apply();
 
             if ("browser".equals(entry.channel)) continue;
-            if (chatLog.hasAssistantAfter(entry.id)) continue;
+            if (chatLog.hasFrontAssistantAfter(entry.id)) continue;
 
             prefs.edit()
                     .putLong(KEY_INFLIGHT_USER_ID, entry.id)
@@ -268,8 +285,9 @@ public final class AgentOrchestrator {
             long browserCursor = prefs.getLong(KEY_LAST_BROWSER_ID, 0L);
             for (ChatLogStore.Entry entry
                     : chatLog.entriesAfter(browserCursor, MAX_RECOVERY_SCAN)) {
-                if ("assistant".equals(entry.role)
-                        && "browser".equals(entry.channel)) {
+                if (ChatLogStore.SURFACE_BACK.equals(entry.surface)
+                        && "system".equals(entry.role)
+                        && "browser-raw".equals(entry.channel)) {
                     String text = stripBrowserCore(entry.text);
                     onBrowserResult(
                             prefs.getString(KEY_PENDING_PROMPT, ""),
@@ -304,11 +322,16 @@ public final class AgentOrchestrator {
         if (answer.isEmpty()) {
             answer = "このターンでは確定回答を生成できませんでした。";
         }
-        chatLog.append(
+        chatLog.appendFront(
                 "assistant",
                 "agent:" + normalizeChannel(sourceChannel),
-                answer
-                        + "\n[core] " + result.skill
+                answer);
+        chatLog.appendBack(
+                "system",
+                "agent-result",
+                "finalized"
+                        + " · source=" + normalizeChannel(sourceChannel)
+                        + " · skill=" + result.skill
                         + " · confidence=" + String.format("%.2f", result.confidence)
                         + " · state=" + result.state);
     }
