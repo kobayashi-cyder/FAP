@@ -3,6 +3,10 @@ name: Publish signed Pixel APK
 on:
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: "Branch/tag/commit containing the Pixel APK source"
+        required: true
+        default: "side/1.0.01-pixel-screen-teach-20260926"
       version_code:
         description: "Android versionCode (must increase)"
         required: true
@@ -28,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
+      FAP_SOURCE_REF: ${{ inputs.source_ref }}
       FAP_VERSION_CODE: ${{ inputs.version_code }}
       FAP_VERSION_NAME: ${{ inputs.version_name }}
       FAP_RELEASE_TAG: ${{ inputs.tag }}
@@ -38,8 +43,21 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
-      - name: Checkout
+      - name: Checkout selected Pixel source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Record selected source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          test -n "$SOURCE_SHA"
+          echo "FAP_SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "source_ref=$FAP_SOURCE_REF"
+          echo "source_sha=$SOURCE_SHA"
 
       - name: Validate inputs and signing secrets
         shell: bash
@@ -116,7 +134,8 @@ jobs:
               "sha256": os.environ["SHA"],
               "signer_sha256": os.environ["SIGNER"],
               "bytes": int(os.environ["BYTES"]),
-              "source_commit": os.environ["GITHUB_SHA"],
+              "source_commit": os.environ["FAP_SOURCE_SHA"],
+              "source_ref": os.environ["FAP_SOURCE_REF"],
               "release_tag": os.environ["FAP_RELEASE_TAG"],
           }
           p = os.path.join(os.environ["RUNNER_TEMP"], "latest-apk.json")
@@ -141,7 +160,7 @@ jobs:
             gh release upload "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --clobber               --repo kobayashi-cyder/FAP
             gh release edit "$FAP_RELEASE_TAG" --latest --repo kobayashi-cyder/FAP
           else
-            gh release create "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --title "FAP Pixel $FAP_VERSION_NAME"               --notes "Signed Pixel APK built from commit $GITHUB_SHA."               --latest               --repo kobayashi-cyder/FAP
+            gh release create "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --title "FAP Pixel $FAP_VERSION_NAME"               --notes "Signed Pixel APK built from $FAP_SOURCE_REF at $FAP_SOURCE_SHA."               --latest               --repo kobayashi-cyder/FAP
           fi
 
       - name: Verify public update feed
