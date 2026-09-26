@@ -281,6 +281,15 @@ public class MainActivity extends Activity {
         history.setOnClickListener(v -> showConversationHistory());
         tools.addView(history);
 
+        Button toolsButton = chip("ツール");
+        toolsButton.setContentDescription("FAPが現在使えるツールを表示");
+        toolsButton.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("FAP ツール")
+                .setMessage(FapToolRegistry.describe(this))
+                .setPositiveButton("閉じる", null)
+                .show());
+        tools.addView(toolsButton);
+
         Button branchChat = chip("分岐");
         branchChat.setContentDescription("現在の会話を分岐点として保存");
         branchChat.setOnClickListener(v -> branchCurrentChat());
