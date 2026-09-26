@@ -597,6 +597,17 @@ def _build_parser() -> argparse.ArgumentParser:
         default=os.getenv("FAP_SEARCH_ENGINE", "google"),
     )
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument(
+        "--wait-for-login-sec",
+        type=float,
+        default=float(os.getenv("FAP_BROWSER_LOGIN_WAIT_SEC", "600")),
+        help="keep the visible browser open and continue automatically after login",
+    )
+    parser.add_argument(
+        "--runtime-dir",
+        default=os.getenv("FAP_BROWSER_RUNTIME_DIR", ""),
+        help="local non-secret checkpoint/lock directory",
+    )
     return parser
 
 
@@ -621,19 +632,103 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(args.repo).expanduser().resolve()
     branch = args.branch.strip() or _current_branch(root)
     client = _build_reasoner(args)
+
     try:
-        controller = SelfImprovementController(root, client=client)
-        run = controller.run(
-            args.goal,
-            branch=branch,
-            preferred_paths=tuple(args.preferred_path),
-            enable_web_research=not args.no_web_search,
-            open_chatgpt_ui=(args.open_chatgpt_ui and args.backend == "api"),
-        )
+        if args.backend == "browser":
+            from fap_browser_runtime import BrowserRuntimeJournal, default_runtime_dir
+
+            runtime_dir = (
+                Path(args.runtime_dir).expanduser()
+                if args.runtime_dir.strip()
+                else default_runtime_dir()
+            )
+            with BrowserRuntimeJournal(
+                runtime_dir,
+                branch=branch,
+                goal=args.goal,
+                cdp_url=args.cdp_url,
+            ) as journal:
+                journal.update("browser_starting")
+                prepare = getattr(client, "prepare", None)
+                if not callable(prepare):
+                    raise RuntimeError("browser backend does not expose prepare()")
+                journal.update("login_required")
+                readiness = prepare(args.wait_for_login_sec)
+                if not readiness.ready:
+                    journal.update(
+                        "login_timeout",
+                        url=readiness.url,
+                        error=readiness.detail,
+                    )
+                    print(
+                        json.dumps(
+                            {
+                                "version": SELF_IMPROVEMENT_VERSION,
+                                "state": "login_timeout",
+                                "branch": branch,
+                                "browser": readiness.to_dict(),
+                                "message": (
+                                    "Complete ChatGPT login in the visible FAP "
+                                    "browser and rerun the same command."
+                                ),
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    return 3
+
+                journal.update("chatgpt_ready", url=readiness.url)
+                journal.update("running", url=readiness.url)
+                controller = SelfImprovementController(root, client=client)
+                run = controller.run(
+                    args.goal,
+                    branch=branch,
+                    preferred_paths=tuple(args.preferred_path),
+                    enable_web_research=not args.no_web_search,
+                    open_chatgpt_ui=False,
+                )
+                journal.update(
+                    "completed",
+                    url=getattr(getattr(client, "browser", None), "page", None).url
+                    if getattr(getattr(client, "browser", None), "_page", None) is not None
+                    else "",
+                    error=(
+                        ""
+                        if run.state == "verified_candidate"
+                        else f"result_state:{run.state}"
+                    ),
+                )
+        else:
+            controller = SelfImprovementController(root, client=client)
+            run = controller.run(
+                args.goal,
+                branch=branch,
+                preferred_paths=tuple(args.preferred_path),
+                enable_web_research=not args.no_web_search,
+                open_chatgpt_ui=bool(args.open_chatgpt_ui),
+            )
+    except RuntimeError as exc:
+        if "another FAP browser controller is active" in str(exc):
+            print(
+                json.dumps(
+                    {
+                        "version": SELF_IMPROVEMENT_VERSION,
+                        "state": "already_running",
+                        "branch": branch,
+                        "message": str(exc),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 4
+        raise
     finally:
         close = getattr(client, "close", None)
         if callable(close):
             close()
+
     print(json.dumps(run.to_dict(), ensure_ascii=False, indent=2))
     return 0 if run.state == "verified_candidate" else 2
 
