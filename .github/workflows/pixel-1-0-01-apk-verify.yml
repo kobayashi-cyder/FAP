@@ -90,18 +90,37 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          current = json.loads(Path("pixel_update/latest.json").read_text(encoding="utf-8"))
-          assert current["schema"] == "fap.pixel.runtime.manifest.v1"
-          assert current["entrypoint"] == "fap_1x_standard_runtime.py"
-          assert current["file_count"] == len(current["files"])
-          assert sum(x["bytes"] for x in current["files"]) == current["total_bytes"]
-          paths = {x["path"] for x in current["files"]}
+
+          generated = json.loads(Path("/tmp/pixel-latest.json").read_text(encoding="utf-8"))
+          assert generated["schema"] == "fap.pixel.runtime.manifest.v1"
+          assert generated["entrypoint"] == "fap_1x_standard_runtime.py"
+          assert generated["file_count"] == len(generated["files"])
+          assert sum(x["bytes"] for x in generated["files"]) == generated["total_bytes"]
+          paths = {x["path"] for x in generated["files"]}
           assert "fap_speech.py" in paths
           assert "fap_1x_standard_runtime.py" in paths
           assert "fap_adaptive_reasoning.py" in paths
           assert "fap_knowledge_narrator.py" in paths
           assert "fap_knowledge_retrieval.py" in paths
-          print("published manifest:", current["source_commit"], current["file_count"], current["total_bytes"])
+
+          published = json.loads(Path("pixel_update/latest.json").read_text(encoding="utf-8"))
+          assert published["schema"] == "fap.pixel.runtime.manifest.v1"
+          assert published["entrypoint"] == "fap_1x_standard_runtime.py"
+          assert published["file_count"] == len(published["files"])
+          assert sum(x["bytes"] for x in published["files"]) == published["total_bytes"]
+
+          print(
+              "candidate manifest:",
+              generated["source_commit"],
+              generated["file_count"],
+              generated["total_bytes"],
+          )
+          print(
+              "published main manifest:",
+              published["source_commit"],
+              published["file_count"],
+              published["total_bytes"],
+          )
           PY
 
       - name: Build minimal Pixel Python payload
