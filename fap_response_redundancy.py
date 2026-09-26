@@ -99,6 +99,74 @@ class ResponseRedundancyPlanner:
         intent_score = min(1.0, max(0, int(intent_count) - 1) / 6.0)
         return _clip(0.40 * chars + 0.25 * sep_score + 0.20 * chunk_score + 0.15 * intent_score)
 
+    @classmethod
+    def _ordered_roles(
+        cls,
+        text: str,
+        *,
+        uncertainty: float,
+        disagreement: bool,
+        counterexample: bool,
+        intent_count: int,
+    ) -> tuple[tuple[str, str], ...]:
+        value = str(text or "")
+        verify_cue = bool(re.search(
+            r"(検証|確認|証明|根拠|出典|矛盾|verify|validation|prove|evidence|source|citation|consistent)",
+            value,
+            re.I,
+        ))
+        constraint_cue = bool(re.search(
+            r"(必ず|のみ|だけ|以内|以下|以上|禁止|必須|must\\b|only\\b|never\\b|at most\\b|at least\\b)",
+            value,
+            re.I,
+        ))
+        procedure_cue = bool(re.search(
+            r"(手順|まず|次に|その後|最後に|段階|step|procedure|workflow|then\\b|finally\\b)",
+            value,
+            re.I,
+        ))
+        causal_cue = bool(re.search(
+            r"(なぜ|原因|因果|仕組|機構|why\\b|cause|causal|mechanism)",
+            value,
+            re.I,
+        ))
+
+        boosts = {role: 0.0 for role, _group in cls.ROLES}
+        boosts["direct"] += 0.30
+        boosts["user_intent"] += 0.22
+        boosts["synthesis_probe"] += 0.10
+
+        verification_need = max(_clip(uncertainty), float(bool(disagreement)))
+        if verify_cue or verification_need >= 0.45:
+            boosts["evidence"] += 0.48
+            boosts["verifier"] += 0.52
+            boosts["uncertainty"] += 0.30
+            boosts["synthesis_probe"] += 0.18
+        if counterexample or disagreement:
+            boosts["counterexample"] += 0.58
+            boosts["edge_cases"] += 0.36
+            boosts["verifier"] += 0.20
+        if constraint_cue:
+            boosts["constraints"] += 0.54
+            boosts["user_intent"] += 0.24
+        if procedure_cue or intent_count >= 3:
+            boosts["decomposition"] += 0.38
+            boosts["procedure"] += 0.42
+            boosts["compression"] += 0.14
+        if causal_cue:
+            boosts["mechanism"] += 0.44
+            boosts["assumptions"] += 0.18
+            boosts["counterexample"] += 0.16
+
+        indexed = list(enumerate(cls.ROLES))
+        indexed.sort(
+            key=lambda row: (
+                -boosts[row[1][0]],
+                row[0],
+            )
+        )
+        return tuple(role for _index, role in indexed)
+
     def plan(
         self,
         text: str,
@@ -144,9 +212,17 @@ class ResponseRedundancyPlanner:
         independent_groups = max(4, min(len(self.ROLES), (active + 2) // 3))
         coverage_target = min(0.90, 0.55 + 0.35 * pressure)
 
+        ordered_roles = self._ordered_roles(
+            text,
+            uncertainty=uncertainty,
+            disagreement=disagreement,
+            counterexample=counterexample,
+            intent_count=intent_count,
+        )
+
         lanes: list[ResponseLane] = []
         for i in range(active):
-            role, group = self.ROLES[i % len(self.ROLES)]
+            role, group = ordered_roles[i % len(ordered_roles)]
             variant = i // len(self.ROLES)
             verifier = role in {"evidence", "counterexample", "uncertainty", "verifier", "synthesis_probe"}
             priority = max(0.35, 1.0 - (i / max(1, active * 2.4)))
