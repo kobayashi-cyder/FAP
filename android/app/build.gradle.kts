@@ -5,6 +5,10 @@ plugins {
 
 val fapVersionCode = providers.environmentVariable("FAP_VERSION_CODE").orElse("10001").get().toIntOrNull() ?: 10001
 val fapVersionName = providers.environmentVariable("FAP_VERSION_NAME").orElse("1.0.01-pixel").get()
+val fapSigningStoreFile = providers.environmentVariable("FAP_SIGNING_STORE_FILE").orNull
+val fapSigningStorePassword = providers.environmentVariable("FAP_SIGNING_STORE_PASSWORD").orNull
+val fapSigningKeyAlias = providers.environmentVariable("FAP_SIGNING_KEY_ALIAS").orNull
+val fapSigningKeyPassword = providers.environmentVariable("FAP_SIGNING_KEY_PASSWORD").orNull
 
 android {
     namespace = "jp.fap.runtime"
@@ -21,9 +25,26 @@ android {
         }
     }
 
+    signingConfigs {
+        if (
+            fapSigningStoreFile != null
+            && fapSigningStorePassword != null
+            && fapSigningKeyAlias != null
+            && fapSigningKeyPassword != null
+        ) {
+            create("fapRelease") {
+                storeFile = file(fapSigningStoreFile)
+                storePassword = fapSigningStorePassword
+                keyAlias = fapSigningKeyAlias
+                keyPassword = fapSigningKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("fapRelease")
         }
     }
 
