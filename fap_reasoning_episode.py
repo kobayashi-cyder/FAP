@@ -104,6 +104,7 @@ class ReasoningEpisodeController:
         *,
         accepted_passes: Sequence[int] = (),
         budget: int = 0,
+        final_assessment: ReasoningAssessment | None = None,
     ) -> dict[str, Any]:
         out = dict(payload)
         rows = list(assessments)
@@ -116,7 +117,7 @@ class ReasoningEpisodeController:
             phase = "execute" if i == 0 else cls.phase_for_pass(i, max(1, budget))
             steps.append(cls._step(i, phase, assessment, i in accepted))
 
-        final = rows[-1]
+        final = final_assessment or rows[-1]
         reply = str(out.get("reply") or "").strip()
 
         unresolved_reasons: list[str] = []
@@ -167,6 +168,7 @@ class ReasoningEpisodeController:
             "budget": int(max(0, budget)),
             "attempted_passes": len(rows),
             "accepted_passes": sorted(accepted),
+            "final_from_accepted_candidate": final_assessment is not None,
             "unresolved_reasons": list(dict.fromkeys(unresolved_reasons)),
             "phases": [step.to_dict() for step in steps],
             "plan_execute_verify_repair_reverify": True,
