@@ -1,9 +1,0 @@
-{
-  "candidate_dir": "examples/v62_candidate",
-  "unit_command": ["python", "-m", "unittest", "discover", "-s", "tests", "-v"],
-  "dev_command": ["python", "evaluator.py", "dev.jsonl", "../v62_candidate"],
-  "holdout_command": ["python", "evaluator.py", "holdout.jsonl", "../v62_candidate"],
-  "evaluator_cwd": "examples/v62_eval",
-  "holdout_paths": ["examples/v62_eval/holdout.jsonl"],
-  "ram_mb": 8.0
-}

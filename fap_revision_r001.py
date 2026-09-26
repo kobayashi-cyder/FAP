@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Iterable
 
 
@@ -19,21 +20,41 @@ class Budget:
     retries: int
 
 
-def _clip(value: float) -> float:
-    return max(0.0, min(1.0, float(value)))
+def _clip(value: float, *, invalid: float = 0.0) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return invalid
+    if not isfinite(numeric):
+        return invalid
+    return max(0.0, min(1.0, numeric))
+
+
+def _bounded_count(value: object) -> int:
+    try:
+        numeric = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return 1
+    return min(max(numeric, 1), 8)
 
 
 def adaptive_budget(
-    signals: Iterable[Signal] = (),
+    signals: Iterable[Signal] | None = (),
     *,
     uncertainty: float = 0.0,
     disagreement: bool = False,
 ) -> Budget:
     """Public, answer-independent adaptive budget for FAP 1.0.0-r001."""
     difficulty = 0.0
-    for signal in signals:
-        difficulty += _clip(signal.weight) * min(max(int(signal.count), 1), 8) / 8.0
-    pressure = _clip(0.55 * _clip(difficulty) + 0.35 * _clip(uncertainty) + 0.10 * int(bool(disagreement)))
+    for signal in signals or ():
+        if not isinstance(signal, Signal):
+            continue
+        difficulty += _clip(signal.weight) * _bounded_count(signal.count) / 8.0
+    pressure = _clip(
+        0.55 * _clip(difficulty)
+        + 0.35 * _clip(uncertainty)
+        + 0.10 * int(bool(disagreement))
+    )
 
     return Budget(
         routes=min(8, 1 + int(pressure >= 0.20) + int(pressure >= 0.50) + int(pressure >= 0.80)),
@@ -43,5 +64,11 @@ def adaptive_budget(
     )
 
 
-def needs_extra_path(*, confidence: float, disagreement: bool = False, counterexample: bool = False) -> bool:
-    return _clip(confidence) < 0.70 or bool(disagreement) or bool(counterexample)
+def needs_extra_path(
+    *,
+    confidence: float,
+    disagreement: bool = False,
+    counterexample: bool = False,
+) -> bool:
+    safe_confidence = _clip(confidence, invalid=0.0)
+    return safe_confidence < 0.70 or bool(disagreement) or bool(counterexample)

@@ -1,19 +1,23 @@
 # FAP
 
-FAP is the public, reset mainline of the project.
+FAP is the public 1.x mainline.
 
-## Current release
+## Current release candidate
 
-- Stable public base: **1.0.0**
-- Current revision: **1.0.0-r001**
-- Canonical version file: [`VERSION`](VERSION)
+- Stable mainline: **V1.0.01**
+- Canonical version: `VERSION`
+- Python entrypoint: `fap_runtime_1x.py`
+- HTTP gateway: `fap_v1_0_01_dynamic_sparse_routing_gateway.py`
+- Android adapter: `android/`
+- Native C++ alternate core: `native_cpp/`
 
-The public repository was intentionally reset in September 2026. Historical development remains in Git history; active private development continues separately.
+The active tree is intentionally 1.x-only. Legacy numbered launchers,
+gateways, workflows, benchmarks, and Android package paths are excluded from
+the active public tree.
 
-## Public scope
+1.0.01 uses bounded adaptive compute with dynamic-sparse interaction routing.
+Speech, Android, native C++, and isolated self-improvement surfaces are
+evidence-gated: unit/compile success is not treated as real-device or
+model-level evidence.
 
-This repository is kept intentionally public-safe. Its role is to host reproducible experiments, lightweight verification, and GitHub Actions checks without exposing private-only implementation details.
-
-Revision r001 adds a clean-room, answer-independent adaptive reasoning budget inspired by mechanisms that were first exercised on the private line: sparse-by-default routing, bounded compute growth under difficulty, deeper verification under uncertainty, and extra-path activation on low confidence, verifier disagreement, or counterexamples.
-
-Private source code is not copied into the public repository. Only public-safe generalized mechanisms are reimplemented and independently testable here.
+GPT-5.6 Sol-class task performance is a target, not a current capability claim.

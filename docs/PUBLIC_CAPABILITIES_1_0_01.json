@@ -1,0 +1,69 @@
+{
+  "schema": "fap.public-capabilities.v1",
+  "release_candidate": "1.0.01",
+  "evidence_policy": "compile/unit evidence is not promoted to real-device or model-level evidence",
+  "capabilities": [
+    {
+      "id": "dynamic_sparse_routing",
+      "status": "integrated_unit_verified",
+      "evidence": [
+        "tests/test_fap_dynamic_sparse_routing.py",
+        "tests/test_fap_interaction_fabric.py",
+        "fap_v1_0_01_sparse_benchmark.py"
+      ]
+    },
+    {
+      "id": "r001_boundary_hardening",
+      "status": "integrated_unit_verified",
+      "evidence": [
+        "tests/test_fap_revision_r001.py"
+      ]
+    },
+    {
+      "id": "speech",
+      "status": "integrated_unit_verified_hardware_pending",
+      "evidence": [
+        "tests/test_fap_speech.py",
+        "tests/test_fap_speech_fluent.py",
+        "tests/test_fap_audio_device.py"
+      ]
+    },
+    {
+      "id": "android_voice",
+      "status": "integrated_compile_verified_real_device_pending",
+      "evidence": [
+        "android/",
+        "Public FAP 1.x CI"
+      ]
+    },
+    {
+      "id": "native_cpp",
+      "status": "integrated_unit_verified_partial_parity",
+      "evidence": [
+        "native_cpp/tests/test_native_core.cpp",
+        "native_cpp/PORTING_MATRIX.md",
+        "Public FAP 1.x CI"
+      ]
+    },
+    {
+      "id": "self_improvement_web_openai",
+      "status": "integrated_isolation_verified_real_browser_pending",
+      "evidence": [
+        "tests/test_fap_self_improvement_controller.py",
+        "tests/test_fap_browser_operator.py"
+      ]
+    },
+    {
+      "id": "model_level_sol_target",
+      "status": "unverified_target",
+      "requirements": [
+        "independent unseen holdouts",
+        "domain accuracy",
+        "calibration",
+        "tool-routing accuracy",
+        "latency/compute accounting",
+        "timeout rates"
+      ]
+    }
+  ]
+}

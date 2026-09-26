@@ -1,0 +1,85 @@
+name: Public FAP 1.x CI
+on:
+  push:
+    branches: [main, "integration/public-1.0.01-clean-main-*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: public-fap-1x-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env: { PYTHONPATH: "." }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Enforce 1.x active-tree hygiene
+        run: |
+          python - <<'PY'
+          import re, subprocess
+          paths=subprocess.check_output(["git","ls-files"],text=True).splitlines()
+          bad=[p for p in paths if re.search(r"v[4-9]\d",p,re.I) or p.startswith("android-v")]
+          if bad: raise SystemExit("legacy paths remain:\n"+"\n".join(bad[:100]))
+          PY
+      - name: Version and runtime
+        run: |
+          python scripts/check_version_consistency.py
+          python -m unittest -v tests.test_public_release_contract tests.test_fap_runtime_1x
+      - name: Routing
+        run: |
+          python -m unittest -v tests.test_fap_revision_r001
+          python -m unittest -v tests.test_fap_dynamic_sparse_routing
+          python -m unittest -v tests.test_fap_interaction_fabric
+          python - <<'PY'
+          from fap_v1_0_01_sparse_benchmark import run_sparse_routing_benchmark
+          r=run_sparse_routing_benchmark(); print(r.to_dict())
+          if r.passed != r.total: raise SystemExit("sparse benchmark failed")
+          PY
+      - name: Speech
+        run: |
+          python tests/test_fap_speech.py
+          python tests/test_fap_speech_fluent.py
+          python tests/test_fap_audio_device.py
+      - name: Self improvement
+        run: python -m unittest discover -s tests -p "test_fap_self_improvement_controller.py" -v
+  native_cpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S native_cpp -B build/native_cpp -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build/native_cpp --parallel 2
+      - run: ctest --test-dir build/native_cpp --output-on-failure
+      - run: ./build/native_cpp/fap_native_cli version
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "9.6.0" }
+      - run: python scripts/sync_android_python_core.py
+      - run: python -m py_compile android/app/src/main/python/android_bridge.py
+      - working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if gradle --no-daemon :app:compileDebugJavaWithJavac; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 20))
+            fi
+          done
+          exit 1
