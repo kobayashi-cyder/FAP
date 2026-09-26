@@ -129,7 +129,7 @@ class FAPV8781Unified(v80.FAPV8780Unified):
             "uncertainty-adaptive-response-expansion",
             "executed-response-lane-voting",
             "verified-specialist-answer-takeover",
-            "read-only-specialist-redundancy",
+            "read-only-specialist-redundancy",\n            "response-specialists:7-readonly",\n            "response-coverage-auditors",\n            "deterministic-complementary-synthesis",
         ]:
             if item not in caps:
                 caps.append(item)
@@ -160,12 +160,12 @@ class FAPV8781Unified(v80.FAPV8780Unified):
                     "adaptive_expansion": True,
                     "lane_votes_execute": True,
                     "verified_specialist_can_replace_weak_primary": True,
-                    "safe_specialists": list(self.response_series.SAFE_SPECIALISTS),
+                    "safe_specialists": list(self.response_series.SAFE_SPECIALISTS),\n                    "coverage_auditors": ["requirements", "segments"],\n                    "deterministic_complementary_synthesis": True,
                     "side_effecting_specialists_redundantly_executed": False,
                     "partial_coverage_allowed": True,
                     "coverage_target_range": [0.55, 0.90],
                     "topic_specific_branches": False,
-                    "native_parity_revision": "1.0.01-cpp-native-r005",
+                    "native_parity_revision": "1.0.01-cpp-native-r006",
                 },
             }
         )
