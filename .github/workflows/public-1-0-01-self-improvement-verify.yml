@@ -3,7 +3,7 @@ name: Public 1.0.01 Self Improvement Verify
 on:
   push:
     branches:
-      - "side/*1.0.01*"
+      - "port/public-1.0.01-self-improvement-clean-*"
     paths:
       - "fap_self_improvement_controller.py"
       - "tests/test_fap_self_improvement_controller.py"
@@ -11,7 +11,7 @@ on:
       - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
   pull_request:
     branches:
-      - main
+      - integration/public-1.0.01-ready-20260926
     paths:
       - "fap_self_improvement_controller.py"
       - "tests/test_fap_self_improvement_controller.py"
@@ -46,6 +46,11 @@ jobs:
         env:
           PYTHONPATH: .
         run: python -m unittest discover -s tests -p "test_fap_self_improvement_controller.py" -v
+
+      - name: Verify public release contract remains intact
+        run: |
+          python scripts/check_version_consistency.py
+          python -m unittest -v tests.test_public_release_contract tests.test_fap_revision_r001
 
       - name: Verify no credential material is committed
         shell: bash
