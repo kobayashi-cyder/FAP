@@ -1,0 +1,10 @@
+{
+  "model_id": "segmind/SSD-1B",
+  "license_id": "apache-2.0",
+  "source": "https://huggingface.co/segmind/SSD-1B",
+  "config_dir": "ssd1b-config",
+  "distilled": true,
+  "distillation_kind": "knowledge-distillation",
+  "pipeline": "StableDiffusionXLPipeline",
+  "inference_steps": 20
+}

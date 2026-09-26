@@ -1,0 +1,37 @@
+name: V87.24 Offline Bundle Verify
+
+on:
+  push:
+    branches:
+      - v87.24-offline-bundle
+      - main
+    paths:
+      - "releases/v87_24/**"
+      - "prepare_fap_v87_24_offline_bundle.py"
+      - "PREPARE_FAP_V87_24_OFFLINE_SSD1B.cmd"
+      - "RUN_FAP_V87_24_OFFLINE_BUNDLE_MEDIA_LAB.cmd"
+      - ".github/workflows/v87-24-offline-bundle-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_24/**"
+      - "prepare_fap_v87_24_offline_bundle.py"
+      - "PREPARE_FAP_V87_24_OFFLINE_SSD1B.cmd"
+      - "RUN_FAP_V87_24_OFFLINE_BUNDLE_MEDIA_LAB.cmd"
+      - ".github/workflows/v87-24-offline-bundle-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Run V87.24 tests
+        env:
+          PYTHONPATH: releases/v87_24/offline_bundle
+        run: pytest -q releases/v87_24/offline_bundle/tests

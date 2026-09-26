@@ -1,0 +1,26 @@
+{
+  "schema": "fca-fap.exchange.v1",
+  "source_project": "FCA",
+  "source_commit": "efe500a1836e471de5e6a56664d8773cc64c9112",
+  "capability": "bounded_hot_cold_memory",
+  "mechanism": {
+    "kind": "bounded_hot_cold_memory",
+    "hot_cold_tiers": true,
+    "selective_page_in": true,
+    "utility_confidence_retention": true,
+    "contradiction_retention": true,
+    "fap_adaptation": "dependency-free stable hashed token signature"
+  },
+  "evidence": {
+    "fca_commit": "efe500a1836e471de5e6a56664d8773cc64c9112",
+    "fca_tests": "memory bounds, retrieval page-in, protected retention and sparse scheduler tests were added with the source mechanism",
+    "fap_tests": "strict bounds, relevant page-in, protected retention, empty-query safety"
+  },
+  "constraints": [
+    "memory remains separate from planner and critic state",
+    "retrieved text is advisory context and cannot satisfy success criteria by itself",
+    "callers explicitly choose what is remembered and exposed",
+    "capacities and page-in are bounded",
+    "no external embedding/model dependency is introduced"
+  ]
+}

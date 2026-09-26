@@ -1,0 +1,126 @@
+name: broad-literature-critical-appraisal
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/broad-literature-critical-appraisal.yml"
+  schedule:
+    - cron: "23 18 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Publication window in days"
+        required: false
+        default: "1"
+      max_works:
+        description: "Maximum journal articles to screen (0 = uncapped)"
+        required: false
+        default: "50000"
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile and test review engine
+        run: |
+          python -m py_compile fap_literature_review.py fap_research_frontier.py fap_research_cycle.py
+          python -m unittest -v tests.test_literature_review tests.test_research_frontier tests.test_research_cycle
+
+      - name: Determine review window
+        id: cfg
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "days=7" >> "$GITHUB_OUTPUT"
+            echo "max_works=50000" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "days=${{ inputs.days }}" >> "$GITHUB_OUTPUT"
+            echo "max_works=${{ inputs.max_works }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "days=1" >> "$GITHUB_OUTPUT"
+            echo "max_works=50000" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Screen recent Crossref journal articles
+        env:
+          CROSSREF_MAILTO: ${{ secrets.CROSSREF_MAILTO }}
+        run: |
+          mkdir -p literature-review
+          python fap_literature_review.py             --days "${{ steps.cfg.outputs.days }}"             --max-works "${{ steps.cfg.outputs.max_works }}"             --date-mode pub             --compact             --output literature-review/reviews.jsonl             --summary literature-review/summary.json
+
+      - name: Build unresolved research frontier
+        run: |
+          python fap_research_frontier.py             --reviews literature-review/reviews.jsonl             --output literature-review/research_frontier.json             --snapshot-output knowledge/research_frontier_latest.json             --snapshot-limit 50             --max-clusters 200             --min-papers 4
+
+      - name: Run targeted research cycles
+        env:
+          CROSSREF_MAILTO: ${{ secrets.CROSSREF_MAILTO }}
+        run: |
+          python fap_research_cycle.py             --frontier literature-review/research_frontier.json             --output literature-review/research_cycles.json             --snapshot-output knowledge/research_cycle_latest.json             --limit 30             --targeted-search             --days 365             --topics 20             --papers-per-topic 60             --rounds 3             --saturation-threshold 0.08
+
+      - name: Print coverage summary
+        run: |
+          cat literature-review/summary.json
+          python - <<'PY'
+          import json
+          p = json.load(open("literature-review/research_frontier.json", encoding="utf-8"))
+          r = json.load(open("literature-review/research_cycles.json", encoding="utf-8"))
+          print(json.dumps({
+              "papers_processed": p["papers_processed"],
+              "cluster_count": p["cluster_count"],
+              "top_frontier": [
+                  {
+                      "topic": x["topic"],
+                      "priority_score": x["priority_score"],
+                      "paper_count": x["paper_count"],
+                      "research_questions": len(x["research_questions"]),
+                      "hypothesis_loops": len(x["provisional_hypothesis_falsification_loops"]),
+                  }
+                  for x in p["frontier"][:10]
+              ],
+              "research_cycles": [
+                  {
+                      "topic": x["topic"],
+                      "value_of_information": x["value_of_information"],
+                      "phase": x["phase"],
+                      "papers_screened": x["targeted_evidence"]["papers_screened"],
+                  }
+                  for x in r["cycles"][:10]
+              ],
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Publish compact research snapshots
+        shell: bash
+        run: |
+          if git diff --quiet -- knowledge/research_frontier_latest.json knowledge/research_cycle_latest.json; then
+            echo "Research snapshots unchanged."
+            exit 0
+          fi
+          git config user.name "fap-research-bot"
+          git config user.email "fap-research-bot@users.noreply.github.com"
+          git add knowledge/research_frontier_latest.json knowledge/research_cycle_latest.json
+          git commit -m "Update automated research frontier and cycle snapshots [skip ci]"
+          git fetch origin main
+          git rebase origin/main || {
+            git rebase --abort || true
+            echo "Snapshot rebase conflicted; artifact still contains both research outputs."
+            exit 0
+          }
+          git push || echo "Snapshot push skipped; artifact still contains both research outputs."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: literature-review-${{ github.run_id }}
+          path: literature-review/
+          retention-days: 14
+          compression-level: 9

@@ -1,0 +1,33 @@
+name: V87.18 Critic Cascade Verify
+
+on:
+  push:
+    branches:
+      - v87.18-critic-cascade
+      - main
+    paths:
+      - "releases/v87_18/**"
+      - "releases/v87_13/media_generation/**"
+      - ".github/workflows/v87-18-critic-cascade-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_18/**"
+      - "releases/v87_13/media_generation/**"
+      - ".github/workflows/v87-18-critic-cascade-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Run V87.18 tests
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_18/critic_cascade
+        run: pytest -q releases/v87_18/critic_cascade/tests

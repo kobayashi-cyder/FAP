@@ -1,0 +1,19 @@
+{
+  "version": "64",
+  "name": "Verified Runtime Dispatch + Canary A/B",
+  "inherits": "v63",
+  "validation": {
+    "v63_baseline_recorded": "63/63 PASS",
+    "v64_delta_unittest": "19/19 PASS",
+    "v64_compileall": "PASS",
+    "synthetic_canary_rollback_demo": "PASS"
+  },
+  "safety": {
+    "generated_code_auto_import": false,
+    "load_time_digest_verification": true,
+    "symlink_rejection": true,
+    "verified_observations_only": true,
+    "demotion_only_after_successful_rollback": true,
+    "android_slot_path_exported": false
+  }
+}

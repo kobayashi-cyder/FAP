@@ -1,0 +1,34 @@
+name: Version consistency
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "VERSION"
+      - "FAP_LATEST.md"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "fap_v*_gateway.py"
+      - "scripts/check_version_consistency.py"
+      - ".github/workflows/version-consistency.yml"
+  pull_request:
+    paths:
+      - "VERSION"
+      - "FAP_LATEST.md"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "fap_v*_gateway.py"
+      - "scripts/check_version_consistency.py"
+      - ".github/workflows/version-consistency.yml"
+
+jobs:
+  verify-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify canonical FAP version
+        run: python scripts/check_version_consistency.py
