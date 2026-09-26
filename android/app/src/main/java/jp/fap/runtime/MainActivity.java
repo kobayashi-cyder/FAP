@@ -13,6 +13,7 @@ import android.widget.*;
 public class MainActivity extends Activity {
     private static final int REQ_RECORD_AUDIO = 601;
 
+    private AgentOrchestrator agent;
     private PythonFapEngine engine;
     private AndroidVoiceController voice;
     private EditText input;
@@ -24,6 +25,7 @@ public class MainActivity extends Activity {
     private Button voiceButton;
     private Button gitUpdateButton;
     private Button gitRollbackButton;
+    private Button agentModeButton;
     private PythonFapEngine.Result last;
     private boolean voiceLoop = false;
     private boolean resumeVoiceAfterGit = false;
@@ -31,8 +33,10 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        engine = new PythonFapEngine(this);
-        chatLog = new ChatLogStore(this);
+        agent = AgentOrchestrator.get(this);
+        engine = agent.engine();
+        chatLog = agent.chatLog();
+        agent.reconcileAsync();
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -118,12 +122,36 @@ public class MainActivity extends Activity {
         gitState.setText("Git更新状態");
         gitState.setOnClickListener(v -> {
             String stateText = GitRuntimeUpdater.currentState(this);
-            output.setText(
-                    "Git OTA: " + stateText
-                            + "\n\n" + engine.status());
+            chatLog.append(
+                    "system",
+                    "git-ota",
+                    "Git OTA: " + stateText + " · " + engine.status());
+            renderChatLog();
             status.setText("GIT OTA · " + stateText);
         });
         root.addView(gitState);
+
+        LinearLayout agentRow = new LinearLayout(this);
+
+        agentModeButton = new Button(this);
+        refreshAgentModeButton();
+        agentModeButton.setOnClickListener(v -> {
+            agent.setAgentModeEnabled(!agent.isAgentModeEnabled());
+            refreshAgentModeButton();
+            renderChatLog();
+            status.setText("AGENT · " + agent.stateSummary());
+        });
+        agentRow.addView(agentModeButton, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        Button agentState = new Button(this);
+        agentState.setText("Agent状態");
+        agentState.setOnClickListener(v -> {
+            chatLog.append("system", "agent", agent.stateSummary());
+            renderChatLog();
+            status.setText("AGENT · " + agent.stateSummary());
+        });
+        agentRow.addView(agentState, new LinearLayout.LayoutParams(0, -2, 1f));
+        root.addView(agentRow);
 
         voiceButton = new Button(this);
         voiceButton.setText("音声会話開始");
@@ -147,8 +175,9 @@ public class MainActivity extends Activity {
         clear.setOnClickListener(v -> {
             engine.clear();
             chatLog.clear();
+            agent.resetDurableState();
             renderChatLog();
-            status.setText(engine.status());
+            status.setText(engine.status() + " · " + agent.stateSummary());
         });
         feedback.addView(ok, new LinearLayout.LayoutParams(0, -2, 1f));
         feedback.addView(ng, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -156,7 +185,7 @@ public class MainActivity extends Activity {
         root.addView(feedback);
 
         TextView note = new TextView(this);
-        note.setText("テキスト・音声・Chrome/ChatGPT・Git OTAの結果は端末内部のChatログへ時系列保存します。Git OTAは全ファイルSHA-256検証+A/B更新、失敗時は旧スロットへ戻せます。");
+        note.setText("Agent modeでは未処理Chatログを連番カーソルで追跡し、再起動後も未回答ターンを拾い直します。低確信時はChrome/ChatGPTへ1回だけ外部調査し、FAPで統合してログへ戻します。");
         root.addView(note);
 
         setContentView(root);
@@ -264,27 +293,23 @@ public class MainActivity extends Activity {
     private void runFap() {
         String q = input.getText().toString().trim();
         if (q.isEmpty() || !run.isEnabled()) return;
-        chatLog.append("user", "text", q);
-        renderChatLog();
         input.setText("");
         run.setEnabled(false);
-        status.setText("THINKING · " + engine.status());
 
-        new Thread(() -> {
-            PythonFapEngine.Result result = engine.process(q);
-            runOnUiThread(() -> {
-                last = result;
-                chatLog.append(
-                        "assistant",
-                        "text",
-                        result.answer
-                                + "\n[core] " + result.skill
-                                + " · confidence=" + String.format("%.2f", result.confidence));
+        agent.submitUserTurn("text", q, new AgentOrchestrator.Listener() {
+            @Override public void onStatus(String message) {
                 renderChatLog();
-                status.setText(engine.status());
+                status.setText("AGENT · " + message + " · " + engine.status());
+            }
+
+            @Override public void onReply(PythonFapEngine.Result result, String channel) {
+                last = result;
+                renderChatLog();
+                status.setText("AGENT · DONE · " + engine.status());
                 run.setEnabled(true);
-            });
-        }, "fap-python").start();
+            }
+        });
+        renderChatLog();
     }
 
     private void runVoiceFap(String q, float sttConfidence) {
@@ -292,24 +317,21 @@ public class MainActivity extends Activity {
             listenIfActive();
             return;
         }
-        chatLog.append(
-                "user",
-                "voice",
-                q.trim() + "\n[stt-confidence] " + String.format("%.2f", sttConfidence));
-        renderChatLog();
-        run.setEnabled(false);
-        status.setText("VOICE · THINKING · " + engine.status());
 
-        new Thread(() -> {
-            PythonFapEngine.Result result = engine.process(q.trim());
-            runOnUiThread(() -> {
+        chatLog.append(
+                "system",
+                "voice-meta",
+                "STT confidence=" + String.format("%.2f", sttConfidence));
+        run.setEnabled(false);
+
+        agent.submitUserTurn("voice", q.trim(), new AgentOrchestrator.Listener() {
+            @Override public void onStatus(String message) {
+                renderChatLog();
+                status.setText("VOICE · AGENT · " + message);
+            }
+
+            @Override public void onReply(PythonFapEngine.Result result, String channel) {
                 last = result;
-                chatLog.append(
-                        "assistant",
-                        "voice",
-                        result.answer
-                                + "\n[core] " + result.skill
-                                + " · confidence=" + String.format("%.2f", result.confidence));
                 renderChatLog();
                 run.setEnabled(true);
                 if (!voiceLoop) {
@@ -318,8 +340,9 @@ public class MainActivity extends Activity {
                 }
                 status.setText("VOICE · SPEAKING · " + engine.status());
                 voice.speak(result.answer, () -> listenIfActive());
-            });
-        }, "fap-voice-python").start();
+            }
+        });
+        renderChatLog();
     }
 
     private void toggleVoiceLoop() {
@@ -391,15 +414,8 @@ public class MainActivity extends Activity {
     private void refreshBrowserState(boolean showResult) {
         String browserState = PixelBrowserController.state(this);
         if (PixelBrowserController.STATE_RESPONSE_READY.equals(browserState)) {
-            String response = PixelBrowserController.lastResponse(this);
-            if (showResult && response != null && !response.isEmpty()) {
-                String logged = response + "\n[core] pixel_browser:chatgpt_web";
-                if (!chatLog.isLatest("assistant", "browser", logged)) {
-                    chatLog.append("assistant", "browser", logged);
-                }
-                renderChatLog();
-            }
-            status.setText("PIXEL BROWSER · response_ready · " + engine.status());
+            if (showResult) renderChatLog();
+            status.setText("PIXEL BROWSER · response_ready · " + agent.stateSummary());
         } else if (PixelBrowserController.STATE_ERROR.equals(browserState)) {
             status.setText(
                     "PIXEL BROWSER ERROR · "
@@ -409,6 +425,11 @@ public class MainActivity extends Activity {
         } else if (!PixelBrowserController.STATE_IDLE.equals(browserState)) {
             status.setText("PIXEL BROWSER · " + browserState + " · " + engine.status());
         }
+    }
+
+    private void refreshAgentModeButton() {
+        if (agentModeButton == null || agent == null) return;
+        agentModeButton.setText(agent.isAgentModeEnabled() ? "Agent ON" : "Agent OFF");
     }
 
     private void renderChatLog() {
@@ -441,6 +462,9 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        agent.reconcileAsync();
+        renderChatLog();
+        refreshAgentModeButton();
         refreshBrowserState(true);
         if (voiceLoop && voice != null) {
             mainHandler.postDelayed(() -> listenIfActive(), 250);
