@@ -7,9 +7,12 @@ on:
     paths:
       - "fap_self_improvement_controller.py"
       - "fap_browser_operator.py"
+      - "fap_browser_runtime.py"
+      - "fap_browser_preflight.py"
       - "RUN_FAP_BROWSER_SELF_IMPROVE.ps1"
       - "tests/test_fap_self_improvement_controller.py"
       - "tests/test_fap_browser_operator.py"
+      - "tests/test_fap_browser_runtime.py"
       - "docs/SELF_IMPROVEMENT_1_0_01.md"
       - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
   pull_request:
@@ -49,6 +52,8 @@ jobs:
         run: |
           python -m py_compile fap_self_improvement_controller.py
           python -m py_compile fap_browser_operator.py
+          python -m py_compile fap_browser_runtime.py
+          python -m py_compile fap_browser_preflight.py
 
       - name: Run controller tests
         env:
@@ -59,6 +64,16 @@ jobs:
         env:
           PYTHONPATH: .
         run: python -m unittest discover -s tests -p "test_fap_browser_operator.py" -v
+
+      - name: Run browser runtime tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p "test_fap_browser_runtime.py" -v
+
+      - name: Check preflight CLI
+        env:
+          PYTHONPATH: .
+        run: python fap_browser_preflight.py --help
 
       - name: Parse PowerShell launcher
         shell: pwsh
@@ -81,6 +96,8 @@ jobs:
           roots = [
               Path("fap_self_improvement_controller.py"),
               Path("fap_browser_operator.py"),
+              Path("fap_browser_runtime.py"),
+              Path("fap_browser_preflight.py"),
               Path("RUN_FAP_BROWSER_SELF_IMPROVE.ps1"),
               Path("tests"),
           ]
