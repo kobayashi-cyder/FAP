@@ -256,6 +256,15 @@ public class MainActivity extends Activity {
         imageGeneration.setOnClickListener(v -> startImageGeneration());
         tools.addView(imageGeneration);
 
+        Button quality = chip("品質 " + GenerationPreferences.label(this));
+        quality.setContentDescription("画像・動画生成の品質モードを切替");
+        quality.setOnClickListener(v -> {
+            GenerationPreferences.cycle(this);
+            quality.setText("品質 " + GenerationPreferences.label(this));
+            setStatus("生成品質 · " + GenerationPreferences.label(this));
+        });
+        tools.addView(quality);
+
         Button videoGeneration = chip("動画生成");
         videoGeneration.setContentDescription("入力内容をFMG動画生成へ送る");
         videoGeneration.setOnClickListener(v -> startVideoGeneration());
@@ -511,8 +520,8 @@ public class MainActivity extends Activity {
                 && !q.contains("イラスト")) {
             normalized = "画像生成: " + q;
         }
-        input.setText(normalized);
-        setStatus("FMG画像生成へ送信…");
+        input.setText(GenerationPreferences.directive(this) + normalized);
+        setStatus("FMG画像生成へ送信 · " + GenerationPreferences.label(this));
         runFap();
     }
 
@@ -533,8 +542,8 @@ public class MainActivity extends Activity {
                 && !q.contains("映像を作")) {
             normalized = "動画生成: " + q;
         }
-        input.setText(normalized);
-        setStatus("FMG動画生成へ送信…");
+        input.setText(GenerationPreferences.directive(this) + normalized);
+        setStatus("FMG動画生成へ送信 · " + GenerationPreferences.label(this));
         runFap();
     }
 
