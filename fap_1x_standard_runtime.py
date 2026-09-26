@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from fap_1x_runtime import FAP1xRuntime
 from fap_adaptive_reasoning import AdaptiveReasoningGovernor
 from fap_interaction_fabric import InteractionDispatch
+from fap_knowledge_narrator import KnowledgeNarrator
 from fap_response_redundancy import ResponseRedundancyPlanner
 from fap_response_series_executor import ResponseSeriesExecutor
 from fap_factual_qa import FactualQAOrgan
@@ -34,6 +35,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             else Path(__file__).resolve().parent
         )
         self.factual = FactualQAOrgan()
+        self.knowledge_narrator = KnowledgeNarrator(self.root)
         self.rule_reasoner = GenericRuleReasoner(self.root)
         self.reflective = ReflectiveConversationOrgan()
         self.semantic_router = SemanticConversationRouter(self.root)
@@ -49,6 +51,8 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "bounded-session-history",
             "verified-tool-fallback",
             "factual-qa",
+            "grounded-knowledge-narration",
+            "knowledge-inventory",
             "generic-rule-reasoning",
             "reflective-conversation",
             "semantic-self-profile",
@@ -74,6 +78,10 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "runtime": "standard",
             "endpoint_ids": self.fabric.endpoint_ids,
             "capabilities": self.capabilities(),
+            "knowledge_narrator": {
+                "contract": self.knowledge_narrator.CONTRACT,
+                "inventory": self.knowledge_narrator.inventory(),
+            },
             "generic_rule_reasoner": {
                 "entities": len(self.rule_reasoner.entities),
                 "relations": len(self.rule_reasoner.relations),
@@ -308,6 +316,15 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             task_forms=("factual",),
         )
         self.register_endpoint(
+            "knowledge_narrator",
+            self._knowledge_handler,
+            probe=self._knowledge_probe,
+            priority=1.15,
+            capabilities=("knowledge", "grounding", "explanation"),
+            task_families=("science", "general"),
+            task_forms=("reading", "factual", "multi_step"),
+        )
+        self.register_endpoint(
             "rule_reasoner",
             self._rule_handler,
             probe=self._rule_probe,
@@ -342,6 +359,18 @@ class FAP1xStandardRuntime(FAP1xRuntime):
 
     def _factual_handler(self, request, _budget) -> Mapping[str, Any] | None:
         return self.factual.run(request.text)
+
+    def _knowledge_probe(self, request) -> float:
+        return self.knowledge_narrator.probe(
+            request.text,
+            list(request.history),
+        )
+
+    def _knowledge_handler(self, request, _budget) -> Mapping[str, Any] | None:
+        return self.knowledge_narrator.run(
+            request.text,
+            list(request.history),
+        )
 
     def _rule_probe(self, request) -> float:
         relation = self.rule_reasoner._resolve_relation(request.text)
