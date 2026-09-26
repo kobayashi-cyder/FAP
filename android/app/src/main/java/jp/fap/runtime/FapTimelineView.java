@@ -147,7 +147,7 @@ public final class FapTimelineView extends ScrollView {
                     LayoutParams.WRAP_CONTENT));
         } else {
             TextView text = new TextView(getContext());
-            text.setText(entry.text);
+            text.setText(displayText(entry));
             text.setTextSize(16f);
             text.setTextColor(Color.rgb(15, 20, 25));
             text.setLineSpacing(0f, 1.08f);
@@ -327,6 +327,16 @@ public final class FapTimelineView extends ScrollView {
             }
         });
         dialog.show();
+    }
+
+    private String displayText(ChatLogStore.Entry entry) {
+        String value = entry == null || entry.text == null ? "" : entry.text;
+        if ("user".equals(entry.role)) {
+            return value.replaceFirst(
+                    "^\\[FAP_MEDIA\\s+[^\\]]+\\]\\s*",
+                    "");
+        }
+        return value;
     }
 
     private String actorName(ChatLogStore.Entry entry) {
