@@ -24,6 +24,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -31,6 +32,7 @@ import java.util.TimeZone;
 
 public final class FapTimelineView extends ScrollView {
     private final LinearLayout feed;
+    private final ArrayList<Bitmap> previewBitmaps = new ArrayList<>();
 
     public FapTimelineView(Context context) {
         super(context);
@@ -47,6 +49,7 @@ public final class FapTimelineView extends ScrollView {
     }
 
     public void render(List<ChatLogStore.Entry> entries) {
+        releasePreviewBitmaps();
         feed.removeAllViews();
         if (entries == null || entries.isEmpty()) {
             TextView empty = new TextView(getContext());
@@ -211,6 +214,7 @@ public final class FapTimelineView extends ScrollView {
                 bitmap = decodePreview(previewPath, 960, 640);
             }
             if (bitmap != null) {
+                previewBitmaps.add(bitmap);
                 ImageView preview = new ImageView(getContext());
                 preview.setImageBitmap(bitmap);
                 preview.setAdjustViewBounds(true);
@@ -253,6 +257,23 @@ public final class FapTimelineView extends ScrollView {
             card.addView(error);
         }
         return card;
+    }
+
+    private void releasePreviewBitmaps() {
+        for (Bitmap bitmap : previewBitmaps) {
+            if (bitmap == null) continue;
+            try {
+                if (!bitmap.isRecycled()) bitmap.recycle();
+            } catch (Throwable ignored) {
+            }
+        }
+        previewBitmaps.clear();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        releasePreviewBitmaps();
+        super.onDetachedFromWindow();
     }
 
     private Bitmap decodePreview(String path, int maxWidth, int maxHeight) {
