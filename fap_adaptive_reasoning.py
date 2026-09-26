@@ -106,6 +106,11 @@ class AdaptiveReasoningGovernor:
         return max(1, min(16, max(len(chunks), 1 + separators // 2, directives)))
 
     @classmethod
+    def intent_count(cls, text: str) -> int:
+        """Public bounded intent estimate for initial routing pressure."""
+        return cls._intent_count(text)
+
+    @classmethod
     def assess(
         cls,
         text: str,
