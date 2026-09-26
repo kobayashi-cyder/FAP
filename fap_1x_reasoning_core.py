@@ -12,6 +12,7 @@ from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_hypothesis_engine import HYPOTHESIS_CUES, HypothesisEngine
 from fap_physics_solver_v2 import ExpandedPhysicsSolver
 from fap_scientific_reasoning import OptionConditionedScientificReasoner
+from fap_1x_algebra_solver import GenericLinearEquationSolver
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
 from fap_1x_confidence_calibrator import ConfidenceCalibrator
 from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
@@ -68,6 +69,7 @@ class FAP1xGeneralReasoningCore:
         self.root = Path(root).expanduser().resolve()
         self.mcq_parser = StructuredMCQParser()
         self.mcq_base = StructuredMCQReasoner()
+        self.algebra = GenericLinearEquationSolver()
         self.science = OptionConditionedScientificReasoner(self.mcq_base)
         self.physics = ExpandedPhysicsSolver()
         self.factual = FactualQAOrgan()
@@ -94,6 +96,7 @@ class FAP1xGeneralReasoningCore:
                     "select_or_fail_closed",
                 ),
                 candidate_lanes=(
+                    "generic_linear_equation",
                     "deterministic_physics",
                     "verified_arithmetic",
                     "option_conditioned_science",
@@ -143,6 +146,8 @@ class FAP1xGeneralReasoningCore:
             return 0.88
         if re.search(r"(導出|証明|示して|導いて|derive|proof|prove)", query, re.I):
             return 0.91
+        if "=" in query and re.search(r"[A-Za-z]", query):
+            return 0.94
         if self.factual.match(query) is not None:
             return 0.96
         if self.rules._resolve_relation(query) is not None:
@@ -176,6 +181,20 @@ class FAP1xGeneralReasoningCore:
             return []
 
         out: list[ReasoningCandidate] = []
+
+        algebra = self.algebra.run(text, history)
+        if algebra is not None and algebra.get("ok") and algebra.get("algebra_verified"):
+            out.append(
+                ReasoningCandidate(
+                    source="generic_linear_equation",
+                    reply=self._reply(algebra),
+                    confidence=float(algebra.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=algebra,
+                    answer_key=self._letter(algebra),
+                    evidence_count=1,
+                )
+            )
 
         physics = self.physics.run(task)
         if physics is not None and physics.get("ok"):
@@ -237,6 +256,19 @@ class FAP1xGeneralReasoningCore:
         history: list[Mapping[str, Any]],
     ) -> list[ReasoningCandidate]:
         out: list[ReasoningCandidate] = []
+
+        algebra = self.algebra.run(text, history)
+        if algebra is not None and algebra.get("ok") and algebra.get("algebra_verified"):
+            out.append(
+                ReasoningCandidate(
+                    source="generic_linear_equation",
+                    reply=self._reply(algebra),
+                    confidence=float(algebra.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=algebra,
+                    evidence_count=1,
+                )
+            )
 
         factual = self.factual.run(text)
         if factual is not None and factual.get("ok"):
