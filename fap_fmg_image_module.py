@@ -152,7 +152,6 @@ class FMGImportedImageModule:
             }
 
     def status(self) -> dict[str, Any]:
-        external = self._probe_a1111()
         local_ok, local_note = self.local.available()
         return {
             "version": IMPORT_VERSION,
@@ -165,7 +164,10 @@ class FMGImportedImageModule:
                 "guidance": FMG_GUIDANCE,
             },
             "connectome": self.connectome.status(),
-            "a1111": external,
+            "a1111": {
+                "configured": self._base_allowed(),
+                "base": self.image_base if self._base_allowed() else "",
+            },
             "fallback": {
                 "available": bool(local_ok),
                 "kind": "fap-local-raster",
