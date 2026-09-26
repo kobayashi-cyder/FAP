@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from fap_repository_planner import PatchPlan, PlannedFile, RepositoryTask
@@ -13,6 +15,7 @@ from fap_self_improvement_controller import (
     OpenAIResponsesClient,
     SelfImprovementController,
     _extract_output_text,
+    main,
 )
 
 
@@ -200,6 +203,13 @@ class ProposalProviderTests(unittest.TestCase):
 
 
 class ControllerGuardTests(unittest.TestCase):
+    def test_cli_refuses_main_before_browser_backend_build(self) -> None:
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = main(["--goal", "improve tests", "--branch", "main"])
+        self.assertEqual(code, 6)
+        self.assertIn('"state": "unsafe_branch"', output.getvalue())
+
     def test_main_branch_is_never_self_modified(self) -> None:
         class FakeClient:
             def respond(self, *args, **kwargs):
