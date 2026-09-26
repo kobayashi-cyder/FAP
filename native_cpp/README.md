@@ -1,59 +1,51 @@
 # FAP C/C++ Native Variant
 
-Version: **1.0.01-cpp-native-r005**
+Version: **1.0.01-cpp-native-r007**
 
-This directory is a separate native implementation of the public FAP 1.x behavior.
-It does **not** replace the Python mainline. The source branch is
-\`side/1.0.01-cpp-native-20260926\`.
+This is the separate native-oriented FAP 1.x line on
+`side/1.0.01-cpp-native-20260926`. It does not replace public main.
 
 ## Response-series execution
 
-The r004 bridge makes the r003 6–128 lane response plan affect the answer
-selection rather than only exposing capacity metadata.
+The runtime keeps easy turns sparse and can expand difficult turns to **128
+response lanes** with a **16-lane synthesis committee**. Planned lanes cast
+role-sensitive votes; the capacity is an execution/evaluation scale, not a
+claim that 128 independent LLMs are running.
 
-Each planned lane now casts an actual role-sensitive vote across available
-response candidates. The lane palette covers direct answer quality,
-decomposition, assumptions, mechanism, evidence, counterexamples, constraints,
-edge cases, alternatives, procedure, analogy, uncertainty, user intent,
-compression, verification and synthesis.
-
-Candidate generation is deliberately restricted to read-only local specialists:
+The current read-only specialist portfolio contains 11 paths:
 
 - deterministic factual QA;
+- verified arithmetic;
 - reflective local explanation;
-- generic semantic rule reasoning;
-- verified symbolic derivation;
-- the normal primary FAP response.
+- causal framing;
+- semantic rule reasoning;
+- code planning;
+- verified single-variable linear-equation solving;
+- verified free-response SI physics formulas;
+- Python AST/static-policy analysis without execution;
+- same-key numeric contradiction detection across recent context;
+- verified symbolic derivation.
+
+Requirement coverage and multi-segment coverage are audited independently.
+High-pressure requests can build a deterministic complementary synthesis from
+non-overlapping safe candidates. A verified specialist may replace a weak
+primary response when the lane vote and synthesis quorum support it.
 
 Side-effecting artifact generation, repository writes, network actions and
-external tool calls are **not** redundantly replayed.
-
-A verified specialist can replace a weak primary response when the lane vote
-and synthesis quorum support the change. Duplicate answers from independent
-sources are merged as consensus instead of padded into the visible response.
-
-The native C++ planner still supplies the fast redundancy budget and WebAssembly
-trace. The Python compatibility gateway executes the current specialist
-portfolio while the remaining specialist bodies are progressively moved to
-native code.
+external tool calls are never redundantly replayed.
 
 ## Native scope
 
-The native line includes adaptive compute budgeting, extra-path triggering,
-semantic routing, persistent goal state, multi-intent planning, bounded semantic
-memory, response redundancy planning, the C ABI, WebAssembly UI tracing, CLI
-and regression tests.
-
-The response-series capacity remains **6–128 planned lanes**, with a **2–16 lane
-synthesis committee** and **55–90% partial salient coverage target**. The
-capacity number is a scheduling/evaluation scale, not a claim that 64
-independent language models are running.
+The C++20 core provides adaptive compute budgeting, 128-lane response planning,
+extra-path triggering, semantic routing, persistent goal state, multi-intent
+planning, bounded semantic memory, C ABI, WebAssembly UI tracing, CLI and
+regression tests. Compatibility specialists are progressively migrated from
+Python as native equivalents become worthwhile.
 
 ## Build
 
-\`\`\`bash
+```bash
 cmake -S native_cpp -B build/native_cpp -DCMAKE_BUILD_TYPE=Release
 cmake --build build/native_cpp --parallel
 ctest --test-dir build/native_cpp --output-on-failure
-\`\`\`
-\n\n## r006 response intelligence\n\nThe 128-lane executor now has a broader read-only specialist portfolio: factual QA, verified arithmetic, reflective explanation, causal framing, semantic rules, code planning, and symbolic derivation. Requirement coverage and multi-segment coverage auditors feed candidate scoring, and high-pressure requests may build a deterministic complementary synthesis from non-overlapping safe candidates. This increases the number of genuinely different candidate paths without replaying side effects.\n
+```
