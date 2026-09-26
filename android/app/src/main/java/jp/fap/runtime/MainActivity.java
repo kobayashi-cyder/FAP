@@ -66,11 +66,14 @@ public class MainActivity extends Activity {
     private Button gitRollbackButton;
     private Button stopButton;
     private TextView attachmentStatus;
+    private TextView replyStatus;
     private TextView timelineTab;
     private TextView frontTab;
     private TextView backTab;
 
     private PythonFapEngine.Result last;
+    private ChatLogStore.Entry replyTarget;
+    private long threadRootId = 0L;
     private String logViewMode = "timeline";
     private boolean voiceLoop = false;
     private boolean resumeVoiceAfterGit = false;
@@ -113,6 +116,8 @@ public class MainActivity extends Activity {
                 dp(48)));
 
         timeline = new FapTimelineView(this);
+        timeline.setReplyListener(this::selectReplyTarget);
+        timeline.setThreadListener(this::openThreadForEntry);
         root.addView(timeline, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
@@ -232,6 +237,9 @@ public class MainActivity extends Activity {
         tab.setTextSize(14f);
         tab.setOnClickListener(v -> {
             logViewMode = mode;
+            threadRootId = 0L;
+            replyTarget = null;
+            refreshReplyStatus();
             refreshTabs();
             renderTimeline();
         });
@@ -280,6 +288,11 @@ public class MainActivity extends Activity {
         history.setContentDescription("保存したチャットを検索して開く");
         history.setOnClickListener(v -> showConversationHistory());
         tools.addView(history);
+
+        Button allThreads = chip("全体");
+        allThreads.setContentDescription("スレッド表示を終了して全体へ戻る");
+        allThreads.setOnClickListener(v -> leaveThread());
+        tools.addView(allThreads);
 
         Button toolsButton = chip("ツール");
         toolsButton.setContentDescription("FAPが現在使えるツールを表示");
@@ -401,6 +414,24 @@ public class MainActivity extends Activity {
         wrapper.addView(line, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(1)));
+
+        replyStatus = new TextView(this);
+        replyStatus.setTextSize(12f);
+        replyStatus.setTextColor(BLUE);
+        replyStatus.setPadding(dp(12), dp(7), dp(12), dp(3));
+        replyStatus.setVisibility(View.GONE);
+        replyStatus.setOnClickListener(v -> {
+            if (replyTarget != null) {
+                replyTarget = null;
+                refreshReplyStatus();
+                setStatus("返信先を解除しました");
+            } else if (threadRootId > 0L) {
+                leaveThread();
+            }
+        });
+        wrapper.addView(replyStatus, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         attachmentStatus = new TextView(this);
         attachmentStatus.setText("添付なし · 「参照」でファイルを追加");
@@ -585,10 +616,13 @@ public class MainActivity extends Activity {
         ConversationArchiveStore.Session archived =
                 conversationArchive == null ? null : conversationArchive.archive(chatLog);
         pendingAttachments.clear();
+        replyTarget = null;
+        threadRootId = 0L;
         chatLog.clear();
         agent.resetDurableState();
         agent.markCurrentLogAsSeen();
         refreshAttachmentStatus();
+        refreshReplyStatus();
         chatLog.appendBack(
                 "system",
                 "session",
@@ -679,7 +713,10 @@ public class MainActivity extends Activity {
         agent.resetDurableState();
         agent.markCurrentLogAsSeen();
         pendingAttachments.clear();
+        replyTarget = null;
+        threadRootId = 0L;
         refreshAttachmentStatus();
+        refreshReplyStatus();
         renderTimeline();
         sendButton.setEnabled(true);
         refreshProcessingButton();
@@ -969,9 +1006,12 @@ public class MainActivity extends Activity {
 
     private void runFap() {
         String q = input.getText().toString().trim();
+
+        // Text-only sending is explicitly supported: an attachment is never required.
         if ((q.isEmpty() && pendingAttachments.isEmpty()) || !sendButton.isEnabled()) return;
 
-        if (pendingAttachments.isEmpty() && !q.isEmpty()) {
+        boolean inThread = threadRootId > 0L || replyTarget != null;
+        if (!inThread && pendingAttachments.isEmpty() && !q.isEmpty()) {
             DeviceGestureController.CommandResult command =
                     DeviceGestureController.tryCommand(this, q);
             if (command.handled) {
@@ -988,33 +1028,61 @@ public class MainActivity extends Activity {
             }
         }
 
+        long replyTo = 0L;
+        long root = 0L;
+        if (replyTarget != null) {
+            replyTo = replyTarget.id;
+            root = replyTarget.threadRootId > 0L
+                    ? replyTarget.threadRootId
+                    : replyTarget.id;
+            threadRootId = root;
+        } else if (threadRootId > 0L) {
+            replyTo = threadRootId;
+            root = threadRootId;
+        }
+
         ArrayList<AttachmentStore.Attachment> attachments =
                 new ArrayList<>(pendingAttachments);
         pendingAttachments.clear();
+        replyTarget = null;
         refreshAttachmentStatus();
+        refreshReplyStatus();
         input.setText("");
         sendButton.setEnabled(false);
         refreshProcessingButton();
 
-        agent.submitUserTurn("text", q, attachments, new AgentOrchestrator.Listener() {
-            @Override public void onStatus(String message) {
-                renderTimeline();
-                setStatus(message);
-            }
+        final long sendReplyTo = replyTo;
+        final long sendRoot = root;
+        agent.submitUserTurn(
+                "text",
+                q,
+                attachments,
+                sendReplyTo,
+                sendRoot,
+                new AgentOrchestrator.Listener() {
+                    @Override public void onStatus(String message) {
+                        renderTimeline();
+                        setStatus(message);
+                    }
 
-            @Override public void onStream(String partial) {
-                renderTimeline();
-                refreshProcessingButton();
-            }
+                    @Override public void onStream(String partial) {
+                        renderTimeline();
+                        refreshProcessingButton();
+                    }
 
-            @Override public void onReply(PythonFapEngine.Result result, String channel) {
-                last = result;
-                renderTimeline();
-                refreshProcessingButton();
-                setStatus("FAP · " + result.skill + " · " + String.format("%.2f", result.confidence));
-                sendButton.setEnabled(true);
-            }
-        });
+                    @Override public void onReply(
+                            PythonFapEngine.Result result,
+                            String channel) {
+                        last = result;
+                        renderTimeline();
+                        refreshProcessingButton();
+                        setStatus("FAP · " + result.skill
+                                + " · "
+                                + String.format("%.2f", result.confidence)
+                                + (sendRoot > 0L ? " · thread #" + sendRoot : ""));
+                        sendButton.setEnabled(true);
+                    }
+                });
         renderTimeline();
     }
 
@@ -1129,7 +1197,84 @@ public class MainActivity extends Activity {
 
     private void renderTimeline() {
         if (timeline == null || chatLog == null) return;
-        timeline.render(chatLog.snapshot(logViewMode, 300));
+        if (threadRootId > 0L) {
+            timeline.render(chatLog.threadSnapshot(threadRootId, 300));
+        } else {
+            timeline.render(chatLog.snapshot(logViewMode, 300));
+        }
+    }
+
+    private void selectReplyTarget(ChatLogStore.Entry entry) {
+        if (entry == null) return;
+        replyTarget = entry;
+        threadRootId = entry.threadRootId > 0L
+                ? entry.threadRootId
+                : entry.id;
+        logViewMode = "front";
+        refreshTabs();
+        refreshReplyStatus();
+        renderTimeline();
+        if (input != null) {
+            input.requestFocus();
+        }
+        setStatus("投稿 #" + entry.id + " に返信中 · thread #" + threadRootId);
+    }
+
+    private void openThreadForEntry(ChatLogStore.Entry entry) {
+        if (entry == null) return;
+        threadRootId = entry.threadRootId > 0L
+                ? entry.threadRootId
+                : entry.id;
+        replyTarget = null;
+        logViewMode = "front";
+        refreshTabs();
+        refreshReplyStatus();
+        renderTimeline();
+        setStatus(
+                "thread #" + threadRootId
+                        + " · replies="
+                        + chatLog.threadReplyCount(threadRootId));
+    }
+
+    private void leaveThread() {
+        if (threadRootId <= 0L && replyTarget == null) {
+            setStatus("すでに全体表示です");
+            return;
+        }
+        threadRootId = 0L;
+        replyTarget = null;
+        refreshReplyStatus();
+        renderTimeline();
+        setStatus("全体タイムラインへ戻りました");
+    }
+
+    private void refreshReplyStatus() {
+        if (replyStatus == null) return;
+        if (replyTarget != null) {
+            String text = replyTarget.text == null ? "" : replyTarget.text
+                    .replaceAll("\\s+", " ")
+                    .trim();
+            if (text.length() > 72) text = text.substring(0, 72) + "…";
+            String actor = "assistant".equals(replyTarget.role) ? "FAP" : "あなた";
+            replyStatus.setText(
+                    "↩ " + actor + " #" + replyTarget.id + " に返信中"
+                            + " · thread #" + threadRootId
+                            + (text.isEmpty() ? "" : "\n" + text)
+                            + "\nタップで返信先を解除");
+            replyStatus.setVisibility(View.VISIBLE);
+            return;
+        }
+        if (threadRootId > 0L) {
+            replyStatus.setText(
+                    "🧵 thread #" + threadRootId
+                            + " 表示中 · replies="
+                            + chatLog.threadReplyCount(threadRootId)
+                            + " · タップで全体へ戻る");
+            replyStatus.setVisibility(View.VISIBLE);
+            return;
+        }
+        replyStatus.setText("");
+        replyStatus.setVisibility(View.GONE);
     }
 
     private void refreshTabs() {
@@ -1272,6 +1417,7 @@ public class MainActivity extends Activity {
         refreshVoiceButton();
         refreshScreenTeachButtons();
         refreshProcessingButton();
+        refreshReplyStatus();
         refreshTabs();
         renderTimeline();
         if (voiceLoop && voice != null) {
