@@ -228,13 +228,19 @@ public final class FapTimelineView extends ScrollView {
             TextView info = new TextView(getContext());
             info.setTextColor(Color.rgb(83, 100, 113));
             info.setTextSize(12f);
+            String quality = media.optString("quality", "");
             if (video) {
                 info.setText(
                         media.optInt("width", 512) + "×" + media.optInt("height", 512)
                                 + " · " + media.optInt("fps", 12) + "fps"
-                                + " · " + media.optInt("duration_seconds", 0) + "秒");
+                                + " · " + media.optInt("duration_seconds", 0) + "秒"
+                                + (quality.isEmpty() ? "" : " · " + quality)
+                                + " · keyframes=" + media.optInt("keyframes", 0));
             } else {
-                info.setText("生成画像");
+                int width = media.optInt("width", 0);
+                int height = media.optInt("height", 0);
+                String size = width > 0 && height > 0 ? width + "×" + height : "生成画像";
+                info.setText(size + (quality.isEmpty() ? "" : " · " + quality));
             }
             info.setPadding(0, dp(8), 0, video ? dp(6) : 0);
             card.addView(info);
