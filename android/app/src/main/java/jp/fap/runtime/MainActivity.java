@@ -1265,7 +1265,8 @@ public class MainActivity extends Activity {
 
     private void renderTimeline() {
         if (timeline == null || chatLog == null) return;
-        timeline.render(chatLog.snapshot(logViewMode, 300));
+        int limit = "world".equals(logViewMode) ? 48 : 300;
+        timeline.render(chatLog.snapshot(logViewMode, limit));
     }
 
     private void refreshTabs() {
