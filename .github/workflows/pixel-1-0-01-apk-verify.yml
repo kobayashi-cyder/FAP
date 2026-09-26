@@ -7,6 +7,9 @@ on:
     paths:
       - "android/**"
       - "android_packaging/sync_pixel_runtime.py"
+      - "android_packaging/generate_pixel_update_manifest.py"
+      - "android_packaging/tests/test_generate_pixel_update_manifest.py"
+      - "pixel_update/**"
       - "fap_*.py"
       - "knowledge/**"
       - ".github/workflows/pixel-1-0-01-apk-verify.yml"
@@ -16,6 +19,9 @@ on:
     paths:
       - "android/**"
       - "android_packaging/sync_pixel_runtime.py"
+      - "android_packaging/generate_pixel_update_manifest.py"
+      - "android_packaging/tests/test_generate_pixel_update_manifest.py"
+      - "pixel_update/**"
       - "fap_*.py"
       - "knowledge/**"
       - ".github/workflows/pixel-1-0-01-apk-verify.yml"
@@ -67,6 +73,26 @@ jobs:
           print(status)
           PY
 
+      - name: Verify Git OTA manifest generator
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest -v android_packaging.tests.test_generate_pixel_update_manifest
+          python android_packaging/generate_pixel_update_manifest.py \
+            --repo-root . \
+            --source-commit "$GITHUB_SHA" \
+            --output /tmp/pixel-latest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          current = json.loads(Path("pixel_update/latest.json").read_text(encoding="utf-8"))
+          assert current["schema"] == "fap.pixel.runtime.manifest.v1"
+          assert current["entrypoint"] == "fap_1x_standard_runtime.py"
+          assert current["file_count"] == len(current["files"])
+          assert sum(x["bytes"] for x in current["files"]) == current["total_bytes"]
+          print("published manifest:", current["source_commit"], current["file_count"], current["total_bytes"])
+          PY
+
       - name: Build minimal Pixel Python payload
         shell: bash
         run: |
@@ -99,10 +125,14 @@ jobs:
           mkdir -p pixel-apk
           cp "$APK" pixel-apk/FAP-Pixel-1.0.01-debug.apk
           cp android/pixel-runtime-manifest.json pixel-apk/pixel-runtime-manifest.json
+          cp pixel_update/latest.json pixel-apk/git-ota-latest.json
           sha256sum pixel-apk/FAP-Pixel-1.0.01-debug.apk | tee pixel-apk/SHA256.txt
           unzip -p "$APK" 'classes*.dex' | strings > pixel-apk/dex-strings.txt
           grep -q 'PixelBrowserAccessibilityService' pixel-apk/dex-strings.txt
           grep -q 'PixelBrowserController' pixel-apk/dex-strings.txt
+          grep -q 'GitRuntimeUpdater' pixel-apk/dex-strings.txt
+          grep -q 'validate_runtime' android/app/src/main/python/android_bridge.py
+          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
           grep -q 'PixelBrowserAccessibilityService' android/app/src/main/AndroidManifest.xml
 
       - name: Upload Pixel APK
