@@ -215,6 +215,27 @@ public final class ChatLogStore {
         return renderSurface(null, limit);
     }
 
+    public synchronized String renderTimeline(int limit) {
+        int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
+        int start = Math.max(0, entries.size() - take);
+        StringBuilder out = new StringBuilder();
+        for (int i = start; i < entries.size(); i++) {
+            Entry e = entries.get(i);
+            if (out.length() > 0) out.append("\n\n");
+            out.append(actorLabel(e))
+                    .append("  ·  ")
+                    .append(formatTime(e.timestampMs))
+                    .append("  ·  #")
+                    .append(e.id);
+            if (SURFACE_BACK.equals(e.surface)) {
+                out.append("  ·  裏");
+            }
+            out.append("\n")
+                    .append(e.text);
+        }
+        return out.toString();
+    }
+
     private String renderSurface(String surface, int limit) {
         int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
         ArrayList<Entry> selected = new ArrayList<>();
@@ -229,7 +250,7 @@ public final class ChatLogStore {
             if (out.length() > 0) out.append("\n\n");
             out.append(formatTime(e.timestampMs))
                     .append(" · ")
-                    .append(roleLabel(e.role, e.surface))
+                    .append(actorLabel(e))
                     .append(" [")
                     .append(e.channel)
                     .append("] #")
@@ -323,11 +344,15 @@ public final class ChatLogStore {
         return SURFACE_BACK.equals(surface) ? SURFACE_BACK : SURFACE_FRONT;
     }
 
-    private static String roleLabel(String role, String surface) {
-        if (SURFACE_BACK.equals(surface)) return "裏";
-        if ("user".equals(role)) return "あなた";
-        if ("assistant".equals(role)) return "FAP";
-        return "System";
+    private static String actorLabel(Entry entry) {
+        String channel = entry.channel == null ? "" : entry.channel;
+        if ("user".equals(entry.role)) return "あなた";
+        if ("assistant".equals(entry.role)) return "FAP";
+        if (channel.startsWith("git")) return "Git";
+        if (channel.startsWith("browser")) return "Browser";
+        if (channel.startsWith("voice")) return "Voice";
+        if (channel.startsWith("agent")) return "FAP Agent";
+        return "FAP System";
     }
 
     private static String formatTime(long timestampMs) {
