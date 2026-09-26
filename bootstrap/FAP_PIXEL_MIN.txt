@@ -23,4 +23,5 @@
 /fap_semantic_conversation.py
 /fap_semantic_memory.py
 /fap_speech.py
+/fap_subproblem_reasoner.py
 /.github/workflows/pixel-1-0-01-apk-verify.yml
