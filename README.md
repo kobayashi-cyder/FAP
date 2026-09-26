@@ -6,6 +6,7 @@ FAP is the public 1.x mainline. Legacy V2+ versioned implementations are intenti
 
 - Version: **1.0.01**
 - Adaptive budget: `fap_revision_r001.py`
+- Unified runtime: `fap_1x_runtime.py`
 - Dynamic sparse routing: `fap_dynamic_sparse_routing.py` + `fap_interaction_fabric.py`
 - Local speech: `fap_speech.py` / `fap_speech_fluent.py`
 - Browser self-improvement: `fap_self_improvement_controller.py`
