@@ -175,6 +175,30 @@ jobs:
           grep -q 'chip("コピー")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'chip("新規")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'Linkify.WEB_URLS' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q 'TextRecognition.getClient' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'ImageLabeling.getClient' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'renderPdfPageForOcr' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'analyzeBitmapFrame' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'AudioFileTranscriber.transcribe' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          test -s android/app/src/main/java/jp/fap/runtime/AudioFileTranscriber.java
+          grep -q 'EXTRA_AUDIO_SOURCE' android/app/src/main/java/jp/fap/runtime/AudioFileTranscriber.java
+          grep -q 'profileDelimitedTable' android/app/src/main/java/jp/fap/runtime/AttachmentStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/ConversationArchiveStore.java
+          grep -q 'search(String query)' android/app/src/main/java/jp/fap/runtime/ConversationArchiveStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/ExternalToolAdapter.java
+          test -s android/app/src/main/java/jp/fap/runtime/FapToolRegistry.java
+          grep -q 'registerExternal' android/app/src/main/java/jp/fap/runtime/FapToolRegistry.java
+          grep -q 'submitDeepReasoning' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'stopCurrentTurn' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'streamChunk' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'chip("深考")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("停止")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("履歴")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("分岐")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("ツール")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'ConversationArchiveStore' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'com.google.mlkit:text-recognition-japanese:16.0.1' android/app/build.gradle.kts
+          grep -q 'com.google.mlkit:image-labeling:17.0.9' android/app/build.gradle.kts
           grep -q 'dispatchText' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
           grep -q 'dispatchImeEnter' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
           grep -q '"/type "' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
