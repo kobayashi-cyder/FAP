@@ -2,6 +2,7 @@ package jp.fap.runtime;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -50,6 +51,7 @@ public class MainActivity extends Activity {
     private AndroidVoiceController voice;
     private ChatLogStore chatLog;
     private AttachmentStore attachmentStore;
+    private ConversationArchiveStore conversationArchive;
     private final ArrayList<AttachmentStore.Attachment> pendingAttachments = new ArrayList<>();
 
     private TextView status;
@@ -62,6 +64,7 @@ public class MainActivity extends Activity {
     private Button controlButton;
     private Button gitUpdateButton;
     private Button gitRollbackButton;
+    private Button stopButton;
     private TextView attachmentStatus;
     private TextView timelineTab;
     private TextView frontTab;
@@ -81,6 +84,7 @@ public class MainActivity extends Activity {
         engine = agent.engine();
         chatLog = agent.chatLog();
         attachmentStore = new AttachmentStore(this);
+        conversationArchive = new ConversationArchiveStore(this);
         agent.reconcileAsync();
 
         LinearLayout root = new LinearLayout(this);
@@ -152,6 +156,7 @@ public class MainActivity extends Activity {
         refreshAgentModeButton();
         refreshVoiceButton();
         refreshScreenTeachButtons();
+        refreshProcessingButton();
         setStatus(
                 voice.capabilitySummary()
                         + " · "
@@ -260,6 +265,21 @@ public class MainActivity extends Activity {
         webResearch.setContentDescription("現在の入力をウェブ調査へ送る");
         webResearch.setOnClickListener(v -> startWebResearch());
         tools.addView(webResearch);
+
+        Button deep = chip("深考");
+        deep.setContentDescription("3段階の自己批判付き推論を実行");
+        deep.setOnClickListener(v -> startDeepReasoning());
+        tools.addView(deep);
+
+        stopButton = chip("停止");
+        stopButton.setContentDescription("現在の回答処理を停止");
+        stopButton.setOnClickListener(v -> stopCurrentTurn());
+        tools.addView(stopButton);
+
+        Button history = chip("履歴");
+        history.setContentDescription("保存したチャットを開く");
+        history.setOnClickListener(v -> showConversationHistory());
+        tools.addView(history);
 
         Button regenerate = chip("再生成");
         regenerate.setContentDescription("直前のユーザー依頼へ別回答を生成");
@@ -462,6 +482,7 @@ public class MainActivity extends Activity {
 
         input.setText("");
         sendButton.setEnabled(false);
+        refreshProcessingButton();
         chatLog.appendBack("system", "web", "明示Web調査を開始");
         renderTimeline();
 
@@ -471,10 +492,16 @@ public class MainActivity extends Activity {
                 setStatus("Web · " + message);
             }
 
+            @Override public void onStream(String partial) {
+                renderTimeline();
+                refreshProcessingButton();
+            }
+
             @Override public void onReply(PythonFapEngine.Result result, String channel) {
                 last = result;
                 sendButton.setEnabled(true);
                 renderTimeline();
+                refreshProcessingButton();
                 setStatus("Web統合完了 · " + result.skill
                         + " · " + String.format("%.2f", result.confidence));
             }
@@ -487,15 +514,24 @@ public class MainActivity extends Activity {
             return;
         }
         sendButton.setEnabled(false);
+        refreshProcessingButton();
         agent.regenerateLastUser(new AgentOrchestrator.Listener() {
             @Override public void onStatus(String message) {
+                renderTimeline();
+                refreshProcessingButton();
                 setStatus(message);
+            }
+
+            @Override public void onStream(String partial) {
+                renderTimeline();
+                refreshProcessingButton();
             }
 
             @Override public void onReply(PythonFapEngine.Result result, String channel) {
                 last = result;
                 sendButton.setEnabled(true);
                 renderTimeline();
+                refreshProcessingButton();
                 setStatus("再生成完了 · " + result.skill
                         + " · " + String.format("%.2f", result.confidence));
             }
@@ -531,20 +567,119 @@ public class MainActivity extends Activity {
     }
 
     private void startNewChat() {
+        agent.stopCurrentTurn();
+        ConversationArchiveStore.Session archived =
+                conversationArchive == null ? null : conversationArchive.archive(chatLog);
         pendingAttachments.clear();
         chatLog.clear();
         agent.resetDurableState();
+        agent.markCurrentLogAsSeen();
         refreshAttachmentStatus();
         chatLog.appendBack(
                 "system",
                 "session",
-                "新規チャットを開始 · semantic memoryは保持");
+                "新規チャットを開始 · semantic memoryは保持"
+                        + (archived == null ? "" : " · archived=" + archived.title));
         renderTimeline();
         if (input != null) {
             input.setText("");
             input.requestFocus();
         }
+        sendButton.setEnabled(true);
+        refreshProcessingButton();
         setStatus("新規チャット · ローカルメモリは保持されています");
+    }
+
+    private void showConversationHistory() {
+        if (conversationArchive == null) return;
+        List<ConversationArchiveStore.Session> sessions = conversationArchive.list();
+        if (sessions.isEmpty()) {
+            Toast.makeText(this, "保存済みチャットはありません", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String[] labels = new String[sessions.size()];
+        for (int i = 0; i < sessions.size(); i++) {
+            labels[i] = sessions.get(i).displayLabel();
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("チャット履歴")
+                .setItems(labels, (dialog, which) -> {
+                    if (which < 0 || which >= sessions.size()) return;
+                    restoreConversation(sessions.get(which));
+                })
+                .setNegativeButton("閉じる", null)
+                .show();
+    }
+
+    private void restoreConversation(ConversationArchiveStore.Session session) {
+        if (conversationArchive == null || session == null) return;
+        agent.stopCurrentTurn();
+        if (chatLog.size() > 1) conversationArchive.archive(chatLog);
+        boolean restored = conversationArchive.restore(session, chatLog);
+        if (!restored) {
+            Toast.makeText(this, "チャットの復元に失敗しました", Toast.LENGTH_LONG).show();
+            return;
+        }
+        agent.resetDurableState();
+        agent.markCurrentLogAsSeen();
+        pendingAttachments.clear();
+        refreshAttachmentStatus();
+        renderTimeline();
+        sendButton.setEnabled(true);
+        refreshProcessingButton();
+        setStatus("チャットを復元 · " + session.title);
+    }
+
+    private void startDeepReasoning() {
+        String q = input == null ? "" : input.getText().toString().trim();
+        if (q.isEmpty()) {
+            Toast.makeText(this, "深考する内容を入力してください", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (agent.isProcessing()) {
+            Toast.makeText(this, "現在の処理を停止してから開始してください", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        input.setText("");
+        sendButton.setEnabled(false);
+        refreshProcessingButton();
+        agent.submitDeepReasoning(q, new AgentOrchestrator.Listener() {
+            @Override public void onStatus(String message) {
+                renderTimeline();
+                refreshProcessingButton();
+                setStatus(message);
+            }
+
+            @Override public void onStream(String partial) {
+                renderTimeline();
+                refreshProcessingButton();
+            }
+
+            @Override public void onReply(PythonFapEngine.Result result, String channel) {
+                last = result;
+                sendButton.setEnabled(true);
+                renderTimeline();
+                refreshProcessingButton();
+                setStatus("深考完了 · " + result.skill
+                        + " · " + String.format("%.2f", result.confidence));
+            }
+        });
+    }
+
+    private void stopCurrentTurn() {
+        agent.stopCurrentTurn();
+        sendButton.setEnabled(true);
+        renderTimeline();
+        refreshProcessingButton();
+        setStatus("回答処理を停止しました");
+    }
+
+    private void refreshProcessingButton() {
+        if (stopButton == null || agent == null) return;
+        boolean active = agent.isProcessing();
+        styleChip(stopButton, active ? "停止 ●" : "停止", active);
     }
 
     private void openFilePicker() {
@@ -797,6 +932,7 @@ public class MainActivity extends Activity {
         refreshAttachmentStatus();
         input.setText("");
         sendButton.setEnabled(false);
+        refreshProcessingButton();
 
         agent.submitUserTurn("text", q, attachments, new AgentOrchestrator.Listener() {
             @Override public void onStatus(String message) {
@@ -804,9 +940,15 @@ public class MainActivity extends Activity {
                 setStatus(message);
             }
 
+            @Override public void onStream(String partial) {
+                renderTimeline();
+                refreshProcessingButton();
+            }
+
             @Override public void onReply(PythonFapEngine.Result result, String channel) {
                 last = result;
                 renderTimeline();
+                refreshProcessingButton();
                 setStatus("FAP · " + result.skill + " · " + String.format("%.2f", result.confidence));
                 sendButton.setEnabled(true);
             }
@@ -825,6 +967,7 @@ public class MainActivity extends Activity {
                 "voice-meta",
                 "STT確定 · confidence=" + String.format("%.2f", sttConfidence));
         sendButton.setEnabled(false);
+        refreshProcessingButton();
 
         agent.submitUserTurn("voice", q.trim(), new AgentOrchestrator.Listener() {
             @Override public void onStatus(String message) {
@@ -832,10 +975,16 @@ public class MainActivity extends Activity {
                 setStatus("音声 · " + message);
             }
 
+            @Override public void onStream(String partial) {
+                renderTimeline();
+                refreshProcessingButton();
+            }
+
             @Override public void onReply(PythonFapEngine.Result result, String channel) {
                 last = result;
                 renderTimeline();
                 sendButton.setEnabled(true);
+                refreshProcessingButton();
                 if (!voiceLoop) {
                     setStatus(engine.status());
                     return;
@@ -1060,6 +1209,7 @@ public class MainActivity extends Activity {
         refreshAgentModeButton();
         refreshVoiceButton();
         refreshScreenTeachButtons();
+        refreshProcessingButton();
         refreshTabs();
         renderTimeline();
         if (voiceLoop && voice != null) {
