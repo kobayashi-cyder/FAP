@@ -82,6 +82,26 @@ public final class ConversationArchiveStore {
         return out;
     }
 
+    public List<Session> search(String query) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        if (q.isEmpty()) return list();
+
+        ArrayList<Session> out = new ArrayList<>();
+        for (Session session : list()) {
+            if (session.title.toLowerCase(Locale.ROOT).contains(q)) {
+                out.add(session);
+                continue;
+            }
+            try {
+                String raw = readUtf8(session.file, 2 * 1024 * 1024)
+                        .toLowerCase(Locale.ROOT);
+                if (raw.contains(q)) out.add(session);
+            } catch (Throwable ignored) {
+            }
+        }
+        return out;
+    }
+
     public boolean restore(Session session, ChatLogStore log) {
         if (session == null || log == null || session.file == null) return false;
         try {
@@ -120,16 +140,22 @@ public final class ConversationArchiveStore {
     }
 
     private static String readUtf8(File file) throws Exception {
+        return readUtf8(file, 24 * 1024 * 1024);
+    }
+
+    private static String readUtf8(File file, int maxBytes) throws Exception {
         try (FileInputStream input = new FileInputStream(file);
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             while (true) {
                 int read = input.read(buffer);
                 if (read < 0) break;
-                output.write(buffer, 0, read);
-                if (output.size() > 24 * 1024 * 1024) {
-                    throw new IllegalArgumentException("conversation archive too large");
+                if (output.size() + read > maxBytes) {
+                    int allowed = maxBytes - output.size();
+                    if (allowed > 0) output.write(buffer, 0, allowed);
+                    break;
                 }
+                output.write(buffer, 0, read);
             }
             return output.toString(StandardCharsets.UTF_8.name());
         }
