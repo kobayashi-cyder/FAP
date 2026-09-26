@@ -287,6 +287,16 @@ class InteractionFabric:
                 )
                 continue
             payload = dict(result)
+            if not bool(payload.get("ok", True)):
+                attempts.append(
+                    InteractionAttempt(
+                        endpoint_id=endpoint_id,
+                        score=effective,
+                        state="rejected",
+                        reason="verification_failed",
+                    )
+                )
+                continue
             attempts.append(
                 InteractionAttempt(
                     endpoint_id=endpoint_id,
