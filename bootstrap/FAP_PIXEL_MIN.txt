@@ -7,6 +7,7 @@
 /fap_1x_standard_runtime.py
 /fap_discourse_context.py
 /fap_dynamic_sparse_routing.py
+/fap_epistemic_ledger.py
 /fap_exponential_linear.py
 /fap_factual_qa.py
 /fap_generic_derivation.py
