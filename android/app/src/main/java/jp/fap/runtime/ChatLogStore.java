@@ -88,6 +88,14 @@ public final class ChatLogStore {
         return entries.size();
     }
 
+    public synchronized boolean isLatest(String role, String channel, String text) {
+        if (entries.isEmpty()) return false;
+        Entry last = entries.get(entries.size() - 1);
+        return last.role.equals(normalizeRole(role))
+                && last.channel.equals(normalizeChannel(channel))
+                && last.text.equals(text == null ? "" : text.trim());
+    }
+
     public synchronized String render(int limit) {
         int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
         int start = Math.max(0, entries.size() - take);
