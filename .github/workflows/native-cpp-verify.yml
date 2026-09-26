@@ -34,3 +34,17 @@ jobs:
           ./build/native_cpp/fap_native_cli version
           ./build/native_cpp/fap_native_cli budget 0.8 1
           ./build/native_cpp/fap_native_cli analyze . "今日の天気と時刻を確認"
+
+      - name: Verify UI JavaScript syntax
+        run: node --check native_cpp/ui/app.js
+
+      - name: Verify UI contract
+        shell: bash
+        run: |
+          test -s native_cpp/ui/index.html
+          test -s native_cpp/ui/app.css
+          test -s native_cpp/ui/app.js
+          test -s native_cpp/ui/build_wasm.sh
+          grep -q 'fap_native_engine_analyze_json' native_cpp/ui/app.js
+          grep -q 'Native Trace' native_cpp/ui/index.html
+          grep -q 'Native only' native_cpp/ui/index.html
