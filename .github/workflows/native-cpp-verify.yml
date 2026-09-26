@@ -7,10 +7,10 @@ on:
     paths:
       - "native_cpp/**"
       - "fap_response_redundancy.py"
-      - "fap_response_series_executor.py"
+      - "fap_response_series_executor.py"\n      - "fap_response_specialists.py"
       - "fap_v87_81_coding_conversation_gateway.py"
       - "tests/test_response_redundancy.py"
-      - "tests/test_response_series_executor.py"
+      - "tests/test_response_series_executor.py"\n      - "tests/test_response_specialists.py"
       - "tests/test_v87_81_coding_conversation_gateway.py"
       - ".github/workflows/native-cpp-verify.yml"
   pull_request:
@@ -44,7 +44,7 @@ jobs:
       - name: Test response-series execution
         run: |
           python -m unittest tests.test_response_redundancy
-          python -m unittest tests.test_response_series_executor
+          python -m unittest tests.test_response_specialists\n          python -m unittest tests.test_response_series_executor
           python -m unittest tests.test_v87_81_coding_conversation_gateway
 
       - name: Smoke CLI
