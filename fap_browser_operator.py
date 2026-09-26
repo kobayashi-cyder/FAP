@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import time
 from typing import Any, Iterable
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import parse_qs, quote_plus, urlparse
 
 
 CHATGPT_URL = "https://chatgpt.com/"
@@ -226,7 +226,17 @@ class PlaywrightBrowser:
         query = str(query or "").strip()
         if not query:
             raise ValueError("search query is required")
-        if self.config.search_engine == "duckduckgo":
+
+        primary = self.config.search_engine
+        fallback = "duckduckgo" if primary == "google" else "google"
+        for engine in (primary, fallback):
+            results = self._search_once(query, engine)
+            if results:
+                return results
+        return ()
+
+    def _search_once(self, query: str, engine: str) -> tuple[str, ...]:
+        if engine == "duckduckgo":
             url = "https://duckduckgo.com/?q=" + quote_plus(query)
             excluded_hosts = {"duckduckgo.com", "www.duckduckgo.com"}
         else:
@@ -593,6 +603,22 @@ def _normalize_http_url(url: str) -> str:
 
 def _clean_result_url(href: str | None) -> str:
     value = str(href or "").strip()
+    if not value:
+        return ""
+
+    parsed = urlparse(value)
+    if value.startswith("/url?"):
+        query = parse_qs(parsed.query)
+        wrapped = (query.get("q") or query.get("url") or [""])[0]
+        value = str(wrapped or "").strip()
+        parsed = urlparse(value)
+
+    host = (parsed.hostname or "").casefold()
+    if host in {"duckduckgo.com", "www.duckduckgo.com"} and parsed.path.startswith("/l/"):
+        query = parse_qs(parsed.query)
+        wrapped = (query.get("uddg") or [""])[0]
+        value = str(wrapped or "").strip()
+
     if not value.startswith(("http://", "https://")):
         return ""
     try:
