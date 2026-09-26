@@ -31,7 +31,8 @@ class FAP1xStandardRuntimeTests(unittest.TestCase):
         runtime.chat("四角形について", session_id="geometry")
         result = runtime.run_turn("内角の和は？", session_id="geometry")
         self.assertEqual(result.state, "handled")
-        self.assertEqual(result.endpoint_id, "rule_reasoner")
+        self.assertEqual(result.endpoint_id, "general_reasoning_core")
+        self.assertEqual(result.payload.get("reasoning_source"), "rule_verified")
         self.assertIn("360", result.payload.get("reply", ""))
         self.assertEqual(result.payload.get("selected_payload", {}).get("context_source"), "conversation-context")
 
