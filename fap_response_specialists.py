@@ -94,7 +94,7 @@ class SafeArithmeticSpecialist:
             reverse=True,
         )
         only_expression = bool(normalized.strip()) and all(
-            ch in "0123456789eE.+-*/%() \\t\\r\\n" for ch in normalized.strip()
+            ch in "0123456789eE.+-*/%() \t\r\n" for ch in normalized.strip()
         )
         if not (_MATH_CUE.search(raw_text) or only_expression):
             return None
