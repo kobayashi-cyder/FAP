@@ -79,7 +79,8 @@ public final class PythonFapEngine {
                     "java_fallback:" + r.skill,
                     r.confidence,
                     "handled",
-                    false);
+                    false,
+                    "{}");
         }
         try {
             JSONObject o = new JSONObject(
