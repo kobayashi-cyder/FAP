@@ -89,11 +89,43 @@ public final class AgentOrchestrator {
             String channel,
             String text,
             Listener listener) {
-        String clean = text == null ? "" : text.trim();
-        if (clean.isEmpty()) return;
+        submitUserTurn(channel, text, null, listener);
+    }
 
-        ChatLogStore.Entry entry = chatLog.appendFront("user", channel, clean);
+    public void submitUserTurn(
+            String channel,
+            String text,
+            java.util.List<AttachmentStore.Attachment> attachments,
+            Listener listener) {
+        String clean = text == null ? "" : text.trim();
+        String attachmentText = AttachmentStore.describe(attachments);
+        if (clean.isEmpty() && attachmentText.isEmpty()) return;
+
+        StringBuilder durable = new StringBuilder();
+        if (!clean.isEmpty()) durable.append(clean);
+        if (!attachmentText.isEmpty()) {
+            if (durable.length() > 0) durable.append("\n\n");
+            durable.append("[添付ファイル]\n").append(attachmentText);
+        }
+
+        ChatLogStore.Entry entry = chatLog.appendFront(
+                "user",
+                attachments == null || attachments.isEmpty()
+                        ? channel
+                        : channel + ":file",
+                durable.toString());
         if (entry == null) return;
+
+        if (attachments != null && !attachments.isEmpty()) {
+            chatLog.appendBack(
+                    "system",
+                    "file-ingest",
+                    "添付をAgent入力へ取り込み"
+                            + " · count=" + attachments.size()
+                            + " · user=#" + entry.id
+                            + "\n" + attachmentText);
+        }
+
         prefs.edit()
                 .putLong(KEY_LAST_USER_ID, Math.max(
                         prefs.getLong(KEY_LAST_USER_ID, 0L),
