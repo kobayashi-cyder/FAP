@@ -2,7 +2,10 @@ package jp.fap.runtime;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -20,8 +23,15 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends Activity {
     private static final int REQ_RECORD_AUDIO = 601;
+    private static final int REQ_PICK_FILES = 602;
 
     private static final int BLACK = Color.rgb(15, 20, 25);
     private static final int MUTED = Color.rgb(83, 100, 113);
@@ -33,6 +43,8 @@ public class MainActivity extends Activity {
     private PythonFapEngine engine;
     private AndroidVoiceController voice;
     private ChatLogStore chatLog;
+    private AttachmentStore attachmentStore;
+    private final ArrayList<AttachmentStore.Attachment> pendingAttachments = new ArrayList<>();
 
     private TextView status;
     private EditText input;
@@ -42,6 +54,7 @@ public class MainActivity extends Activity {
     private Button agentModeButton;
     private Button gitUpdateButton;
     private Button gitRollbackButton;
+    private TextView attachmentStatus;
     private TextView timelineTab;
     private TextView frontTab;
     private TextView backTab;
@@ -59,6 +72,7 @@ public class MainActivity extends Activity {
         agent = AgentOrchestrator.get(this);
         engine = agent.engine();
         chatLog = agent.chatLog();
+        attachmentStore = new AttachmentStore(this);
         agent.reconcileAsync();
 
         LinearLayout root = new LinearLayout(this);
@@ -259,6 +273,10 @@ public class MainActivity extends Activity {
         });
         tools.addView(gitContext);
 
+        Button gitApk = chip("Git APK");
+        gitApk.setOnClickListener(v -> startGitApkUpdate());
+        tools.addView(gitApk);
+
         gitRollbackButton = chip("前版へ");
         gitRollbackButton.setOnClickListener(v -> startGitRollback());
         tools.addView(gitRollbackButton);
@@ -300,6 +318,15 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(1)));
 
+        attachmentStatus = new TextView(this);
+        attachmentStatus.setTextSize(12f);
+        attachmentStatus.setTextColor(MUTED);
+        attachmentStatus.setPadding(dp(58), dp(6), dp(12), 0);
+        attachmentStatus.setVisibility(View.GONE);
+        wrapper.addView(attachmentStatus, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
         LinearLayout composer = new LinearLayout(this);
         composer.setOrientation(LinearLayout.HORIZONTAL);
         composer.setGravity(Gravity.BOTTOM);
@@ -315,6 +342,17 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(38), dp(38));
         avatarParams.setMargins(0, dp(2), dp(8), 0);
         composer.addView(avatar, avatarParams);
+
+        TextView attach = new TextView(this);
+        attach.setText("＋");
+        attach.setTextSize(24f);
+        attach.setTextColor(BLUE);
+        attach.setGravity(Gravity.CENTER);
+        attach.setContentDescription("ファイルを添付");
+        attach.setOnClickListener(v -> openFilePicker());
+        LinearLayout.LayoutParams attachParams = new LinearLayout.LayoutParams(dp(38), dp(38));
+        attachParams.setMargins(0, dp(2), dp(6), 0);
+        composer.addView(attach, attachParams);
 
         input = new EditText(this);
         input.setHint("いまどうしてる？ / FAPへ指示");
@@ -349,6 +387,138 @@ public class MainActivity extends Activity {
 
         wrapper.addView(composer);
         return wrapper;
+    }
+
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        startActivityForResult(intent, REQ_PICK_FILES);
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_PICK_FILES || resultCode != RESULT_OK || data == null) return;
+
+        ArrayList<Uri> uris = new ArrayList<>();
+        ClipData clips = data.getClipData();
+        if (clips != null) {
+            for (int i = 0; i < clips.getItemCount(); i++) {
+                Uri uri = clips.getItemAt(i).getUri();
+                if (uri != null) uris.add(uri);
+            }
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        if (uris.isEmpty()) return;
+
+        setStatus("添付を取り込み中… " + uris.size() + "件");
+        new Thread(() -> {
+            int imported = 0;
+            ArrayList<String> errors = new ArrayList<>();
+            for (Uri uri : uris) {
+                try {
+                    AttachmentStore.Attachment attachment = attachmentStore.importUri(uri);
+                    synchronized (pendingAttachments) {
+                        pendingAttachments.add(attachment);
+                    }
+                    imported++;
+                } catch (Throwable t) {
+                    errors.add(t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage()));
+                }
+            }
+
+            final int done = imported;
+            runOnUiThread(() -> {
+                refreshAttachmentStatus();
+                chatLog.appendBack(
+                        "system",
+                        "file-ingest",
+                        "ファイル取り込み完了 · success=" + done
+                                + " · failed=" + errors.size()
+                                + (errors.isEmpty() ? "" : "\n" + String.join("\n", errors)));
+                renderTimeline();
+                setStatus(
+                        errors.isEmpty()
+                                ? "添付 " + done + "件を投稿待ちへ追加"
+                                : "添付 " + done + "件 / 失敗 " + errors.size() + "件");
+            });
+        }, "fap-file-import").start();
+    }
+
+    private void refreshAttachmentStatus() {
+        if (attachmentStatus == null) return;
+        int count;
+        synchronized (pendingAttachments) {
+            count = pendingAttachments.size();
+        }
+        if (count <= 0) {
+            attachmentStatus.setText("");
+            attachmentStatus.setVisibility(View.GONE);
+        } else {
+            attachmentStatus.setText("📎 " + count + "件 添付済み · 投稿で送信");
+            attachmentStatus.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void startGitApkUpdate() {
+        chatLog.appendBack("system", "git-apk", "Git APK更新を確認");
+        renderTimeline();
+
+        if (!getPackageManager().canRequestPackageInstalls()) {
+            chatLog.appendBack(
+                    "system",
+                    "git-apk",
+                    "APKインストール許可が必要 · Android設定を開きます");
+            renderTimeline();
+            GitApkUpdater.requestUnknownSourcesPermission(this);
+            setStatus("設定で『この提供元を許可』を有効にしてからGit APKを再実行してください");
+            return;
+        }
+
+        GitApkUpdater.checkAndDownloadAsync(this, new GitApkUpdater.Listener() {
+            @Override public void onStatus(String message) {
+                runOnUiThread(() -> {
+                    chatLog.appendBack("system", "git-apk", message);
+                    renderTimeline();
+                    setStatus(message);
+                });
+            }
+
+            @Override public void onReadyToInstall(File apk, JSONObject manifest) {
+                runOnUiThread(() -> {
+                    try {
+                        String message = "APK検証完了 · version="
+                                + manifest.optString("version_name", "?")
+                                + " · sha256="
+                                + manifest.optString("sha256", "").substring(
+                                        0,
+                                        Math.min(12, manifest.optString("sha256", "").length()));
+                        chatLog.appendBack("system", "git-apk", message);
+                        renderTimeline();
+                        setStatus("Androidインストール確認へ移動します");
+                        GitApkUpdater.launchInstaller(MainActivity.this, apk);
+                    } catch (Throwable t) {
+                        String error = "APKインストーラ起動失敗 · "
+                                + t.getClass().getSimpleName()
+                                + ": "
+                                + String.valueOf(t.getMessage());
+                        chatLog.appendBack("system", "git-apk", error);
+                        renderTimeline();
+                        setStatus(error);
+                    }
+                });
+            }
+
+            @Override public void onError(String message) {
+                runOnUiThread(() -> {
+                    chatLog.appendBack("system", "git-apk", "APK更新確認失敗 · " + message);
+                    renderTimeline();
+                    setStatus(message);
+                });
+            }
+        });
     }
 
     private void startGitRuntimeUpdate() {
@@ -419,12 +589,16 @@ public class MainActivity extends Activity {
 
     private void runFap() {
         String q = input.getText().toString().trim();
-        if (q.isEmpty() || !sendButton.isEnabled()) return;
+        if ((q.isEmpty() && pendingAttachments.isEmpty()) || !sendButton.isEnabled()) return;
 
+        ArrayList<AttachmentStore.Attachment> attachments =
+                new ArrayList<>(pendingAttachments);
+        pendingAttachments.clear();
+        refreshAttachmentStatus();
         input.setText("");
         sendButton.setEnabled(false);
 
-        agent.submitUserTurn("text", q, new AgentOrchestrator.Listener() {
+        agent.submitUserTurn("text", q, attachments, new AgentOrchestrator.Listener() {
             @Override public void onStatus(String message) {
                 renderTimeline();
                 setStatus(message);
