@@ -66,8 +66,8 @@ class ResponseRedundancyPlanner:
     """
 
     CONTRACT = "fap.response.series.v1"
-    MAX_LANES = 64
-    MAX_SYNTHESIS = 8
+    MAX_LANES = 128
+    MAX_SYNTHESIS = 16
 
     ROLES = (
         ("direct", "answer"),
@@ -134,12 +134,12 @@ class ResponseRedundancyPlanner:
 
         active = round(
             6
-            + 42 * pressure
+            + 106 * pressure
             + 2 * retries
             + 2 * max(0, intent_count - 1)
         )
         active = max(6, min(self.MAX_LANES, active))
-        synthesis_width = max(2, min(self.MAX_SYNTHESIS, 2 + active // 10))
+        synthesis_width = max(2, min(self.MAX_SYNTHESIS, 2 + active // 8))
         quorum = max(2, min(synthesis_width, ceil(synthesis_width * 2 / 3)))
         independent_groups = max(4, min(len(self.ROLES), (active + 2) // 3))
         coverage_target = min(0.90, 0.55 + 0.35 * pressure)
