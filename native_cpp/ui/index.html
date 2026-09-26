@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08110f">
+<meta name="color-scheme" content="dark">
+<title>FAP Native</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brandRow">
+      <div class="mark" aria-hidden="true">F</div>
+      <div>
+        <div class="brand">FAP NATIVE</div>
+        <div class="subbrand">C++ runtime console</div>
+      </div>
+    </div>
+    <div class="statusRow" aria-label="runtime status">
+      <span id="nativeState" class="pill warn">WASM LOADING</span>
+      <span id="apiState" class="pill muted">API UNKNOWN</span>
+      <span id="version" class="pill">v?</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="chatPanel panel">
+      <div class="panelHead">
+        <div>
+          <h1>Conversation</h1>
+          <p>既存FAP APIとC++ネイティブ解析を同時に使用します。</p>
+        </div>
+        <div class="panelActions">
+          <button id="clear" class="button ghost" type="button">Clear</button>
+          <button id="reconnect" class="button ghost" type="button">Reconnect</button>
+        </div>
+      </div>
+
+      <div id="messages" class="messages" aria-live="polite">
+        <div id="empty" class="emptyState">
+          <strong>FAP Native UI</strong>
+          <span>C++ Coreを読み込み中です。APIが無くてもNative Traceは利用できます。</span>
+        </div>
+      </div>
+
+      <form id="composer" class="composer">
+        <textarea id="input" rows="1" maxlength="12000" placeholder="FAPへ質問・指示" aria-label="message"></textarea>
+        <div class="composerActions">
+          <label class="modeToggle" title="APIへ送信せずC++解析のみ行う">
+            <input id="nativeOnly" type="checkbox">
+            <span>Native only</span>
+          </label>
+          <button id="send" class="button primary" type="submit">Send</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="inspector">
+      <section class="panel tracePanel">
+        <div class="panelHead compact">
+          <div>
+            <h2>Native Trace</h2>
+            <p>C++側で決定した実行情報</p>
+          </div>
+          <span id="routeBadge" class="pill muted">route: —</span>
+        </div>
+
+        <div class="metricGrid">
+          <div class="metric"><span>Routes</span><strong id="routes">1</strong><meter id="routesMeter" min="0" max="8" value="1"></meter></div>
+          <div class="metric"><span>Steps</span><strong id="steps">8</strong><meter id="stepsMeter" min="0" max="96" value="8"></meter></div>
+          <div class="metric"><span>Verify</span><strong id="verify">1</strong><meter id="verifyMeter" min="0" max="6" value="1"></meter></div>
+          <div class="metric"><span>Retries</span><strong id="retries">0</strong><meter id="retriesMeter" min="0" max="4" value="0"></meter></div>
+        </div>
+
+        <div class="traceRows">
+          <div><span>Response lanes</span><strong id="responseLanes">6 / 128</strong></div>
+          <div><span>Synthesis</span><strong id="synthesisWidth">2 / 16</strong></div>
+          <div><span>Coverage target</span><strong id="coverageTarget">55%</strong></div>
+          <div><span>Extra path</span><strong id="extraPath">NO</strong></div>
+          <div><span>Multi intents</span><strong id="multiIntents">0</strong></div>
+          <div><span>Resource</span><strong id="resourceId">—</strong></div>
+          <div><span>Action</span><strong id="actionId">—</strong></div>
+        </div>
+      </section>
+
+      <section class="panel controlsPanel">
+        <div class="panelHead compact">
+          <div>
+            <h2>Analysis profile</h2>
+            <p>ネイティブ予算判定への入力</p>
+          </div>
+        </div>
+
+        <label class="sliderRow">
+          <span>Confidence <b id="confidenceValue">0.85</b></span>
+          <input id="confidence" type="range" min="0" max="1" value="0.85" step="0.01">
+        </label>
+        <label class="sliderRow">
+          <span>Uncertainty <b id="uncertaintyValue">0.15</b></span>
+          <input id="uncertainty" type="range" min="0" max="1" value="0.15" step="0.01">
+        </label>
+        <label class="checkRow"><input id="disagreement" type="checkbox"><span>Verifier disagreement</span></label>
+        <label class="checkRow"><input id="counterexample" type="checkbox"><span>Counterexample detected</span></label>
+      </section>
+
+      <section class="panel runtimePanel">
+        <div class="panelHead compact">
+          <div>
+            <h2>Runtime</h2>
+            <p>接続先とセッション</p>
+          </div>
+        </div>
+        <label class="field">
+          <span>API base</span>
+          <input id="apiBase" value="http://127.0.0.1:11439" spellcheck="false">
+        </label>
+        <div class="runtimeRows">
+          <div><span>Session</span><code id="sessionLabel">—</code></div>
+          <div><span>WASM</span><code id="wasmLabel">not loaded</code></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script src="./fap_native.js" defer></script>
+<script src="./app.js" defer></script>
+</body>
+</html>
