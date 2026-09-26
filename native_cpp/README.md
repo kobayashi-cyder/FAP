@@ -56,3 +56,4 @@ cmake -S native_cpp -B build/native_cpp -DCMAKE_BUILD_TYPE=Release
 cmake --build build/native_cpp --parallel
 ctest --test-dir build/native_cpp --output-on-failure
 \`\`\`
+\n\n## r006 response intelligence\n\nThe 128-lane executor now has a broader read-only specialist portfolio: factual QA, verified arithmetic, reflective explanation, causal framing, semantic rules, code planning, and symbolic derivation. Requirement coverage and multi-segment coverage auditors feed candidate scoring, and high-pressure requests may build a deterministic complementary synthesis from non-overlapping safe candidates. This increases the number of genuinely different candidate paths without replaying side effects.\n
