@@ -330,6 +330,35 @@ class InteractionFabricTests(unittest.TestCase):
         self.assertEqual(result.state, "blocked")
         self.assertEqual(result.attempts[0].reason, "empty_request")
 
+    def test_failed_verified_payload_falls_through(self):
+        fabric = InteractionFabric()
+        fabric.register(
+            InteractionEndpoint(
+                endpoint_id="bad",
+                channels=("tool",),
+                probe=lambda request: 1.0,
+                handler=lambda request, budget: {"ok": False, "text": "wrong"},
+                priority=2.0,
+            )
+        )
+        fabric.register(
+            InteractionEndpoint(
+                endpoint_id="good",
+                channels=("tool",),
+                probe=lambda request: 0.9,
+                handler=lambda request, budget: {"ok": True, "text": "right"},
+                priority=1.0,
+            )
+        )
+        result = fabric.dispatch(InteractionRequest("x", channel="tool"))
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "good")
+        self.assertEqual(result.payload["text"], "right")
+        self.assertEqual(
+            [attempt.state for attempt in result.attempts],
+            ["rejected", "handled"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
