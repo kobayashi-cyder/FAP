@@ -17,18 +17,22 @@ public class MainActivity extends Activity {
     private AndroidVoiceController voice;
     private EditText input;
     private TextView output;
+    private ScrollView chatScroll;
     private TextView status;
+    private ChatLogStore chatLog;
     private Button run;
     private Button voiceButton;
     private Button gitUpdateButton;
     private Button gitRollbackButton;
     private PythonFapEngine.Result last;
     private boolean voiceLoop = false;
+    private boolean resumeVoiceAfterGit = false;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         engine = new PythonFapEngine(this);
+        chatLog = new ChatLogStore(this);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -76,6 +80,9 @@ public class MainActivity extends Activity {
                 return;
             }
             if (PixelBrowserController.askChatGpt(this, q)) {
+                chatLog.append("user", "browser", q);
+                renderChatLog();
+                input.setText("");
                 status.setText("PIXEL BROWSER · queued");
             } else {
                 status.setText("PIXEL BROWSER · " + PixelBrowserController.lastError(this));
@@ -126,7 +133,10 @@ public class MainActivity extends Activity {
         output = new TextView(this);
         output.setTextIsSelectable(true);
         output.setPadding(0, 16, 0, 16);
-        root.addView(output, new LinearLayout.LayoutParams(-1, 0, 1f));
+        chatScroll = new ScrollView(this);
+        chatScroll.addView(output, new ScrollView.LayoutParams(-1, -2));
+        root.addView(chatScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        renderChatLog();
 
         LinearLayout feedback = new LinearLayout(this);
         Button ok = new Button(this); ok.setText("検証OK");
@@ -136,7 +146,8 @@ public class MainActivity extends Activity {
         ng.setOnClickListener(v -> verify(false));
         clear.setOnClickListener(v -> {
             engine.clear();
-            output.setText("");
+            chatLog.clear();
+            renderChatLog();
             status.setText(engine.status());
         });
         feedback.addView(ok, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -145,7 +156,7 @@ public class MainActivity extends Activity {
         root.addView(feedback);
 
         TextView note = new TextView(this);
-        note.setText("PixelではChrome/ChatGPT操作に加えて、GitHub mainの完全ランタイムmanifestから全ファイルをSHA-256検証してA/B更新できます。失敗時は旧スロットへ戻せます。");
+        note.setText("テキスト・音声・Chrome/ChatGPT・Git OTAの結果は端末内部のChatログへ時系列保存します。Git OTAは全ファイルSHA-256検証+A/B更新、失敗時は旧スロットへ戻せます。");
         root.addView(note);
 
         setContentView(root);
@@ -184,6 +195,7 @@ public class MainActivity extends Activity {
 
     private void startGitRuntimeUpdate() {
         if (gitUpdateButton == null || !gitUpdateButton.isEnabled()) return;
+        pauseVoiceForGitOperation();
         gitUpdateButton.setEnabled(false);
         gitRollbackButton.setEnabled(false);
         status.setText("GIT OTA · 完全更新を開始…");
@@ -201,12 +213,12 @@ public class MainActivity extends Activity {
                                 + message
                                 + " · "
                                 + engine.status());
-                output.setText(
-                        message
-                                + "\n\n[ota] "
-                                + GitRuntimeUpdater.currentState(MainActivity.this)
-                                + "\n[core] "
-                                + engine.status());
+                chatLog.append(
+                        "system",
+                        "git-ota",
+                        message + " · " + GitRuntimeUpdater.currentState(MainActivity.this));
+                renderChatLog();
+                resumeVoiceAfterGitOperation();
                 Toast.makeText(
                         MainActivity.this,
                         message,
@@ -217,6 +229,7 @@ public class MainActivity extends Activity {
 
     private void startGitRollback() {
         if (gitRollbackButton == null || !gitRollbackButton.isEnabled()) return;
+        pauseVoiceForGitOperation();
         gitUpdateButton.setEnabled(false);
         gitRollbackButton.setEnabled(false);
         status.setText("GIT OTA · ロールバックを開始…");
@@ -234,12 +247,12 @@ public class MainActivity extends Activity {
                                 + message
                                 + " · "
                                 + engine.status());
-                output.setText(
-                        message
-                                + "\n\n[ota] "
-                                + GitRuntimeUpdater.currentState(MainActivity.this)
-                                + "\n[core] "
-                                + engine.status());
+                chatLog.append(
+                        "system",
+                        "git-ota",
+                        message + " · " + GitRuntimeUpdater.currentState(MainActivity.this));
+                renderChatLog();
+                resumeVoiceAfterGitOperation();
                 Toast.makeText(
                         MainActivity.this,
                         message,
@@ -251,6 +264,9 @@ public class MainActivity extends Activity {
     private void runFap() {
         String q = input.getText().toString().trim();
         if (q.isEmpty() || !run.isEnabled()) return;
+        chatLog.append("user", "text", q);
+        renderChatLog();
+        input.setText("");
         run.setEnabled(false);
         status.setText("THINKING · " + engine.status());
 
@@ -258,8 +274,13 @@ public class MainActivity extends Activity {
             PythonFapEngine.Result result = engine.process(q);
             runOnUiThread(() -> {
                 last = result;
-                output.setText(result.answer + "\n\n[core] " + result.skill +
-                        "\n[confidence] " + String.format("%.2f", result.confidence));
+                chatLog.append(
+                        "assistant",
+                        "text",
+                        result.answer
+                                + "\n[core] " + result.skill
+                                + " · confidence=" + String.format("%.2f", result.confidence));
+                renderChatLog();
                 status.setText(engine.status());
                 run.setEnabled(true);
             });
@@ -271,6 +292,11 @@ public class MainActivity extends Activity {
             listenIfActive();
             return;
         }
+        chatLog.append(
+                "user",
+                "voice",
+                q.trim() + "\n[stt-confidence] " + String.format("%.2f", sttConfidence));
+        renderChatLog();
         run.setEnabled(false);
         status.setText("VOICE · THINKING · " + engine.status());
 
@@ -278,9 +304,13 @@ public class MainActivity extends Activity {
             PythonFapEngine.Result result = engine.process(q.trim());
             runOnUiThread(() -> {
                 last = result;
-                output.setText(result.answer + "\n\n[core] " + result.skill +
-                        "\n[confidence] " + String.format("%.2f", result.confidence) +
-                        "\n[stt-confidence] " + String.format("%.2f", sttConfidence));
+                chatLog.append(
+                        "assistant",
+                        "voice",
+                        result.answer
+                                + "\n[core] " + result.skill
+                                + " · confidence=" + String.format("%.2f", result.confidence));
+                renderChatLog();
                 run.setEnabled(true);
                 if (!voiceLoop) {
                     status.setText(engine.status());
@@ -363,7 +393,11 @@ public class MainActivity extends Activity {
         if (PixelBrowserController.STATE_RESPONSE_READY.equals(browserState)) {
             String response = PixelBrowserController.lastResponse(this);
             if (showResult && response != null && !response.isEmpty()) {
-                output.setText(response + "\n\n[core] pixel_browser:chatgpt_web");
+                String logged = response + "\n[core] pixel_browser:chatgpt_web";
+                if (!chatLog.isLatest("assistant", "browser", logged)) {
+                    chatLog.append("assistant", "browser", logged);
+                }
+                renderChatLog();
             }
             status.setText("PIXEL BROWSER · response_ready · " + engine.status());
         } else if (PixelBrowserController.STATE_ERROR.equals(browserState)) {
@@ -374,6 +408,34 @@ public class MainActivity extends Activity {
                             + engine.status());
         } else if (!PixelBrowserController.STATE_IDLE.equals(browserState)) {
             status.setText("PIXEL BROWSER · " + browserState + " · " + engine.status());
+        }
+    }
+
+    private void renderChatLog() {
+        if (output == null || chatLog == null) return;
+        output.setText(chatLog.render(240));
+        if (chatScroll != null) {
+            chatScroll.post(() -> chatScroll.fullScroll(ScrollView.FOCUS_DOWN));
+        }
+    }
+
+    private void pauseVoiceForGitOperation() {
+        resumeVoiceAfterGit = voiceLoop;
+        if (voiceLoop && voice != null) {
+            voice.stopAll();
+            voiceLoop = false;
+            voiceButton.setText("音声会話開始");
+        }
+    }
+
+    private void resumeVoiceAfterGitOperation() {
+        if (!resumeVoiceAfterGit) return;
+        resumeVoiceAfterGit = false;
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED) {
+            voiceLoop = true;
+            voiceButton.setText("音声会話停止");
+            mainHandler.postDelayed(() -> listenIfActive(), 350);
         }
     }
 
