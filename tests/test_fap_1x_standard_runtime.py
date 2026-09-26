@@ -40,10 +40,9 @@ class FAP1xStandardRuntimeTests(unittest.TestCase):
         runtime = FAP1xStandardRuntime(root=ROOT)
         result = runtime.run_turn("もし観測誤差が原因だとしたら、どう考える？")
         self.assertEqual(result.state, "handled")
-        self.assertEqual(result.endpoint_id, "general_reasoning_core")
-        self.assertEqual(result.payload.get("verification_state"), "provisional")
-        self.assertEqual(result.payload.get("reasoning_source"), "hypothesis_provisional")
-        self.assertTrue(result.payload.get("selected_payload", {}).get("hypothesis_reasoning"))
+        self.assertEqual(result.endpoint_id, "reflective")
+        self.assertTrue(result.payload.get("grounded"))
+        self.assertEqual(result.payload.get("grounding"), "user-premise")
 
     def test_unknown_question_fails_closed(self):
         runtime = FAP1xStandardRuntime(root=ROOT)
