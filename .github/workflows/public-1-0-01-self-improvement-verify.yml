@@ -21,9 +21,12 @@ on:
     paths:
       - "fap_self_improvement_controller.py"
       - "fap_browser_operator.py"
+      - "fap_browser_runtime.py"
+      - "fap_browser_preflight.py"
       - "RUN_FAP_BROWSER_SELF_IMPROVE.ps1"
       - "tests/test_fap_self_improvement_controller.py"
       - "tests/test_fap_browser_operator.py"
+      - "tests/test_fap_browser_runtime.py"
       - "docs/SELF_IMPROVEMENT_1_0_01.md"
       - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
   workflow_dispatch:
