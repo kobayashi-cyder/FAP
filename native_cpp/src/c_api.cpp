@@ -1,5 +1,6 @@
 #include "fap/native_api.h"
 #include "fap/native_core.hpp"
+#include "fap/response_redundancy.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -110,6 +111,17 @@ char* fap_native_engine_analyze_json(
             counterexample != 0,
             confidence);
 
+        const fap::cppcore::ResponseRedundancyPlanner response_planner;
+        const auto redundancy = response_planner.plan(
+            text,
+            decision.budget,
+            uncertainty,
+            confidence,
+            disagreement != 0,
+            counterexample != 0,
+            static_cast<int>(decision.intents.size()),
+            decision.semantic_route.has_value());
+
         std::ostringstream out;
         out << "{\"version\":\"" << json_escape(fap::cppcore::kVersion) << "\""
             << ",\"budget\":{"
@@ -142,6 +154,23 @@ char* fap_native_engine_analyze_json(
                 << ",\"resource_id\":null"
                 << ",\"action_id\":null";
         }
+
+        out << ",\"response_redundancy\":{"
+            << "\"contract\":\"fap.response.series.v1\""
+            << ",\"capacity\":" << redundancy.capacity
+            << ",\"active_lanes\":" << redundancy.active_lanes
+            << ",\"synthesis_width\":" << redundancy.synthesis_width
+            << ",\"quorum\":" << redundancy.quorum
+            << ",\"independent_groups\":" << redundancy.independent_groups
+            << ",\"pressure\":" << redundancy.pressure
+            << ",\"coverage_target\":" << redundancy.coverage_target
+            << ",\"partial_coverage_allowed\":true"
+            << ",\"lane_roles\":[";
+        for (std::size_t i = 0; i < redundancy.lanes.size(); ++i) {
+            if (i) out << ",";
+            out << "\"" << json_escape(redundancy.lanes[i].role) << "\"";
+        }
+        out << "]}";
         out << "}";
 
         return duplicate_string(out.str());

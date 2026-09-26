@@ -27,6 +27,31 @@ class V8781CodingConversationGatewayTests(unittest.TestCase):
         self.assertTrue(hardening.get("new_unknown_subject_blocks_stale_topic"))
         self.assertTrue(hardening.get("explicit_correction_asserted_side_priority"))
 
+    def test_response_series_redundancy_is_large_and_bounded(self) -> None:
+        core = gateway.FAPV8781Unified()
+        status = core.status()
+        response = status.get("response_redundancy") or {}
+        self.assertTrue(response.get("enabled"))
+        self.assertEqual(response.get("max_lanes"), 64)
+        self.assertEqual(response.get("max_synthesis_width"), 8)
+        self.assertTrue(response.get("partial_coverage_allowed"))
+        self.assertEqual(response.get("native_parity_revision"), "1.0.01-cpp-native-r003")
+
+        simple = core._pre_response_plan("説明して", [])
+        complex_plan = core.response_redundancy.plan(
+            ("複数観点で検証し、反例と代替案と制約も検討してください。" * 10),
+            uncertainty=0.95,
+            confidence=0.25,
+            disagreement=True,
+            counterexample=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+            intent_count=4,
+        )
+        self.assertGreater(complex_plan.active_lanes, simple["active_lanes"])
+        self.assertGreaterEqual(complex_plan.active_lanes, 48)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -138,6 +138,10 @@ function updateTrace(d) {
     if (meter) meter.value = val;
   }
 
+  const rr = d?.response_redundancy || {};
+  $("#responseLanes").textContent = String(rr.active_lanes ?? 6) + " / " + String(rr.capacity ?? 64);
+  $("#synthesisWidth").textContent = String(rr.synthesis_width ?? 2) + " / 8";
+  $("#coverageTarget").textContent = Math.round(Number(rr.coverage_target ?? 0.55) * 100) + "%";
   $("#extraPath").textContent = d?.extra_path ? "YES" : "NO";
   $("#multiIntents").textContent = String(d?.multi_intents ?? 0);
   $("#resourceId").textContent = d?.resource_id || "—";
@@ -259,7 +263,9 @@ async function submit(text) {
       addMessage("system", "Native analysis completed.", {
         route: trace.route || "—",
         extra_path: trace.extra_path ? "yes" : "no",
-        intents: trace.multi_intents ?? 0
+        intents: trace.multi_intents ?? 0,
+        response_lanes: trace.response_redundancy?.active_lanes ?? 0,
+        synthesis: trace.response_redundancy?.synthesis_width ?? 0
       });
     } else {
       addMessage("system", "WASMが未ロードのためNative only処理を実行できません。");
@@ -286,7 +292,9 @@ async function submit(text) {
     addMessage("fap", d.reply || "", {
       ability: d.ability,
       route: Array.isArray(d.route) ? d.route.join(" → ") : d.route,
-      confidence: typeof d.confidence === "number" ? d.confidence.toFixed(2) : undefined
+      confidence: typeof d.confidence === "number" ? d.confidence.toFixed(2) : undefined,
+      response_lanes: d.response_redundancy?.active_lanes,
+      synthesis: d.response_redundancy?.synthesis_width
     }, d.artifacts || []);
     state("#apiState", String(d.status?.state || "READY").toUpperCase(), d.status?.state === "degraded" ? "warn" : "ready");
   } catch (err) {

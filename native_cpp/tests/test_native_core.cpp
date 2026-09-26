@@ -1,10 +1,12 @@
 #include "fap/native_api.h"
 #include "fap/native_core.hpp"
+#include "fap/response_redundancy.hpp"
 
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 using namespace fap::cppcore;
@@ -117,6 +119,48 @@ void test_orchestrator() {
             "orchestrator semantic route failed");
 }
 
+void test_response_redundancy() {
+    ResponseRedundancyPlanner planner;
+    const auto normal = planner.plan(
+        "この仕組みを説明してください。",
+        Budget{1, 8, 1, 0},
+        0.10,
+        0.90,
+        false,
+        false,
+        0,
+        true);
+    require(normal.active_lanes >= 6 && normal.active_lanes <= 16,
+            "normal response redundancy out of bound");
+    require(normal.coverage_target < 1.0, "response planner must permit partial coverage");
+
+    const std::string hard_text =
+        std::string("前提、反例、制約、代替案、検証方法を分けて考えてください。") +
+        std::string(1800, 'x');
+    const auto hard = planner.plan(
+        hard_text,
+        Budget{8, 96, 6, 4},
+        0.95,
+        0.25,
+        true,
+        true,
+        5,
+        false);
+    require(hard.active_lanes >= 48 && hard.active_lanes <= 64,
+            "hard response did not reach large redundancy scale");
+    require(hard.synthesis_width >= 6 && hard.synthesis_width <= 8,
+            "synthesis committee did not expand");
+
+    std::unordered_set<std::string> ids;
+    std::unordered_set<std::string> roles;
+    for (const auto& lane : hard.lanes) {
+        ids.insert(lane.lane_id);
+        roles.insert(lane.role);
+    }
+    require(ids.size() == hard.lanes.size(), "response lane ids must be unique");
+    require(roles.size() == 16, "all generic response roles must be represented");
+}
+
 void test_c_api_ui_bridge() {
     require(std::string(fap_native_version()) == kVersion, "C API version mismatch");
 
@@ -136,7 +180,7 @@ void test_c_api_ui_bridge() {
     fap_native_string_free(json);
     fap_native_engine_destroy(engine);
 
-    require(payload.find("\"version\":\"1.0.01-cpp-native-r002\"") != std::string::npos,
+    require(payload.find("\"version\":\"1.0.01-cpp-native-r003\"") != std::string::npos,
             "C API JSON version missing");
     require(payload.find("\"budget\"") != std::string::npos,
             "C API JSON budget missing");
@@ -144,6 +188,10 @@ void test_c_api_ui_bridge() {
             "C API JSON extra path missing");
     require(payload.find("\"multi_intents\"") != std::string::npos,
             "C API JSON multi intent count missing");
+    require(payload.find("\"response_redundancy\"") != std::string::npos,
+            "C API JSON response redundancy missing");
+    require(payload.find("\"active_lanes\"") != std::string::npos,
+            "C API JSON lane count missing");
 }
 
 }  // namespace
@@ -158,6 +206,7 @@ int main() {
         test_memory();
         test_goal_state();
         test_orchestrator();
+        test_response_redundancy();
         test_c_api_ui_bridge();
         std::cout << "fap_native_tests: PASS\n";
         return 0;
