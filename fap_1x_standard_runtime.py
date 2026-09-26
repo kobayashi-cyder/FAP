@@ -36,7 +36,17 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         )
         self.factual = FactualQAOrgan()
         self.rule_reasoner = GenericRuleReasoner(self.root)
-        self.fmg_image = FMGImportedImageModule(self.root)
+        media_artifact_dir = None
+        if memory_root is not None:
+            media_artifact_dir = (
+                Path(memory_root).expanduser().resolve().parent
+                / "generated_media"
+                / "fmg_frames"
+            )
+        self.fmg_image = FMGImportedImageModule(
+            self.root,
+            artifact_dir=media_artifact_dir,
+        )
         self.fmg_video = FMGImportedVideoModule(self.root, self.fmg_image)
         self.reflective = ReflectiveConversationOrgan()
         self.semantic_router = SemanticConversationRouter(self.root)
