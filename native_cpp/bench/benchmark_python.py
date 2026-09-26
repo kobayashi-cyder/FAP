@@ -4,7 +4,12 @@ import argparse
 import json
 import tempfile
 import time
+import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from fap_revision_r001 import Signal, adaptive_budget
 from fap_semantic_action_router import SemanticActionRouter
