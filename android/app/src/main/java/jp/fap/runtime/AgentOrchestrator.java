@@ -22,6 +22,8 @@ public final class AgentOrchestrator {
     private static final String KEY_PENDING_USER_ID = "pending_browser_user_id";
     private static final String KEY_PENDING_PROMPT = "pending_browser_prompt";
     private static final String KEY_PENDING_CHANNEL = "pending_browser_channel";
+    private static final String KEY_INFLIGHT_USER_ID = "inflight_user_id";
+    private static final String KEY_INFLIGHT_STARTED_AT = "inflight_started_at";
 
     private static final int MAX_CONTEXT_LOGS = 48;
     private static final int MAX_RECOVERY_SCAN = 96;
@@ -92,6 +94,13 @@ public final class AgentOrchestrator {
 
         ChatLogStore.Entry entry = chatLog.append("user", channel, clean);
         if (entry == null) return;
+        prefs.edit()
+                .putLong(KEY_LAST_USER_ID, Math.max(
+                        prefs.getLong(KEY_LAST_USER_ID, 0L),
+                        entry.id))
+                .putLong(KEY_INFLIGHT_USER_ID, entry.id)
+                .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
+                .apply();
         processUserEntryAsync(entry, listener, true);
     }
 
@@ -148,6 +157,8 @@ public final class AgentOrchestrator {
                     .putLong(KEY_LAST_USER_ID, Math.max(
                             prefs.getLong(KEY_LAST_USER_ID, 0L),
                             pendingUserId))
+                    .remove(KEY_INFLIGHT_USER_ID)
+                    .remove(KEY_INFLIGHT_STARTED_AT)
                     .apply();
             reply(listener, result, pendingChannel);
         });
@@ -209,33 +220,49 @@ public final class AgentOrchestrator {
                 .putLong(KEY_LAST_USER_ID, Math.max(
                         prefs.getLong(KEY_LAST_USER_ID, 0L),
                         entry.id))
+                .remove(KEY_INFLIGHT_USER_ID)
+                .remove(KEY_INFLIGHT_STARTED_AT)
                 .apply();
         reply(listener, result, entry.channel);
     }
 
     private void reconcileBlocking() {
         long cursor = prefs.getLong(KEY_LAST_USER_ID, 0L);
+        long inflightId = prefs.getLong(KEY_INFLIGHT_USER_ID, 0L);
+
+        if (inflightId > 0L) {
+            ChatLogStore.Entry inflight = findEntry(inflightId);
+            if (inflight == null || chatLog.hasAssistantAfter(inflightId)) {
+                prefs.edit()
+                        .remove(KEY_INFLIGHT_USER_ID)
+                        .remove(KEY_INFLIGHT_STARTED_AT)
+                        .apply();
+            } else if (prefs.getLong(KEY_PENDING_USER_ID, 0L) <= 0L) {
+                processUserEntryBlocking(inflight, null, true);
+            }
+        }
+
+        cursor = prefs.getLong(KEY_LAST_USER_ID, cursor);
         List<ChatLogStore.Entry> rows = chatLog.entriesAfter(cursor, MAX_RECOVERY_SCAN);
 
         for (ChatLogStore.Entry entry : rows) {
             if (!"user".equals(entry.role)) continue;
-            if ("browser".equals(entry.channel)) {
-                cursor = Math.max(cursor, entry.id);
-                continue;
-            }
-            if (chatLog.hasAssistantAfter(entry.id)) {
-                cursor = Math.max(cursor, entry.id);
-                continue;
-            }
-            processUserEntryBlocking(entry, null, true);
             cursor = Math.max(cursor, entry.id);
+            prefs.edit().putLong(KEY_LAST_USER_ID, cursor).apply();
+
+            if ("browser".equals(entry.channel)) continue;
+            if (chatLog.hasAssistantAfter(entry.id)) continue;
+
+            prefs.edit()
+                    .putLong(KEY_INFLIGHT_USER_ID, entry.id)
+                    .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
+                    .apply();
+            processUserEntryBlocking(entry, null, true);
 
             // A browser delegation is now pending. Wait for AccessibilityService
             // rather than consuming later user events out of order.
             if (prefs.getLong(KEY_PENDING_USER_ID, 0L) > 0L) break;
         }
-
-        prefs.edit().putLong(KEY_LAST_USER_ID, cursor).apply();
 
         if (prefs.getLong(KEY_PENDING_USER_ID, 0L) > 0L) {
             long browserCursor = prefs.getLong(KEY_LAST_BROWSER_ID, 0L);
@@ -251,6 +278,25 @@ public final class AgentOrchestrator {
                 }
             }
         }
+    }
+
+    private ChatLogStore.Entry findEntry(long id) {
+        if (id <= 0L) return null;
+        for (ChatLogStore.Entry entry : chatLog.entriesAfter(id - 1L, 2)) {
+            if (entry.id == id) return entry;
+        }
+        return null;
+    }
+
+    public void resetDurableState() {
+        clearPendingBrowser();
+        pendingBrowserListener = null;
+        prefs.edit()
+                .remove(KEY_LAST_USER_ID)
+                .remove(KEY_LAST_BROWSER_ID)
+                .remove(KEY_INFLIGHT_USER_ID)
+                .remove(KEY_INFLIGHT_STARTED_AT)
+                .apply();
     }
 
     private void appendAgentReply(PythonFapEngine.Result result, String sourceChannel) {
