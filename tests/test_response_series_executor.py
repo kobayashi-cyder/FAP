@@ -96,7 +96,7 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
         self.assertEqual(plan.active_lanes, 128)
         self.assertEqual(execution["executed_lane_votes"], plan.active_lanes)
         self.assertLessEqual(execution["candidate_count"], 5)
-        self.assertGreaterEqual(execution["safe_specialist_calls"], 7)
+        self.assertGreaterEqual(execution["safe_specialist_calls"], 11)
 
 
     def test_verified_arithmetic_specialist_can_replace_weak_primary(self) -> None:
@@ -144,6 +144,58 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
         for row in rows:
             self.assertIn("requirement_coverage", row)
             self.assertIn("segment_coverage", row)
+
+    def test_verified_linear_equation_can_replace_weak_primary(self) -> None:
+        text = "方程式 2x + 3 = 11 を解いて"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.9,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "方程式を解けません。",
+                "confidence": 0.2,
+                "needs_teacher": True,
+            },
+            plan,
+        )
+        self.assertIn("x = 4", out["reply"])
+        self.assertTrue(out["response_series_execution"]["selection_changed_primary"])
+        self.assertIn("linear_equation", out["response_series_execution"]["consensus_sources"])
+
+    def test_verified_physics_numeric_can_replace_weak_primary(self) -> None:
+        text = "質量=2 kg、加速度=3 m/s^2 のとき力を求めて"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.9,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "物理計算を確定できません。",
+                "confidence": 0.2,
+                "needs_teacher": True,
+            },
+            plan,
+        )
+        self.assertIn("6", out["reply"])
+        self.assertTrue(out["response_series_execution"]["selection_changed_primary"])
+        self.assertIn("physics_numeric", out["response_series_execution"]["consensus_sources"])
 
 if __name__ == "__main__":
     unittest.main()
