@@ -13,6 +13,7 @@ from fap_hypothesis_engine import HYPOTHESIS_CUES, HypothesisEngine
 from fap_physics_solver_v2 import ExpandedPhysicsSolver
 from fap_scientific_reasoning import OptionConditionedScientificReasoner
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
+from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
 from fap_1x_problem_decomposer import ProblemDecomposer
 from fap_1x_search_controller import AdaptiveSearchController
 
@@ -74,6 +75,7 @@ class FAP1xGeneralReasoningCore:
         self.hypotheses = HypothesisEngine(self.root)
         self.decomposer = ProblemDecomposer()
         self.verifier = IndependentCandidateVerifier(self.root)
+        self.retrieval = GroundedRetrievalReasoner(self.root)
         self.search_controller = AdaptiveSearchController()
 
     def plan(self, text: str) -> ReasoningPlan:
@@ -126,7 +128,7 @@ class FAP1xGeneralReasoningCore:
                 "rank_by_verification",
                 "fail_closed_if_unresolved",
             ),
-            candidate_lanes=("factual_qa", "rule_reasoner"),
+            candidate_lanes=("factual_qa", "rule_reasoner", "grounded_retrieval"),
         )
 
     def probe(self, text: str) -> float:
@@ -143,6 +145,9 @@ class FAP1xGeneralReasoningCore:
             return 0.96
         if self.rules._resolve_relation(query) is not None:
             return 0.86
+        retrieval_probe = self.retrieval.probe(query)
+        if retrieval_probe > 0:
+            return retrieval_probe
         return 0.0
 
     @staticmethod
@@ -254,6 +259,20 @@ class FAP1xGeneralReasoningCore:
                     confidence=float(rule.get("confidence", 0.0)),
                     verification="verified",
                     payload=rule,
+                    evidence_count=len(evidence),
+                )
+            )
+
+        retrieval = self.retrieval.run(text, history)
+        if retrieval is not None and retrieval.get("ok") and not retrieval.get("needs_live_retrieval"):
+            evidence = retrieval.get("evidence_ids") or []
+            out.append(
+                ReasoningCandidate(
+                    source="grounded_retrieval",
+                    reply=self._reply(retrieval),
+                    confidence=float(retrieval.get("confidence", 0.0)),
+                    verification="supported",
+                    payload=retrieval,
                     evidence_count=len(evidence),
                 )
             )
