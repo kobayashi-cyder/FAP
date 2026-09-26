@@ -315,7 +315,59 @@ public final class AttachmentAnalyzer {
                 : text.getText().trim();
     }
 
-    private static String analyzeMedia(File file) {
+    private static String analyzeBitmapFrame(Bitmap bitmap) throws Exception {
+        if (bitmap == null) return "";
+        StringBuilder out = new StringBuilder();
+        TextRecognizer recognizer = null;
+        ImageLabeler labeler = null;
+        try {
+            InputImage image = InputImage.fromBitmap(bitmap, 0);
+            recognizer = TextRecognition.getClient(
+                    new JapaneseTextRecognizerOptions.Builder().build());
+            Text recognized = Tasks.await(
+                    recognizer.process(image),
+                    10,
+                    TimeUnit.SECONDS);
+            String text = recognized == null ? "" : recognized.getText().trim();
+            if (!text.isEmpty()) {
+                if (text.length() > 4000) text = text.substring(0, 4000) + "…";
+                out.append("OCR=").append(text);
+            }
+
+            labeler = ImageLabeling.getClient(
+                    new ImageLabelerOptions.Builder()
+                            .setConfidenceThreshold(0.50f)
+                            .build());
+            java.util.List<ImageLabel> labels = Tasks.await(
+                    labeler.process(image),
+                    10,
+                    TimeUnit.SECONDS);
+            if (labels != null && !labels.isEmpty()) {
+                if (out.length() > 0) out.append("\n");
+                out.append("labels=");
+                int count = 0;
+                for (ImageLabel label : labels) {
+                    if (label == null || label.getText() == null) continue;
+                    if (count > 0) out.append(", ");
+                    out.append(label.getText())
+                            .append("(")
+                            .append(String.format(Locale.ROOT, "%.2f", label.getConfidence()))
+                            .append(")");
+                    if (++count >= 8) break;
+                }
+            }
+        } finally {
+            if (recognizer != null) {
+                try { recognizer.close(); } catch (Throwable ignored) {}
+            }
+            if (labeler != null) {
+                try { labeler.close(); } catch (Throwable ignored) {}
+            }
+        }
+        return out.toString();
+    }
+
+    private static String analyzeMedia(File file) throws Exception {
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         try {
             retriever.setDataSource(file.getAbsolutePath());
@@ -337,6 +389,28 @@ public final class AttachmentAnalyzer {
             }
             if (title != null && !title.isEmpty()) out.append("\nTitle: ").append(title);
             if (artist != null && !artist.isEmpty()) out.append("\nArtist: ").append(artist);
+
+            if (width != null && height != null) {
+                long durationMs = 0L;
+                try {
+                    durationMs = Long.parseLong(duration == null ? "0" : duration);
+                } catch (NumberFormatException ignored) {
+                }
+                long middleUs = Math.max(0L, durationMs * 500L);
+                Bitmap frame = retriever.getFrameAtTime(
+                        middleUs,
+                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                if (frame != null) {
+                    try {
+                        String vision = analyzeBitmapFrame(frame);
+                        if (!vision.isEmpty()) {
+                            out.append("\n\n[動画中央フレーム解析]\n").append(vision);
+                        }
+                    } finally {
+                        frame.recycle();
+                    }
+                }
+            }
             return out.toString();
         } finally {
             try {
