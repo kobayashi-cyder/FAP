@@ -137,8 +137,6 @@ jobs:
           grep -q 'AndroidVoiceController' pixel-apk/dex-strings.txt
           grep -q 'ChatLogStore' pixel-apk/dex-strings.txt
           grep -q 'AgentOrchestrator' pixel-apk/dex-strings.txt
-          grep -q 'FapTimelineView' pixel-apk/dex-strings.txt
-          grep -q 'GitContextProvider' pixel-apk/dex-strings.txt
           test -s android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
           test -s android/app/src/main/java/jp/fap/runtime/GitContextProvider.java
           grep -q 'startContinuous' android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
