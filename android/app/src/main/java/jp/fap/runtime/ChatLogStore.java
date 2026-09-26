@@ -17,8 +17,11 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 public final class ChatLogStore {
+    public static final String SURFACE_FRONT = "front";
+    public static final String SURFACE_BACK = "back";
+
     private static final String FILE_NAME = "chat_log.jsonl";
-    private static final int MAX_ENTRIES = 1000;
+    private static final int MAX_ENTRIES = 1200;
     private static final int MAX_TEXT_CHARS = 20_000;
 
     private final File file;
@@ -30,13 +33,21 @@ public final class ChatLogStore {
         public final long timestampMs;
         public final String role;
         public final String channel;
+        public final String surface;
         public final String text;
 
-        Entry(long id, long timestampMs, String role, String channel, String text) {
+        Entry(
+                long id,
+                long timestampMs,
+                String role,
+                String channel,
+                String surface,
+                String text) {
             this.id = id;
             this.timestampMs = timestampMs;
             this.role = role;
             this.channel = channel;
+            this.surface = surface;
             this.text = text;
         }
 
@@ -46,6 +57,7 @@ public final class ChatLogStore {
             o.put("timestamp_ms", timestampMs);
             o.put("role", role);
             o.put("channel", channel);
+            o.put("surface", surface);
             o.put("text", text);
             return o;
         }
@@ -53,11 +65,17 @@ public final class ChatLogStore {
         static Entry fromJson(JSONObject o, long fallbackId) {
             long id = o.optLong("id", fallbackId);
             if (id <= 0L) id = fallbackId;
+            String role = o.optString("role", "system");
+            String channel = o.optString("channel", "unknown");
+            String surface = o.optString(
+                    "surface",
+                    inferSurface(role, channel));
             return new Entry(
                     id,
                     o.optLong("timestamp_ms", 0L),
-                    o.optString("role", "system"),
-                    o.optString("channel", "unknown"),
+                    role,
+                    channel,
+                    normalizeSurface(surface),
                     o.optString("text", ""));
         }
     }
@@ -68,8 +86,25 @@ public final class ChatLogStore {
     }
 
     public synchronized Entry append(String role, String channel, String text) {
+        return append(role, channel, inferSurface(role, channel), text);
+    }
+
+    public synchronized Entry appendFront(String role, String channel, String text) {
+        return append(role, channel, SURFACE_FRONT, text);
+    }
+
+    public synchronized Entry appendBack(String role, String channel, String text) {
+        return append(role, channel, SURFACE_BACK, text);
+    }
+
+    public synchronized Entry append(
+            String role,
+            String channel,
+            String surface,
+            String text) {
         String cleanRole = normalizeRole(role);
         String cleanChannel = normalizeChannel(channel);
+        String cleanSurface = normalizeSurface(surface);
         String cleanText = text == null ? "" : text.trim();
         if (cleanText.isEmpty()) return null;
         if (cleanText.length() > MAX_TEXT_CHARS) {
@@ -81,6 +116,7 @@ public final class ChatLogStore {
                 System.currentTimeMillis(),
                 cleanRole,
                 cleanChannel,
+                cleanSurface,
                 cleanText);
         entries.add(entry);
         while (entries.size() > MAX_ENTRIES) {
@@ -115,9 +151,10 @@ public final class ChatLogStore {
         return out;
     }
 
-    public synchronized boolean hasAssistantAfter(long id) {
+    public synchronized boolean hasFrontAssistantAfter(long id) {
         for (Entry entry : entries) {
             if (entry.id <= id) continue;
+            if (!SURFACE_FRONT.equals(entry.surface)) continue;
             if ("assistant".equals(entry.role)) return true;
             if ("user".equals(entry.role)) return false;
         }
@@ -127,16 +164,19 @@ public final class ChatLogStore {
     public synchronized boolean containsRecent(
             String role,
             String channel,
+            String surface,
             String text,
             int lookback) {
         String r = normalizeRole(role);
         String c = normalizeChannel(channel);
+        String s = normalizeSurface(surface);
         String t = text == null ? "" : text.trim();
         int start = Math.max(0, entries.size() - Math.max(1, lookback));
         for (int i = entries.size() - 1; i >= start; i--) {
             Entry entry = entries.get(i);
             if (entry.role.equals(r)
                     && entry.channel.equals(c)
+                    && entry.surface.equals(s)
                     && entry.text.equals(t)) {
                 return true;
             }
@@ -144,29 +184,52 @@ public final class ChatLogStore {
         return false;
     }
 
-    public synchronized String recentJson(int limit) {
-        int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
-        int start = Math.max(0, entries.size() - take);
+    public synchronized String recentConversationJson(int limit) {
         JSONArray array = new JSONArray();
-        for (int i = start; i < entries.size(); i++) {
+        int remaining = Math.max(1, Math.min(MAX_ENTRIES, limit));
+        ArrayList<Entry> selected = new ArrayList<>();
+        for (int i = entries.size() - 1; i >= 0 && selected.size() < remaining; i--) {
+            Entry entry = entries.get(i);
+            if (!SURFACE_FRONT.equals(entry.surface)) continue;
+            if (!"user".equals(entry.role) && !"assistant".equals(entry.role)) continue;
+            selected.add(0, entry);
+        }
+        for (Entry entry : selected) {
             try {
-                array.put(entries.get(i).toJson());
+                array.put(entry.toJson());
             } catch (Throwable ignored) {
             }
         }
         return array.toString();
     }
 
-    public synchronized String render(int limit) {
+    public synchronized String renderFront(int limit) {
+        return renderSurface(SURFACE_FRONT, limit);
+    }
+
+    public synchronized String renderBack(int limit) {
+        return renderSurface(SURFACE_BACK, limit);
+    }
+
+    public synchronized String renderAll(int limit) {
+        return renderSurface(null, limit);
+    }
+
+    private String renderSurface(String surface, int limit) {
         int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
-        int start = Math.max(0, entries.size() - take);
+        ArrayList<Entry> selected = new ArrayList<>();
+        for (int i = entries.size() - 1; i >= 0 && selected.size() < take; i--) {
+            Entry entry = entries.get(i);
+            if (surface != null && !surface.equals(entry.surface)) continue;
+            selected.add(0, entry);
+        }
+
         StringBuilder out = new StringBuilder();
-        for (int i = start; i < entries.size(); i++) {
-            Entry e = entries.get(i);
+        for (Entry e : selected) {
             if (out.length() > 0) out.append("\n\n");
             out.append(formatTime(e.timestampMs))
                     .append(" · ")
-                    .append(roleLabel(e.role))
+                    .append(roleLabel(e.role, e.surface))
                     .append(" [")
                     .append(e.channel)
                     .append("] #")
@@ -200,7 +263,6 @@ public final class ChatLogStore {
                 }
             }
             nextId = Math.max(1L, maxId + 1L);
-            // Persist once to migrate legacy rows which did not yet carry IDs.
             persist();
         } catch (Throwable ignored) {
         }
@@ -225,8 +287,22 @@ public final class ChatLogStore {
                 throw t;
             }
         } catch (Throwable ignored) {
-            // Chat logging must never break the conversation runtime.
+            // Logging must never break the conversation or agent runtime.
         }
+    }
+
+    private static String inferSurface(String role, String channel) {
+        String r = normalizeRole(role);
+        String c = normalizeChannel(channel);
+        if ("system".equals(r)) return SURFACE_BACK;
+        if (c.startsWith("agent:")
+                || c.startsWith("git")
+                || c.startsWith("browser-raw")
+                || c.startsWith("voice-meta")
+                || c.startsWith("trace")) {
+            return SURFACE_BACK;
+        }
+        return SURFACE_FRONT;
     }
 
     private static String normalizeRole(String role) {
@@ -240,10 +316,15 @@ public final class ChatLogStore {
     private static String normalizeChannel(String channel) {
         String value = channel == null ? "" : channel.trim().toLowerCase(Locale.ROOT);
         value = value.replaceAll("[^a-z0-9_.:-]", "_");
-        return value.isEmpty() ? "unknown" : value.substring(0, Math.min(40, value.length()));
+        return value.isEmpty() ? "unknown" : value.substring(0, Math.min(48, value.length()));
     }
 
-    private static String roleLabel(String role) {
+    private static String normalizeSurface(String surface) {
+        return SURFACE_BACK.equals(surface) ? SURFACE_BACK : SURFACE_FRONT;
+    }
+
+    private static String roleLabel(String role, String surface) {
+        if (SURFACE_BACK.equals(surface)) return "裏";
         if ("user".equals(role)) return "あなた";
         if ("assistant".equals(role)) return "FAP";
         return "System";
