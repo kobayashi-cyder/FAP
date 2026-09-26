@@ -102,7 +102,11 @@ class FAP1xStandardRuntimeTests(unittest.TestCase):
         self.assertTrue(intelligence.get("enabled"))
         self.assertEqual(intelligence.get("max_lanes"), 128)
         self.assertEqual(intelligence.get("max_synthesis_width"), 16)
-        self.assertEqual(len(intelligence.get("safe_specialists", [])), 16)
+        specialists = intelligence.get("safe_specialists", [])
+        self.assertGreaterEqual(len(specialists), 16)
+        self.assertIn("subproblem", specialists)
+        self.assertIn("linear_equation", specialists)
+        self.assertIn("counterexample_search", specialists)
         self.assertEqual(
             intelligence.get("native_revision"),
             "1.0.01-cpp-native-r008",
