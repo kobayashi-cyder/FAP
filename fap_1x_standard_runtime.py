@@ -5,6 +5,7 @@ from typing import Any, Mapping
 
 from fap_1x_runtime import FAP1xRuntime
 from fap_adaptive_reasoning import AdaptiveReasoningGovernor
+from fap_epistemic_ledger import EpistemicConflictLedger
 from fap_interaction_fabric import InteractionDispatch
 from fap_knowledge_narrator import KnowledgeNarrator
 from fap_reasoning_episode import ReasoningEpisodeController
@@ -45,6 +46,12 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         self.response_series = ResponseSeriesExecutor(self.root)
         self.reasoning_governor = AdaptiveReasoningGovernor()
         self.reasoning_episode = ReasoningEpisodeController()
+        ledger_root = (
+            Path(memory_root).expanduser().resolve() / "epistemic"
+            if memory_root is not None
+            else None
+        )
+        self.epistemic_ledger = EpistemicConflictLedger(ledger_root)
         self._register_standard_endpoints()
 
     def capabilities(self) -> tuple[str, ...]:
@@ -72,6 +79,8 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "partial-answer-takeover-guard",
             "plan-execute-verify-repair-reverify",
             "false-success-guard",
+            "separate-epistemic-conflict-ledger",
+            "conflict-triggered-reverification",
             "fail-closed-epistemics",
         ]
         if self.memory is not None:
@@ -98,6 +107,13 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "groups": len(self.semantic_router.groups),
             },
             "semantic_memory": self.memory is not None,
+            "epistemic_ledger": {
+                "contract": self.epistemic_ledger.CONTRACT,
+                "persistent": self.epistemic_ledger.persistent,
+                "active_conflicts": self.epistemic_ledger.active_count(),
+                "raw_text_persisted": False,
+                "candidate_prose_persisted": False,
+            },
             "response_intelligence": {
                 "enabled": True,
                 "planning_contract": self.response_redundancy.CONTRACT,
@@ -110,6 +126,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "governor_contract": self.reasoning_governor.CONTRACT,
                 "subproblem_contract": self.response_series.subproblem.CONTRACT,
                 "episode_contract": self.reasoning_episode.CONTRACT,
+                "epistemic_ledger_contract": self.epistemic_ledger.CONTRACT,
                 "max_escalation_passes": self.reasoning_governor.MAX_ESCALATION_PASSES,
                 "confidence_calibrated": True,
                 "fail_closed": True,
@@ -125,6 +142,14 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         pressure_hint: float = 0.0,
         metadata: Mapping[str, Any] | None = None,
     ) -> InteractionDispatch:
+        meta = dict(metadata) if isinstance(metadata, Mapping) else {}
+        session_id = str(meta.get("session_id") or "default")
+        prior_conflicts = (
+            self.epistemic_ledger.relevant(session_id, str(text))
+            if channel == "chat"
+            else []
+        )
+
         primary = super().dispatch(
             text,
             history=history,
@@ -156,12 +181,17 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 0.0,
                 (1.0 - confidence)
                 + 0.20 * float(primary.demand.value)
-                + (0.18 if primary.state != "handled" else 0.0),
+                + (0.18 if primary.state != "handled" else 0.0)
+                + (0.14 if prior_conflicts else 0.0),
             ),
         )
-        disagreement = primary.state != "handled" or any(
-            attempt.state not in {"handled", "declined"}
-            for attempt in primary.attempts
+        disagreement = (
+            primary.state != "handled"
+            or bool(prior_conflicts)
+            or any(
+                attempt.state not in {"handled", "declined"}
+                for attempt in primary.attempts
+            )
         )
 
         plan = self.response_redundancy.plan(
@@ -169,7 +199,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             uncertainty=uncertainty,
             confidence=confidence,
             disagreement=disagreement,
-            counterexample=False,
+            counterexample=bool(prior_conflicts),
             route_candidates=min(8, max(1, int(primary.budget.route_candidates))),
             verification_depth=min(
                 6,
@@ -186,6 +216,9 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             plan,
         )
         enhanced["response_redundancy"] = plan.to_dict()
+        if prior_conflicts:
+            enhanced["prior_epistemic_conflict"] = True
+            enhanced["prior_epistemic_conflict_count"] = len(prior_conflicts)
 
         reply = self._payload_text(enhanced)
         if not reply:
@@ -244,6 +277,9 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 stronger,
             )
             candidate["response_redundancy"] = stronger.to_dict()
+            if prior_conflicts:
+                candidate["prior_epistemic_conflict"] = True
+                candidate["prior_epistemic_conflict_count"] = len(prior_conflicts)
 
             candidate_assessment = self.reasoning_governor.assess(
                 str(text),
@@ -308,6 +344,19 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             budget=escalation_budget,
             final_assessment=final_assessment,
         )
+        ledger_update = self.epistemic_ledger.observe(
+            session_id,
+            str(text),
+            final_payload,
+        )
+        final_payload["epistemic_ledger"] = {
+            **ledger_update,
+            "related_before": len(prior_conflicts),
+            "related_ids": [
+                str(row.get("id") or "")
+                for row in prior_conflicts
+            ],
+        }
 
         return InteractionDispatch(
             contract=primary.contract,
@@ -318,6 +367,16 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             attempts=primary.attempts,
             payload=final_payload,
         )
+
+    def epistemic_snapshot(
+        self,
+        session_id: str = "default",
+    ) -> tuple[dict[str, Any], ...]:
+        return self.epistemic_ledger.snapshot(session_id)
+
+    def clear_session(self, session_id: str = "default") -> None:
+        super().clear_session(session_id)
+        self.epistemic_ledger.clear_session(session_id)
 
     def _register_standard_endpoints(self) -> None:
         self.register_endpoint(
