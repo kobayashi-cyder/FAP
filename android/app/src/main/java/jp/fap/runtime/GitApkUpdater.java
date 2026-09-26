@@ -76,7 +76,16 @@ public final class GitApkUpdater {
                                     StandardCharsets.UTF_8));
                 }
 
-                validateManifest(manifest, app);
+                validateManifestHeader(manifest, app);
+                if (!manifest.optBoolean("available", false)) {
+                    String note = manifest.optString("note", "").trim();
+                    listener.onStatus(
+                            "Git APK更新は未公開です · 署名済みAPKのRelease公開待ち"
+                                    + (note.isEmpty() ? "" : " · " + note));
+                    return;
+                }
+
+                validatePublishedManifest(manifest);
                 int remoteVersion = manifest.getInt("version_code");
                 PackageInfo current = app.getPackageManager().getPackageInfo(
                         app.getPackageName(),
@@ -176,17 +185,16 @@ public final class GitApkUpdater {
         session.close();
     }
 
-    private static void validateManifest(JSONObject manifest, Context context) throws Exception {
+    private static void validateManifestHeader(JSONObject manifest, Context context) throws Exception {
         if (!"fap.pixel.apk.manifest.v1".equals(manifest.optString("schema", ""))) {
             throw new SecurityException("未知のAPK manifest schema");
         }
         if (!context.getPackageName().equals(manifest.optString("package_name", ""))) {
             throw new SecurityException("APK package_name不一致");
         }
-        if (!manifest.optBoolean("available", false)) {
-            throw new IllegalStateException("Git APK更新はまだ公開されていません");
-        }
+    }
 
+    private static void validatePublishedManifest(JSONObject manifest) throws Exception {
         String sha = manifest.optString("sha256", "").toLowerCase(Locale.ROOT);
         if (!SHA256.matcher(sha).matches()) {
             throw new SecurityException("APK SHA-256形式不正");
