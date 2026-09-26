@@ -63,8 +63,8 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          python -m py_compile fap_1x_standard_runtime.py fap_adaptive_reasoning.py
-          python -m unittest -v tests.test_adaptive_reasoning_governor
+          python -m py_compile fap_1x_standard_runtime.py fap_adaptive_reasoning.py fap_knowledge_narrator.py fap_knowledge_retrieval.py
+          python -m unittest -v tests.test_adaptive_reasoning_governor tests.test_knowledge_narrator
           python - <<'PY'
           from fap_1x_standard_runtime import FAP1xStandardRuntime
           runtime = FAP1xStandardRuntime(root=".")
@@ -72,7 +72,9 @@ jobs:
           assert status["version"] == "1.0.01"
           assert "factual-qa" in status["capabilities"]
           assert "adaptive-reasoning-governor" in status["capabilities"]
+          assert "grounded-knowledge-narration" in status["capabilities"]
           assert status["response_intelligence"]["governor_contract"] == "fap.reasoning.governor.v1"
+          assert status["knowledge_narrator"]["inventory"]["chunks"] > 0
           print(status)
           PY
 
@@ -97,6 +99,8 @@ jobs:
           assert "fap_speech.py" in paths
           assert "fap_1x_standard_runtime.py" in paths
           assert "fap_adaptive_reasoning.py" in paths
+          assert "fap_knowledge_narrator.py" in paths
+          assert "fap_knowledge_retrieval.py" in paths
           print("published manifest:", current["source_commit"], current["file_count"], current["total_bytes"])
           PY
 
@@ -225,6 +229,10 @@ jobs:
           grep -q '"/enter"' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
           ! grep -q 'android:packageNames=' android/app/src/main/res/xml/fap_pixel_accessibility_service.xml
           test -s android/app/src/main/python/fap_adaptive_reasoning.py
+          test -s android/app/src/main/python/fap_knowledge_narrator.py
+          test -s android/app/src/main/python/fap_knowledge_retrieval.py
+          grep -q 'KnowledgeNarrator' android/app/src/main/python/fap_1x_standard_runtime.py
+          grep -q 'fap.knowledge.narrator.v1' android/app/src/main/python/fap_knowledge_narrator.py
           grep -q 'AdaptiveReasoningGovernor' android/app/src/main/python/fap_1x_standard_runtime.py
           grep -q 'fap.reasoning.governor.v1' android/app/src/main/python/fap_adaptive_reasoning.py
           grep -q 'run_agent' android/app/src/main/python/android_bridge.py
