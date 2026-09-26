@@ -13,7 +13,7 @@ from typing import Any
 
 from fap_fmg_connectome import FlyConnectomeRouter
 from fap_local_image_backend import LocalRasterGenerator
-from fap_media_policy import ArtifactBudget, image_profile, release_transient_memory, strip_control_directives
+from fap_media_policy import ArtifactBudget, enhance_prompt, image_dimensions, image_profile, release_transient_memory, strip_control_directives
 
 
 IMPORT_VERSION = "FAP-FMG-IMPORT-1"
@@ -195,7 +195,7 @@ class FMGImportedImageModule:
         path.write_bytes(raw)
         return path
 
-    def _generate_external(self, prompt: str, profile) -> dict[str, Any]:
+    def _generate_external(self, prompt: str, profile, width: int, height: int) -> dict[str, Any]:
         availability = {
             "a1111": bool(self._probe_a1111().get("available")),
             "diffusers": False,
@@ -219,8 +219,8 @@ class FMGImportedImageModule:
             data={
                 "prompt": prompt,
                 "negative_prompt": DEFAULT_NEGATIVE,
-                "width": profile.width,
-                "height": profile.height,
+                "width": width,
+                "height": height,
                 "steps": profile.steps,
                 "cfg_scale": profile.guidance,
                 "seed": seed,
@@ -254,15 +254,15 @@ class FMGImportedImageModule:
         return {
             "ok": True,
             "reply": (
-                f"FMG画像生成で{profile.width}×{profile.height}画像を生成しました。\n"
+                f"FMG画像生成で{width}×{height}画像を生成しました。\n"
                 f"quality={profile.name} · backend=a1111 · steps={profile.steps} · guidance={profile.guidance}"
             ),
             "confidence": 0.95,
             "generator": "fmg-import",
             "fmg_source_commit": FMG_SOURCE_COMMIT,
             "image_profile": {
-                "width": profile.width,
-                "height": profile.height,
+                "width": width,
+                "height": height,
                 "steps": profile.steps,
                 "guidance": profile.guidance,
                 "quality": profile.name,
@@ -281,7 +281,9 @@ class FMGImportedImageModule:
     def generate(self, text: str) -> dict[str, Any]:
         raw_prompt = str(text or "").strip()
         profile = image_profile(raw_prompt)
+        width, height = image_dimensions(raw_prompt, profile)
         prompt = strip_control_directives(raw_prompt)
+        external_prompt = enhance_prompt(raw_prompt, profile)
         if not prompt:
             return {
                 "ok": False,
@@ -293,7 +295,7 @@ class FMGImportedImageModule:
         probe = self._probe_a1111()
         if probe.get("available"):
             try:
-                result = self._generate_external(prompt, profile)
+                result = self._generate_external(external_prompt, profile, width, height)
                 self.artifact_budget.prune([result.get("artifact_path", "")])
                 result["memory_release"] = release_transient_memory()
                 return result
@@ -325,8 +327,8 @@ class FMGImportedImageModule:
             local["fmg_source_commit"] = FMG_SOURCE_COMMIT
             local["fmg_external_error"] = external_error
             local["requested_fmg_profile"] = {
-                "width": profile.width,
-                "height": profile.height,
+                "width": width,
+                "height": height,
                 "steps": profile.steps,
                 "guidance": profile.guidance,
                 "quality": profile.name,
