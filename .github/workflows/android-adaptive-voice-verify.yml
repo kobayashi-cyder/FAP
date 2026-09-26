@@ -3,14 +3,14 @@ name: Android Adaptive Voice Verify
 on:
   push:
     branches:
-      - 'side/public-1.0.01-android-voice-port-*'
+      - 'port/public-1.0.01-android-voice-clean-*'
     paths:
       - "android-v59/**"
       - ".github/workflows/android-adaptive-voice-verify.yml"
       - "scripts/check_version_consistency.py"
       - "tests/test_public_release_contract.py"
   pull_request:
-    branches: [main]
+    branches: [integration/public-1.0.01-ready-20260926]
     paths:
       - "android-v59/**"
       - ".github/workflows/android-adaptive-voice-verify.yml"
