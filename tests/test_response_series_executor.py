@@ -93,11 +93,57 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
             plan,
         )
         execution = out["response_series_execution"]
-        self.assertGreaterEqual(plan.active_lanes, 48)
+        self.assertEqual(plan.active_lanes, 128)
         self.assertEqual(execution["executed_lane_votes"], plan.active_lanes)
         self.assertLessEqual(execution["candidate_count"], 5)
-        self.assertGreaterEqual(execution["safe_specialist_calls"], 4)
+        self.assertGreaterEqual(execution["safe_specialist_calls"], 7)
 
+
+    def test_verified_arithmetic_specialist_can_replace_weak_primary(self) -> None:
+        text = "計算してください: (37+5)*3"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.8,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "計算結果を確定できません。",
+                "confidence": 0.2,
+                "needs_teacher": True,
+            },
+            plan,
+        )
+        self.assertIn("126", out["reply"])
+        execution = out["response_series_execution"]
+        self.assertTrue(execution["selection_changed_primary"])
+        self.assertIn("arithmetic", execution["consensus_sources"])
+
+    def test_candidate_metadata_contains_coverage_audits(self) -> None:
+        text = "速度を説明してください。制約も説明してください。"
+        plan = self.planner.plan(text, uncertainty=0.5, confidence=0.6)
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "速度と制約について説明します。",
+                "confidence": 0.7,
+            },
+            plan,
+        )
+        rows = out["response_series_execution"]["candidates"]
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertIn("requirement_coverage", row)
+            self.assertIn("segment_coverage", row)
 
 if __name__ == "__main__":
     unittest.main()
