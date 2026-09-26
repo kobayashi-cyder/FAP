@@ -224,7 +224,9 @@ class ResponseSeriesExecutor:
             calls.append(("longform_contradiction", lambda: self.longform_contradiction.run(text, history)))
         if plan.active_lanes >= 18:
             calls.append(("derivation", lambda: self.derivation.run(text, history)))
-        if plan.active_lanes >= 16:
+        # Splitting is cheap. Only run the heavier per-segment solver fan-out
+        # when the request is actually separable into multiple explicit intents.
+        if self.subproblem.split(text):
             calls.append(("subproblem", lambda: self.subproblem.run(text, history)))
 
         out: list[tuple[str, Mapping[str, Any]]] = []
