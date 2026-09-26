@@ -99,7 +99,7 @@ class PythonRepairExplorer:
             ast.parse(source)
             return None
         except SyntaxError as original:
-            pass
+            original_error = f"line={original.lineno}:{original.msg}"
 
         variants: list[tuple[str, str]] = []
         lines = source.splitlines()
@@ -128,7 +128,7 @@ class PythonRepairExplorer:
                 "python_repair_verified_syntax": True,
                 "repair_kind": repair,
                 "repaired_source": candidate,
-                "original_syntax_error": f"line={original.lineno}:{original.msg}",
+                "original_syntax_error": original_error,
                 "decision_source": "verified_python_syntax_repair",
             }
         return None
