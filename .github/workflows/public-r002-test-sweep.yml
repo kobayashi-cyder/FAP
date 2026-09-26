@@ -1,0 +1,42 @@
+name: Public r002 Full Python Test Sweep
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'side/public-1.0.01-r002-port-20260926'
+    paths:
+      - 'scripts/fap_test_sweep.py'
+      - '**/*.py'
+      - '.github/workflows/public-r002-test-sweep.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install sweep dependencies
+        run: python -m pip install --upgrade pip pytest psutil
+      - name: Compile repository Python
+        run: python -m compileall -q .
+      - name: Build native regression targets
+        run: |
+          python releases/v87_38/native_raster/build_native.py --force
+          python releases/v87_39/native_geometry/build_native.py --force
+      - name: Sweep Python tests independently
+        run: python scripts/fap_test_sweep.py --timeout 300 --json runtime/test_sweep.json
+      - name: Upload sweep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fap-r002-test-sweep
+          path: runtime/test_sweep.json
+          if-no-files-found: error
+          retention-days: 7
