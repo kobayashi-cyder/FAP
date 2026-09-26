@@ -68,7 +68,7 @@ public final class AndroidVideoComposer {
             for (String raw : framePaths) {
                 if (raw == null || raw.trim().isEmpty()) continue;
                 try {
-                    Bitmap bitmap = BitmapFactory.decodeFile(raw.trim());
+                    Bitmap bitmap = decodeForTarget(raw.trim(), width, height);
                     if (bitmap != null && bitmap.getWidth() > 0 && bitmap.getHeight() > 0) {
                         keyframes.add(bitmap);
                     }
@@ -88,7 +88,7 @@ public final class AndroidVideoComposer {
                     height);
         }
 
-        File outputDir = new File(context.getFilesDir(), "generated_media");
+        File outputDir = GeneratedMediaStore.directory(context);
         if (!outputDir.exists() && !outputDir.mkdirs()) {
             recycle(keyframes);
             return new Result(
@@ -241,6 +241,7 @@ public final class AndroidVideoComposer {
                 throw new IllegalStateException("encoded MP4 failed artifact verification");
             }
 
+            GeneratedMediaStore.prune(context, output.getAbsolutePath());
             return new Result(
                     true,
                     output.getAbsolutePath(),
@@ -514,6 +515,27 @@ public final class AndroidVideoComposer {
             }
         }
         return out;
+    }
+
+    private static Bitmap decodeForTarget(
+            String path,
+            int targetWidth,
+            int targetHeight) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(path, bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+
+        int sample = 1;
+        while (bounds.outWidth / (sample * 2) >= targetWidth
+                && bounds.outHeight / (sample * 2) >= targetHeight) {
+            sample *= 2;
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = Math.max(1, sample);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeFile(path, options);
     }
 
     private static void recycle(List<Bitmap> bitmaps) {
