@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import importlib
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -192,6 +193,22 @@ def validate_runtime(root_path: str) -> str:
 def reload_runtime() -> str:
     _load_selected_runtime()
     return json.dumps(_status_payload(), ensure_ascii=False)
+
+
+def configure_media(image_base: str = "") -> str:
+    value = str(image_base or "").strip().rstrip("/")
+    if value:
+        os.environ["FAP_FMG_IMAGE_BASE"] = value
+    else:
+        os.environ.pop("FAP_FMG_IMAGE_BASE", None)
+    _load_selected_runtime()
+    payload = _status_payload()
+    payload["media_endpoint"] = value
+    try:
+        payload["fmg_image"] = _runtime.fmg_image.status() if _runtime is not None else {}
+    except Exception:
+        payload["fmg_image"] = {}
+    return json.dumps(payload, ensure_ascii=False)
 
 
 def _restore_agent_history(recent_log_json: str, query: str) -> tuple[dict, ...]:
