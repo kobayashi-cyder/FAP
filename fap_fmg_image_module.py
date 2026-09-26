@@ -13,6 +13,7 @@ from typing import Any
 
 from fap_fmg_connectome import FlyConnectomeRouter
 from fap_local_image_backend import LocalRasterGenerator
+from fap_media_policy import ArtifactBudget, image_profile, release_transient_memory, strip_control_directives
 
 
 IMPORT_VERSION = "FAP-FMG-IMPORT-1"
@@ -89,6 +90,7 @@ class FMGImportedImageModule:
         state_dir.mkdir(parents=True, exist_ok=True)
         self.connectome = FlyConnectomeRouter(state_dir / "connectome.json")
         self.local = LocalRasterGenerator(self.root, self.artifact_dir)
+        self.artifact_budget = ArtifactBudget(self.artifact_dir)
 
     @staticmethod
     def matches(text: str) -> bool:
@@ -160,8 +162,8 @@ class FMGImportedImageModule:
             "profile": {
                 "width": FMG_IMAGE_WIDTH,
                 "height": FMG_IMAGE_HEIGHT,
-                "steps": FMG_STEPS,
-                "guidance": FMG_GUIDANCE,
+                "steps": profile.steps,
+                "guidance": profile.guidance,
             },
             "connectome": self.connectome.status(),
             "a1111": {
@@ -188,7 +190,7 @@ class FMGImportedImageModule:
         path.write_bytes(raw)
         return path
 
-    def _generate_external(self, prompt: str) -> dict[str, Any]:
+    def _generate_external(self, prompt: str, profile) -> dict[str, Any]:
         availability = {
             "a1111": bool(self._probe_a1111().get("available")),
             "diffusers": False,
@@ -212,15 +214,15 @@ class FMGImportedImageModule:
             data={
                 "prompt": prompt,
                 "negative_prompt": DEFAULT_NEGATIVE,
-                "width": FMG_IMAGE_WIDTH,
-                "height": FMG_IMAGE_HEIGHT,
-                "steps": FMG_STEPS,
-                "cfg_scale": FMG_GUIDANCE,
+                "width": profile.width,
+                "height": profile.height,
+                "steps": profile.steps,
+                "cfg_scale": profile.guidance,
                 "seed": seed,
                 "batch_size": 1,
                 "n_iter": 1,
             },
-            timeout=600.0,
+            timeout=profile.timeout_s,
         )
         images = value.get("images") if isinstance(value, dict) else None
         if not images:
@@ -247,17 +249,18 @@ class FMGImportedImageModule:
         return {
             "ok": True,
             "reply": (
-                "FMGから輸入した画像生成ルートで1024×1024画像を生成しました。\n"
-                f"backend=a1111 · steps={FMG_STEPS} · guidance={FMG_GUIDANCE}"
+                f"FMG画像生成で{profile.width}×{profile.height}画像を生成しました。\n"
+                f"quality={profile.name} · backend=a1111 · steps={profile.steps} · guidance={profile.guidance}"
             ),
             "confidence": 0.95,
             "generator": "fmg-import",
             "fmg_source_commit": FMG_SOURCE_COMMIT,
             "image_profile": {
-                "width": FMG_IMAGE_WIDTH,
-                "height": FMG_IMAGE_HEIGHT,
-                "steps": FMG_STEPS,
-                "guidance": FMG_GUIDANCE,
+                "width": profile.width,
+                "height": profile.height,
+                "steps": profile.steps,
+                "guidance": profile.guidance,
+                "quality": profile.name,
             },
             "connectome_route": decision.as_dict(),
             "artifact_path": str(path),
@@ -271,7 +274,9 @@ class FMGImportedImageModule:
         }
 
     def generate(self, text: str) -> dict[str, Any]:
-        prompt = str(text or "").strip()
+        raw_prompt = str(text or "").strip()
+        profile = image_profile(raw_prompt)
+        prompt = strip_control_directives(raw_prompt)
         if not prompt:
             return {
                 "ok": False,
@@ -283,7 +288,10 @@ class FMGImportedImageModule:
         probe = self._probe_a1111()
         if probe.get("available"):
             try:
-                return self._generate_external(prompt)
+                result = self._generate_external(prompt, profile)
+                self.artifact_budget.prune([result.get("artifact_path", "")])
+                result["memory_release"] = release_transient_memory()
+                return result
             except Exception as exc:
                 external_error = f"{type(exc).__name__}: {exc}"
             else:
@@ -291,10 +299,11 @@ class FMGImportedImageModule:
         else:
             external_error = str(probe.get("reason") or "FMG backend unavailable")
 
+        local_size = 512 if profile.name == "draft" else 768
         local = self.local.generate(
             prompt,
-            width=768,
-            height=768,
+            width=local_size,
+            height=local_size,
         )
         if local.get("ok"):
             artifacts = local.get("artifacts")
@@ -322,6 +331,13 @@ class FMGImportedImageModule:
                 "現在はFAP内蔵の簡易ラスタ生成へフォールバックしました。\n"
                 + str(local.get("reply") or "")
             )
+            keep = []
+            for row in local.get("artifacts") or []:
+                if isinstance(row, dict) and row.get("path"):
+                    keep.append(row["path"])
+            local["quality_mode"] = profile.name
+            local["artifact_prune"] = self.artifact_budget.prune(keep)
+            local["memory_release"] = release_transient_memory()
             return local
 
         return {
