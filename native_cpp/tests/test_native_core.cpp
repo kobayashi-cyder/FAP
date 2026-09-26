@@ -146,9 +146,9 @@ void test_response_redundancy() {
         true,
         5,
         false);
-    require(hard.active_lanes >= 48 && hard.active_lanes <= 64,
+    require(hard.active_lanes == 128,
             "hard response did not reach large redundancy scale");
-    require(hard.synthesis_width >= 6 && hard.synthesis_width <= 8,
+    require(hard.synthesis_width == 16,
             "synthesis committee did not expand");
 
     std::unordered_set<std::string> ids;
