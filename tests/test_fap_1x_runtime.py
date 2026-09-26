@@ -104,6 +104,53 @@ class FAP1xRuntimeTests(unittest.TestCase):
         self.assertEqual(result.payload["text"], "right")
         self.assertIn("rejected", [attempt.state for attempt in result.attempts])
 
+    def test_auto_turn_selects_verified_calculation_tool(self):
+        runtime = FAP1xRuntime()
+        runtime.register_tool_endpoint(
+            "calculator",
+            lambda _text, metadata: {
+                "text": "4",
+                "value": 4,
+                "auto_channel": metadata.get("auto_channel"),
+            },
+            verifier=lambda payload: payload.get("value") == 4,
+            capabilities=("tool", "calculator"),
+            task_forms=("calculation",),
+        )
+        result = runtime.auto_turn("calculate 2 + 2")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "calculator")
+        self.assertEqual(result.payload["text"], "4")
+        self.assertEqual(result.payload["auto_channel"], "tool")
+
+    def test_auto_turn_selects_repository_coding_channel(self):
+        runtime = FAP1xRuntime()
+        coordinator = _CodingCoordinator()
+        runtime.register_repository_coding_endpoint(
+            "coder",
+            coordinator,
+            proposer=object(),
+            commands=("compile",),
+        )
+        result = runtime.auto_turn("fix parser.py bug and verify tests")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "coder")
+        self.assertEqual(result.payload["state"], "verified_candidate")
+
+    def test_auto_turn_keeps_general_request_on_chat(self):
+        runtime = FAP1xRuntime()
+        runtime.register_text_endpoint("chat", lambda text: "chat:" + text)
+        runtime.register_tool_endpoint(
+            "special-tool",
+            lambda _text, _meta: {"text": "tool"},
+            capabilities=("image",),
+            task_forms=("vision",),
+        )
+        result = runtime.auto_turn("hello there")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "chat")
+        self.assertEqual(result.payload["text"], "chat:hello there")
+
     def test_repository_coding_adapter_uses_common_dispatch(self):
         runtime = FAP1xRuntime()
         coordinator = _CodingCoordinator()
