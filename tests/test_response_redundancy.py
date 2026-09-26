@@ -37,9 +37,9 @@ class ResponseRedundancyTests(unittest.TestCase):
             intent_count=5,
             has_route=False,
         )
-        self.assertGreaterEqual(plan.active_lanes, 48)
+        self.assertEqual(plan.active_lanes, 128)
         self.assertLessEqual(plan.active_lanes, planner.MAX_LANES)
-        self.assertGreaterEqual(plan.synthesis_width, 6)
+        self.assertEqual(plan.synthesis_width, 16)
         self.assertLessEqual(plan.synthesis_width, planner.MAX_SYNTHESIS)
         self.assertGreaterEqual(len({x.role for x in plan.lanes}), 16)
         self.assertLessEqual(plan.coverage_target, 0.90)
