@@ -35,6 +35,8 @@ public final class ChatLogStore {
         public final String channel;
         public final String surface;
         public final String text;
+        public final long replyToId;
+        public final long threadRootId;
 
         Entry(
                 long id,
@@ -43,12 +45,26 @@ public final class ChatLogStore {
                 String channel,
                 String surface,
                 String text) {
+            this(id, timestampMs, role, channel, surface, text, 0L, 0L);
+        }
+
+        Entry(
+                long id,
+                long timestampMs,
+                String role,
+                String channel,
+                String surface,
+                String text,
+                long replyToId,
+                long threadRootId) {
             this.id = id;
             this.timestampMs = timestampMs;
             this.role = role;
             this.channel = channel;
             this.surface = surface;
             this.text = text;
+            this.replyToId = Math.max(0L, replyToId);
+            this.threadRootId = Math.max(0L, threadRootId);
         }
 
         JSONObject toJson() throws Exception {
@@ -59,6 +75,8 @@ public final class ChatLogStore {
             o.put("channel", channel);
             o.put("surface", surface);
             o.put("text", text);
+            if (replyToId > 0L) o.put("reply_to_id", replyToId);
+            if (threadRootId > 0L) o.put("thread_root_id", threadRootId);
             return o;
         }
 
@@ -76,7 +94,9 @@ public final class ChatLogStore {
                     role,
                     channel,
                     normalizeSurface(surface),
-                    o.optString("text", ""));
+                    o.optString("text", ""),
+                    Math.max(0L, o.optLong("reply_to_id", 0L)),
+                    Math.max(0L, o.optLong("thread_root_id", 0L)));
         }
     }
 
@@ -102,6 +122,31 @@ public final class ChatLogStore {
             String channel,
             String surface,
             String text) {
+        return appendThreaded(role, channel, surface, text, 0L, 0L);
+    }
+
+    public synchronized Entry appendFrontThreaded(
+            String role,
+            String channel,
+            String text,
+            long replyToId,
+            long threadRootId) {
+        return appendThreaded(
+                role,
+                channel,
+                SURFACE_FRONT,
+                text,
+                replyToId,
+                threadRootId);
+    }
+
+    public synchronized Entry appendThreaded(
+            String role,
+            String channel,
+            String surface,
+            String text,
+            long replyToId,
+            long threadRootId) {
         String cleanRole = normalizeRole(role);
         String cleanChannel = normalizeChannel(channel);
         String cleanSurface = normalizeSurface(surface);
@@ -111,13 +156,26 @@ public final class ChatLogStore {
             cleanText = cleanText.substring(0, MAX_TEXT_CHARS);
         }
 
+        long cleanReply = Math.max(0L, replyToId);
+        long cleanRoot = Math.max(0L, threadRootId);
+        if (cleanReply > 0L && cleanRoot <= 0L) {
+            Entry parent = findByIdLocked(cleanReply);
+            if (parent != null) {
+                cleanRoot = parent.threadRootId > 0L ? parent.threadRootId : parent.id;
+            } else {
+                cleanRoot = cleanReply;
+            }
+        }
+
         Entry entry = new Entry(
                 nextId++,
                 System.currentTimeMillis(),
                 cleanRole,
                 cleanChannel,
                 cleanSurface,
-                cleanText);
+                cleanText,
+                cleanReply,
+                cleanRoot);
         entries.add(entry);
         while (entries.size() > MAX_ENTRIES) {
             entries.remove(0);
@@ -150,7 +208,9 @@ public final class ChatLogStore {
                     old.role,
                     old.channel,
                     old.surface,
-                    clean));
+                    clean,
+                    old.replyToId,
+                    old.threadRootId));
             persist();
             return true;
         }
@@ -206,6 +266,46 @@ public final class ChatLogStore {
 
     public synchronized long lastId() {
         return entries.isEmpty() ? 0L : entries.get(entries.size() - 1).id;
+    }
+
+    public synchronized Entry findById(long id) {
+        return findByIdLocked(id);
+    }
+
+    public synchronized List<Entry> threadSnapshot(long rootId, int limit) {
+        long root = Math.max(0L, rootId);
+        int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
+        ArrayList<Entry> selected = new ArrayList<>();
+        if (root <= 0L) return selected;
+
+        for (Entry entry : entries) {
+            if (entry.id == root || entry.threadRootId == root) {
+                selected.add(entry);
+            }
+        }
+        if (selected.size() > take) {
+            return new ArrayList<>(
+                    selected.subList(selected.size() - take, selected.size()));
+        }
+        return new ArrayList<>(selected);
+    }
+
+    public synchronized int threadReplyCount(long rootId) {
+        long root = Math.max(0L, rootId);
+        if (root <= 0L) return 0;
+        int count = 0;
+        for (Entry entry : entries) {
+            if (entry.threadRootId == root) count++;
+        }
+        return count;
+    }
+
+    private Entry findByIdLocked(long id) {
+        if (id <= 0L) return null;
+        for (Entry entry : entries) {
+            if (entry.id == id) return entry;
+        }
+        return null;
     }
 
     public synchronized List<Entry> entriesAfter(long id, int limit) {
@@ -308,6 +408,8 @@ public final class ChatLogStore {
                     .append(formatTime(e.timestampMs))
                     .append("  ·  #")
                     .append(e.id);
+            if (e.replyToId > 0L) out.append(" · reply→#").append(e.replyToId);
+            if (e.threadRootId > 0L) out.append(" · thread=#").append(e.threadRootId);
             if (SURFACE_BACK.equals(e.surface)) {
                 out.append("  ·  裏");
             }
