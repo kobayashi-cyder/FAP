@@ -1,0 +1,9 @@
+{
+  "name": "FAP Native",
+  "short_name": "FAP Native",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#06100d",
+  "theme_color": "#08110f",
+  "description": "FAP C++ native runtime console"
+}

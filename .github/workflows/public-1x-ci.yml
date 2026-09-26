@@ -55,10 +55,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S native_cpp -B build/native_cpp -DCMAKE_BUILD_TYPE=Release
+      - run: cmake -S native_cpp -B build/native_cpp -DCMAKE_BUILD_TYPE=Release -DFAP_NATIVE_BUILD_BENCHMARKS=ON
       - run: cmake --build build/native_cpp --parallel 2
       - run: ctest --test-dir build/native_cpp --output-on-failure
       - run: ./build/native_cpp/fap_native_cli version
+      - name: Native/Python microbenchmark
+        shell: bash
+        run: |
+          ./build/native_cpp/fap_native_benchmark 5000 . > /tmp/fap-cpp-bench.json
+          python native_cpp/bench/benchmark_python.py --iterations 5000 --root . > /tmp/fap-python-bench.json
+          python native_cpp/bench/compare_benchmarks.py /tmp/fap-cpp-bench.json /tmp/fap-python-bench.json /tmp/fap-native-benchmark.md
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 20
