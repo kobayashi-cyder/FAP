@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from fap_1x_runtime import FAP1xRuntime
+from fap_1x_reasoning_core import FAP1xGeneralReasoningCore
 from fap_factual_qa import FactualQAOrgan
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_reflective_conversation import ReflectiveConversationOrgan
@@ -34,6 +35,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         self.reflective = ReflectiveConversationOrgan()
         self.semantic_router = SemanticConversationRouter(self.root)
         self.self_profile = RuntimeSelfProfile(self.semantic_router)
+        self.reasoning_core = FAP1xGeneralReasoningCore(self.root)
         self._register_standard_endpoints()
 
     def capabilities(self) -> tuple[str, ...]:
@@ -47,6 +49,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "semantic-self-profile",
             "speech-boundary",
             "repository-coding-adapter",
+            "evidence-gated-multi-lane-reasoning",
         ]
         if self.memory is not None:
             caps.append("semantic-memory")
@@ -68,9 +71,35 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "groups": len(self.semantic_router.groups),
             },
             "semantic_memory": self.memory is not None,
+            "general_reasoning_core": {
+                "candidate_lanes": (
+                    "deterministic_physics",
+                    "verified_arithmetic",
+                    "option_conditioned_science",
+                    "local_fact",
+                    "rule_verified",
+                    "derivation_verified",
+                    "hypothesis_provisional",
+                )
+            },
         }
 
     def _register_standard_endpoints(self) -> None:
+        self.register_endpoint(
+            "general_reasoning_core",
+            self._general_reasoning_handler,
+            probe=self._general_reasoning_probe,
+            priority=1.60,
+            capabilities=(
+                "reasoning",
+                "verification",
+                "counterexample",
+                "multi_candidate",
+            ),
+            task_families=("math", "science", "general"),
+            task_forms=("symbolic", "multi_step", "factual", "multiple_choice"),
+            failure_specialties=("verification", "disagreement"),
+        )
         self.register_endpoint(
             "runtime_profile",
             self._profile_handler,
@@ -106,6 +135,12 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             task_families=("conversation", "general"),
             task_forms=("reading", "multi_step"),
         )
+
+    def _general_reasoning_probe(self, request) -> float:
+        return self.reasoning_core.probe(request.text)
+
+    def _general_reasoning_handler(self, request, _budget) -> Mapping[str, Any] | None:
+        return self.reasoning_core.solve(request.text, request.history)
 
     def _profile_probe(self, request) -> float:
         return 1.0 if self.semantic_router.match(request.text) is not None else 0.0
