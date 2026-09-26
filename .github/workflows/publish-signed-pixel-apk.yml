@@ -154,6 +154,7 @@ jobs:
           cp "$APK" "$RUNNER_TEMP/$LATEST_APK_NAME"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
           echo "latest_apk_name=$LATEST_APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "apk_sha256=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release assets
         shell: bash
@@ -178,7 +179,8 @@ jobs:
           set -euo pipefail
           curl --fail --location --retry 5             "https://github.com/kobayashi-cyder/FAP/releases/latest/download/latest-apk.json"             -o "$RUNNER_TEMP/released-latest-apk.json"
           curl --fail --location --retry 5             "https://github.com/kobayashi-cyder/FAP/releases/latest/download/FAP-Pixel-latest.apk"             -o "$RUNNER_TEMP/released-FAP-Pixel-latest.apk"
-          echo "$SHA  $RUNNER_TEMP/released-FAP-Pixel-latest.apk" | sha256sum --check -
+          EXPECTED_SHA="${{ steps.meta.outputs.apk_sha256 }}"
+          echo "$EXPECTED_SHA  $RUNNER_TEMP/released-FAP-Pixel-latest.apk" | sha256sum --check -
           python - <<'PY'
           import json, os
           p = os.path.join(os.environ["RUNNER_TEMP"], "released-latest-apk.json")
