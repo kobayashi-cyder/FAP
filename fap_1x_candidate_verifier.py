@@ -11,6 +11,7 @@ from fap_benchmark_reasoning import StructuredMCQParser
 from fap_factual_qa import FactualQAOrgan
 from fap_generic_derivation import GenericDerivationEngine
 from fap_generic_rule_reasoner import GenericRuleReasoner
+from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
 
 
 @dataclass(frozen=True)
@@ -253,6 +254,29 @@ class IndependentCandidateVerifier:
             "" if ok else "fresh symbolic replay/countercheck did not reproduce candidate",
         )
 
+    def _verify_grounded_retrieval(
+        self,
+        query: str,
+        history: list[Mapping[str, Any]],
+        payload: Mapping[str, Any],
+    ) -> VerificationReport:
+        rerun = GroundedRetrievalReasoner(self.root).run(query, history)
+        ok = bool(
+            rerun
+            and rerun.get("ok")
+            and not rerun.get("needs_live_retrieval")
+            and tuple(rerun.get("evidence_ids") or ()) == tuple(payload.get("evidence_ids") or ())
+            and tuple(rerun.get("evidence_sources") or ()) == tuple(payload.get("evidence_sources") or ())
+            and str(rerun.get("reply") or "") == str(payload.get("reply") or "")
+        )
+        return VerificationReport(
+            "passed" if ok else "failed",
+            "fresh_grounded_retrieval_replay",
+            0.78 if ok else 0.0,
+            tuple(str(x) for x in (payload.get("evidence_ids") or ())),
+            "" if ok else "fresh retrieval did not reproduce the same evidence-backed extract",
+        )
+
     def verify(
         self,
         source: str,
@@ -270,6 +294,8 @@ class IndependentCandidateVerifier:
             return self._verify_rule(query, history, payload)
         if source == "derivation_verified":
             return self._verify_derivation(query, history, payload)
+        if source == "grounded_retrieval":
+            return self._verify_grounded_retrieval(query, history, payload)
         if source == "option_conditioned_science":
             return VerificationReport(
                 "indeterminate",
