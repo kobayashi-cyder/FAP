@@ -194,11 +194,95 @@ def reload_runtime() -> str:
     return json.dumps(_status_payload(), ensure_ascii=False)
 
 
-def run(query: str) -> str:
+def _restore_agent_history(recent_log_json: str, query: str) -> tuple[dict, ...]:
+    try:
+        rows = json.loads(str(recent_log_json or "[]"))
+    except Exception:
+        rows = []
+    if not isinstance(rows, list):
+        rows = []
+
+    history: list[dict] = []
+    for row in rows[-64:]:
+        if not isinstance(row, dict):
+            continue
+        role = str(row.get("role") or "")
+        if role not in {"user", "assistant"}:
+            continue
+        text = str(row.get("text") or "").strip()
+        if not text:
+            continue
+        history.append(
+            {
+                "role": role,
+                "content": text[:20000],
+                "text": text[:20000],
+                "channel": str(row.get("channel") or "chat")[:40],
+            }
+        )
+
+    # The durable log normally already contains the just-submitted user turn.
+    # run_turn will append that turn itself, so avoid duplicating it.
+    clean_query = str(query or "").strip()
+    if history and history[-1].get("role") == "user":
+        tail = str(history[-1].get("text") or "").strip()
+        if tail == clean_query:
+            history.pop()
+
+    return tuple(history[-48:])
+
+
+def run_agent(query: str, recent_log_json: str = "[]", source_channel: str = "agent") -> str:
     if _runtime is None:
         raise RuntimeError("FAP 1.x runtime is not initialized")
 
-    result = _runtime.run_turn(str(query), session_id="android")
+    sid = "android-agent"
+    restored = list(_restore_agent_history(recent_log_json, query))
+    try:
+        _runtime._histories[sid] = restored
+    except Exception:
+        pass
+
+    result = _runtime.run_turn(
+        str(query),
+        session_id=sid,
+        channel="chat",
+        metadata={
+            "source_channel": str(source_channel or "agent")[:40],
+            "durable_chat_log": True,
+        },
+    )
+    payload = dict(result.payload or {})
+    answer = ""
+    for key in ("text", "reply", "message"):
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            answer = str(value)
+            break
+
+    confidence = payload.get("confidence", 0.5)
+    try:
+        confidence = max(0.0, min(1.0, float(confidence)))
+    except Exception:
+        confidence = 0.5
+
+    return json.dumps(
+        {
+            "answer": answer,
+            "skill": str(result.endpoint_id or "unhandled"),
+            "confidence": confidence,
+            "state": str(result.state),
+            "needs_teacher": bool(payload.get("needs_teacher", False)),
+            "status": _status_payload()["status"],
+        },
+        ensure_ascii=False,
+    )
+
+
+def run(query: str) -> str:
+    return run_agent(query, "[]", "legacy")
+
+
     payload = dict(result.payload or {})
     answer = ""
     for key in ("text", "reply", "message"):
