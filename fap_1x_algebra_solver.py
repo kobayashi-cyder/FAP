@@ -89,17 +89,55 @@ class GenericLinearEquationSolver:
             verified=True,
         )
 
+    @staticmethod
+    def _equation_candidates(text: str) -> list[str]:
+        query = str(text or "").replace("：", ":")
+        out: list[str] = []
+        for segment in re.split(r"[?？。!！;；\n]", query):
+            if "=" not in segment:
+                continue
+            left_raw, right_raw = segment.split("=", 1)
+            left_tokens = re.findall(r"[^\s,:]+", left_raw)
+            right_tokens = re.findall(r"[^\s,:]+", right_raw)
+            valid = re.compile(r"^[0-9A-Za-z_+\-*/^().]+$")
+            left_tail: list[str] = []
+            for token in reversed(left_tokens):
+                if not valid.fullmatch(token):
+                    break
+                if re.search(r"[A-Za-z]{2,}", token):
+                    break
+                left_tail.append(token)
+            left_tail.reverse()
+            right_head: list[str] = []
+            for token in right_tokens:
+                if not valid.fullmatch(token):
+                    break
+                if re.search(r"[A-Za-z]{2,}", token):
+                    break
+                right_head.append(token)
+            if not left_tail or not right_head:
+                continue
+            # Short suffix/prefix pairs are attempted first so instruction
+            # fragments such as "for x" are not absorbed into the equation.
+            for li in range(len(left_tail) - 1, -1, -1):
+                lhs = "".join(left_tail[li:])
+                for rj in range(1, len(right_head) + 1):
+                    rhs = "".join(right_head[:rj])
+                    candidate = lhs + "=" + rhs
+                    if candidate not in out:
+                        out.append(candidate)
+        return out
+
     def _from_text(self, text: str) -> AlgebraResult | None:
-        query = str(text or "").strip()
-        match = self._EQ.search(query)
-        if match is None:
-            return None
-        equation = match.group(1).strip()
-        variables = sorted(set(re.findall(r"[A-Za-z]", equation)))
-        variables = [v for v in variables if v.lower() not in {"e"}]
-        if len(variables) != 1:
-            return None
-        return self.solve_equation(equation, variables[0])
+        for equation in self._equation_candidates(text):
+            variables = sorted(set(re.findall(r"[A-Za-z]", equation)))
+            variables = [v for v in variables if v.lower() not in {"e"}]
+            if len(variables) != 1:
+                continue
+            result = self.solve_equation(equation, variables[0])
+            if result is not None:
+                return result
+        return None
 
     @staticmethod
     def _choice_fraction(text: str) -> Fraction | None:
