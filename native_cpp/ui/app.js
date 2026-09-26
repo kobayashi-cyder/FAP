@@ -139,8 +139,8 @@ function updateTrace(d) {
   }
 
   const rr = d?.response_redundancy || {};
-  $("#responseLanes").textContent = String(rr.active_lanes ?? 6) + " / " + String(rr.capacity ?? 64);
-  $("#synthesisWidth").textContent = String(rr.synthesis_width ?? 2) + " / 8";
+  $("#responseLanes").textContent = String(rr.active_lanes ?? 6) + " / " + String(rr.capacity ?? 128);
+  $("#synthesisWidth").textContent = String(rr.synthesis_width ?? 2) + " / 16";
   $("#coverageTarget").textContent = Math.round(Number(rr.coverage_target ?? 0.55) * 100) + "%";
   $("#extraPath").textContent = d?.extra_path ? "YES" : "NO";
   $("#multiIntents").textContent = String(d?.multi_intents ?? 0);
