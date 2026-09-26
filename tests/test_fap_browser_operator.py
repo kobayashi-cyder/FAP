@@ -7,6 +7,7 @@ from fap_browser_operator import (
     BrowserChatReasoner,
     BrowserEvidence,
     BrowserSessionConfig,
+    ChatGPTReadiness,
     _clean_result_url,
     _normalize_http_url,
     _parse_queries,
@@ -66,6 +67,9 @@ class FakeBrowser:
     def close(self) -> None:
         self.closed += 1
 
+    def is_healthy(self) -> bool:
+        return self.started > 0 and self.closed == 0
+
     def search(self, query: str):
         self.queries.append(query)
         return (
@@ -93,6 +97,13 @@ class FakeChat:
     def __init__(self) -> None:
         self.prompts = []
 
+    def wait_until_ready(self, timeout_sec: float):
+        return ChatGPTReadiness(
+            state="ready",
+            url="https://chatgpt.com/",
+            waited_sec=min(0.01, float(timeout_sec)),
+        )
+
     def ask(self, prompt: str) -> str:
         self.prompts.append(prompt)
         if len(self.prompts) == 1:
@@ -101,6 +112,18 @@ class FakeChat:
 
 
 class BrowserReasonerTests(unittest.TestCase):
+    def test_prepare_waits_for_chatgpt_ready(self) -> None:
+        browser = FakeBrowser()
+        reasoner = BrowserChatReasoner(browser=browser)
+        reasoner.chat = FakeChat()
+
+        readiness = reasoner.prepare(30)
+
+        self.assertTrue(readiness.ready)
+        self.assertEqual(readiness.state, "ready")
+        self.assertTrue(reasoner.health())
+        reasoner.close()
+
     def test_web_search_uses_real_browser_adapter_surface(self) -> None:
         browser = FakeBrowser()
         reasoner = BrowserChatReasoner(browser=browser, max_queries=2)
