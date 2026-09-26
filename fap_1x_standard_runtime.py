@@ -7,6 +7,7 @@ from fap_1x_runtime import FAP1xRuntime
 from fap_adaptive_reasoning import AdaptiveReasoningGovernor
 from fap_interaction_fabric import InteractionDispatch
 from fap_knowledge_narrator import KnowledgeNarrator
+from fap_reasoning_episode import ReasoningEpisodeController
 from fap_response_redundancy import ResponseRedundancyPlanner
 from fap_response_series_executor import ResponseSeriesExecutor
 from fap_factual_qa import FactualQAOrgan
@@ -43,6 +44,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         self.response_redundancy = ResponseRedundancyPlanner()
         self.response_series = ResponseSeriesExecutor(self.root)
         self.reasoning_governor = AdaptiveReasoningGovernor()
+        self.reasoning_episode = ReasoningEpisodeController()
         self._register_standard_endpoints()
 
     def capabilities(self) -> tuple[str, ...]:
@@ -68,6 +70,8 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "confidence-calibration",
             "multi-intent-subproblem-reasoning",
             "partial-answer-takeover-guard",
+            "plan-execute-verify-repair-reverify",
+            "false-success-guard",
             "fail-closed-epistemics",
         ]
         if self.memory is not None:
@@ -105,6 +109,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "native_revision": "1.0.01-cpp-native-r008",
                 "governor_contract": self.reasoning_governor.CONTRACT,
                 "subproblem_contract": self.response_series.subproblem.CONTRACT,
+                "episode_contract": self.reasoning_episode.CONTRACT,
                 "max_escalation_passes": self.reasoning_governor.MAX_ESCALATION_PASSES,
                 "confidence_calibrated": True,
                 "fail_closed": True,
@@ -210,9 +215,10 @@ class FAP1xStandardRuntime(FAP1xRuntime):
 
         escalation_budget = min(
             self.reasoning_governor.MAX_ESCALATION_PASSES,
-            max(0, int(assessment.escalation_level)),
+            self.reasoning_episode.escalation_budget(assessment),
         )
         current_assessment = assessment
+        accepted_passes = [0]
 
         for pass_index in range(1, escalation_budget + 1):
             if (
@@ -271,6 +277,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             ):
                 best = candidate
                 best_score = candidate_score
+                accepted_passes.append(pass_index)
                 execution = candidate.get("response_series_execution")
                 selected = (
                     str(execution.get("selected") or "primary")
@@ -282,12 +289,24 @@ class FAP1xStandardRuntime(FAP1xRuntime):
 
             current_assessment = candidate_assessment
 
+        final_assessment = self.reasoning_governor.assess(
+            str(text),
+            best,
+            dispatch_state="handled",
+        )
         final_payload = self.reasoning_governor.calibrate(
             str(text),
             best,
             dispatch_state="handled",
             passes=passes,
             assessments=assessments,
+        )
+        final_payload = self.reasoning_episode.finalize(
+            final_payload,
+            assessments,
+            accepted_passes=accepted_passes,
+            budget=escalation_budget,
+            final_assessment=final_assessment,
         )
 
         return InteractionDispatch(
