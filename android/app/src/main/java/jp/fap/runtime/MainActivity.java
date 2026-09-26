@@ -53,6 +53,40 @@ public class MainActivity extends Activity {
         run.setOnClickListener(v -> runFap());
         root.addView(run);
 
+        LinearLayout browserRow = new LinearLayout(this);
+        Button browserSetup = new Button(this);
+        browserSetup.setText("Pixelブラウザ設定");
+        browserSetup.setOnClickListener(v ->
+                PixelBrowserController.openAccessibilitySettings(this));
+        browserRow.addView(browserSetup, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        Button browserAsk = new Button(this);
+        browserAsk.setText("ChatGPTへ送る");
+        browserAsk.setOnClickListener(v -> {
+            String q = input.getText().toString().trim();
+            if (q.isEmpty()) return;
+            if (!PixelBrowserController.isAccessibilityEnabled(this)) {
+                Toast.makeText(
+                        this,
+                        "先にFAP Pixel Browser Controlをユーザー補助で有効化してください",
+                        Toast.LENGTH_LONG).show();
+                PixelBrowserController.openAccessibilitySettings(this);
+                return;
+            }
+            if (PixelBrowserController.askChatGpt(this, q)) {
+                status.setText("PIXEL BROWSER · queued");
+            } else {
+                status.setText("PIXEL BROWSER · " + PixelBrowserController.lastError(this));
+            }
+        });
+        browserRow.addView(browserAsk, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        Button browserResult = new Button(this);
+        browserResult.setText("ブラウザ結果");
+        browserResult.setOnClickListener(v -> refreshBrowserState(true));
+        browserRow.addView(browserResult, new LinearLayout.LayoutParams(0, -2, 1f));
+        root.addView(browserRow);
+
         voiceButton = new Button(this);
         voiceButton.setText("音声会話開始");
         voiceButton.setOnClickListener(v -> toggleVoiceLoop());
@@ -80,7 +114,7 @@ public class MainActivity extends Activity {
         root.addView(feedback);
 
         TextView note = new TextView(this);
-        note.setText("main更新時に最新Pythonコアとrelease sidecarをAPKへ封入。音声会話は端末能力を検出し、オンデバイスSTTを優先します。");
+        note.setText("PixelではFAP本体がChromeを開き、ユーザー補助経由でChatGPT Webを操作します。音声会話は端末能力を検出し、オンデバイスSTTを優先します。");
         root.addView(note);
 
         setContentView(root);
@@ -224,8 +258,28 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void refreshBrowserState(boolean showResult) {
+        String browserState = PixelBrowserController.state(this);
+        if (PixelBrowserController.STATE_RESPONSE_READY.equals(browserState)) {
+            String response = PixelBrowserController.lastResponse(this);
+            if (showResult && response != null && !response.isEmpty()) {
+                output.setText(response + "\n\n[core] pixel_browser:chatgpt_web");
+            }
+            status.setText("PIXEL BROWSER · response_ready · " + engine.status());
+        } else if (PixelBrowserController.STATE_ERROR.equals(browserState)) {
+            status.setText(
+                    "PIXEL BROWSER ERROR · "
+                            + PixelBrowserController.lastError(this)
+                            + " · "
+                            + engine.status());
+        } else if (!PixelBrowserController.STATE_IDLE.equals(browserState)) {
+            status.setText("PIXEL BROWSER · " + browserState + " · " + engine.status());
+        }
+    }
+
     @Override protected void onResume() {
         super.onResume();
+        refreshBrowserState(true);
         if (voiceLoop && voice != null) {
             mainHandler.postDelayed(() -> listenIfActive(), 250);
         }
