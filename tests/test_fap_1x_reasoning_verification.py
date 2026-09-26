@@ -9,6 +9,7 @@ from fap_1x_algebra_solver import GenericLinearEquationSolver
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
 from fap_1x_confidence_calibrator import ConfidenceCalibrator
 from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
+from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_1x_external_eval import IsolatedHoldoutEvaluator
 from fap_1x_problem_decomposer import ProblemDecomposer
 from fap_1x_search_controller import AdaptiveSearchController
@@ -203,6 +204,23 @@ class GroundedRetrievalReasonerTests(unittest.TestCase):
         report = out["selected_payload"]["independent_verification"]
         self.assertEqual(report["status"], "passed")
         self.assertEqual(report["verifier"], "fresh_grounded_retrieval_replay")
+
+
+class ContextIsolationTests(unittest.TestCase):
+    def test_user_subject_beats_assistant_generated_subject(self):
+        reasoner = GenericRuleReasoner(ROOT)
+        history = [
+            {"role": "user", "text": "四角形について考える"},
+            {
+                "role": "assistant",
+                "text": "三角形の内角の和は180度です。三角形について詳しく説明します。",
+            },
+        ]
+        out = reasoner.run("内角の和は？", history)
+        self.assertIsNotNone(out)
+        self.assertEqual(out["context_source"], "conversation-context")
+        self.assertIn("360", out["reply"])
+        self.assertNotIn("180° です。", out["reply"])
 
 
 class IndependentCandidateVerifierTests(unittest.TestCase):
