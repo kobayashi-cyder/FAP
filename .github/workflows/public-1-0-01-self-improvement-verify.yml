@@ -6,7 +6,10 @@ on:
       - "side/*1.0.01*"
     paths:
       - "fap_self_improvement_controller.py"
+      - "fap_browser_operator.py"
+      - "RUN_FAP_BROWSER_SELF_IMPROVE.ps1"
       - "tests/test_fap_self_improvement_controller.py"
+      - "tests/test_fap_browser_operator.py"
       - "docs/SELF_IMPROVEMENT_1_0_01.md"
       - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
   pull_request:
@@ -14,7 +17,10 @@ on:
       - main
     paths:
       - "fap_self_improvement_controller.py"
+      - "fap_browser_operator.py"
+      - "RUN_FAP_BROWSER_SELF_IMPROVE.ps1"
       - "tests/test_fap_self_improvement_controller.py"
+      - "tests/test_fap_browser_operator.py"
       - "docs/SELF_IMPROVEMENT_1_0_01.md"
       - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
   workflow_dispatch:
@@ -39,13 +45,26 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Compile controller
-        run: python -m py_compile fap_self_improvement_controller.py
+      - name: Compile browser self-improvement modules
+        run: |
+          python -m py_compile fap_self_improvement_controller.py
+          python -m py_compile fap_browser_operator.py
 
-      - name: Run focused tests
+      - name: Run controller tests
         env:
           PYTHONPATH: .
         run: python -m unittest discover -s tests -p "test_fap_self_improvement_controller.py" -v
+
+      - name: Run browser operator tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p "test_fap_browser_operator.py" -v
+
+      - name: Parse PowerShell launcher
+        shell: pwsh
+        run: |
+          $source = Get-Content -Raw "./RUN_FAP_BROWSER_SELF_IMPROVE.ps1"
+          [void][scriptblock]::Create($source)
 
       - name: Verify no credential material is committed
         shell: bash
@@ -59,12 +78,23 @@ jobs:
               re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
               re.compile(r"""OPENAI_API_KEY\s*=\s*["'][^"']+"""),
           )
-          roots = [Path("fap_self_improvement_controller.py"), Path("tests")]
+          roots = [
+              Path("fap_self_improvement_controller.py"),
+              Path("fap_browser_operator.py"),
+              Path("RUN_FAP_BROWSER_SELF_IMPROVE.ps1"),
+              Path("tests"),
+          ]
           hits = []
           for root in roots:
-              paths = [root] if root.is_file() else root.rglob("*.py")
+              if root.is_file():
+                  paths = [root]
+              else:
+                  paths = [p for p in root.rglob("*") if p.is_file()]
               for path in paths:
-                  text = path.read_text(encoding="utf-8")
+                  try:
+                      text = path.read_text(encoding="utf-8")
+                  except UnicodeDecodeError:
+                      continue
                   for pattern in patterns:
                       if pattern.search(text):
                           hits.append(str(path))
