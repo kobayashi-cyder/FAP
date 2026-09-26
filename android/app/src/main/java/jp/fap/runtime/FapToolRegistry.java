@@ -5,8 +5,13 @@ import android.speech.SpeechRecognizer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class FapToolRegistry {
+    private static final Map<String, ExternalToolAdapter> EXTERNAL =
+            new ConcurrentHashMap<>();
+
     public static final class ToolState {
         public final String id;
         public final String title;
@@ -22,6 +27,32 @@ public final class FapToolRegistry {
     }
 
     private FapToolRegistry() {}
+
+    public static void registerExternal(ExternalToolAdapter adapter) {
+        if (adapter == null || adapter.id() == null || adapter.id().trim().isEmpty()) return;
+        EXTERNAL.put(adapter.id().trim(), adapter);
+    }
+
+    public static void unregisterExternal(String id) {
+        if (id == null) return;
+        EXTERNAL.remove(id.trim());
+    }
+
+    public static ExternalToolAdapter external(String id) {
+        if (id == null) return null;
+        return EXTERNAL.get(id.trim());
+    }
+
+    public static int connectedExternalCount(Context context) {
+        int count = 0;
+        for (ExternalToolAdapter adapter : EXTERNAL.values()) {
+            try {
+                if (adapter != null && adapter.isConnected(context)) count++;
+            } catch (Throwable ignored) {
+            }
+        }
+        return count;
+    }
 
     public static List<ToolState> snapshot(Context context) {
         ArrayList<ToolState> out = new ArrayList<>();
@@ -90,11 +121,14 @@ public final class FapToolRegistry {
                 "チャット履歴",
                 true,
                 "複数チャット保存 / 全文検索 / 分岐スナップショット"));
+        int externalConnected = connectedExternalCount(context);
         out.add(new ToolState(
                 "external_connectors",
                 "外部コネクタ",
-                false,
-                "OAuth/API認証用adapter slot。接続先の資格情報が必要"));
+                externalConnected > 0,
+                externalConnected > 0
+                        ? "接続済みadapter=" + externalConnected
+                        : "OAuth/API認証用adapter slot。接続先の資格情報が必要"));
         return out;
     }
 
