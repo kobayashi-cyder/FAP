@@ -139,6 +139,15 @@ jobs:
           test -s android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
           test -s android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
           test -s android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          test -s android/app/src/main/java/jp/fap/runtime/AndroidVideoComposer.java
+          test -s android/app/src/main/java/jp/fap/runtime/GeneratedMediaStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/GenerationPreferences.java
+          grep -q 'chip("画像生成")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("動画生成")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'tab("世界観"' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'configureMediaEndpoint' android/app/src/main/java/jp/fap/runtime/PythonFapEngine.java
+          grep -q 'configure_media' android/app/src/main/python/android_bridge.py
+          test -s fap_media_policy.py
           test -s android/app/src/main/java/jp/fap/runtime/GitContextProvider.java
           test -s android/app/src/main/java/jp/fap/runtime/AttachmentStore.java
           test -s android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
