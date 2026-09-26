@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+from tempfile import TemporaryDirectory
 import unittest
 
 from fap_1x_algebra_solver import GenericLinearEquationSolver
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
 from fap_1x_confidence_calibrator import ConfidenceCalibrator
 from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
+from fap_1x_external_eval import IsolatedHoldoutEvaluator
 from fap_1x_problem_decomposer import ProblemDecomposer
 from fap_1x_search_controller import AdaptiveSearchController
 from fap_1x_reasoning_core import FAP1xGeneralReasoningCore
@@ -49,6 +52,45 @@ class GenericLinearEquationSolverTests(unittest.TestCase):
     def test_nonlinear_equation_declines(self):
         solver = GenericLinearEquationSolver()
         self.assertIsNone(solver.run("Solve for x: x^2 = 9"))
+
+
+class IsolatedHoldoutEvaluatorTests(unittest.TestCase):
+    def test_answer_key_outside_repo_and_scored_after_inference(self):
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            prompts = folder / "prompts.jsonl"
+            answers = folder / "answers.jsonl"
+            prompts.write_text(
+                json.dumps(
+                    {
+                        "id": "arith-1",
+                        "domain": "math",
+                        "prompt": mcq("What is 19 + 23?", ("40", "41", "42", "43")),
+                    },
+                    ensure_ascii=False,
+                ) + "\n",
+                encoding="utf-8",
+            )
+            answers.write_text(
+                json.dumps(
+                    {"id": "arith-1", "answer": "C", "mode": "mcq"},
+                    ensure_ascii=False,
+                ) + "\n",
+                encoding="utf-8",
+            )
+            report = IsolatedHoldoutEvaluator(ROOT).run(prompts, answers)
+            self.assertEqual(report["items"], 1)
+            self.assertEqual(report["correct"], 1)
+            self.assertEqual(report["accuracy"], 1.0)
+            self.assertEqual(report["coverage"], 1.0)
+            self.assertIn("brier", report)
+            self.assertIn("ece_10", report)
+            self.assertNotEqual(report["prompt_sha256"], report["answer_sha256"])
+
+    def test_in_repo_answer_key_is_rejected(self):
+        evaluator = IsolatedHoldoutEvaluator(ROOT)
+        with self.assertRaisesRegex(ValueError, "outside the repository"):
+            evaluator._ensure_isolated_answer_file(ROOT / "tests" / "answers.jsonl")
 
 
 class ProblemDecomposerTests(unittest.TestCase):
