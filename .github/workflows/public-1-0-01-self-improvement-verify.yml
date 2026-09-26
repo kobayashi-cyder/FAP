@@ -1,0 +1,74 @@
+name: Public 1.0.01 Self Improvement Verify
+
+on:
+  push:
+    branches:
+      - "side/*1.0.01*"
+    paths:
+      - "fap_self_improvement_controller.py"
+      - "tests/test_fap_self_improvement_controller.py"
+      - "docs/SELF_IMPROVEMENT_1_0_01.md"
+      - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "fap_self_improvement_controller.py"
+      - "tests/test_fap_self_improvement_controller.py"
+      - "docs/SELF_IMPROVEMENT_1_0_01.md"
+      - ".github/workflows/public-1-0-01-self-improvement-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-1-0-01-self-improvement-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Compile controller
+        run: python -m py_compile fap_self_improvement_controller.py
+
+      - name: Run focused tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p "test_fap_self_improvement_controller.py" -v
+
+      - name: Verify no credential material is committed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          patterns = (
+              re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+              re.compile(r"""OPENAI_API_KEY\s*=\s*["'][^"']+"""),
+          )
+          roots = [Path("fap_self_improvement_controller.py"), Path("tests")]
+          hits = []
+          for root in roots:
+              paths = [root] if root.is_file() else root.rglob("*.py")
+              for path in paths:
+                  text = path.read_text(encoding="utf-8")
+                  for pattern in patterns:
+                      if pattern.search(text):
+                          hits.append(str(path))
+                          break
+          if hits:
+              raise SystemExit("Credential-like material found in: " + ", ".join(hits))
+          PY
