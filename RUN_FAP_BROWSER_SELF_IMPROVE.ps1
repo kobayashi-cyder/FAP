@@ -15,6 +15,9 @@ param(
     [ValidateRange(0, 60)]
     [int]$WaitForLoginMinutes = 15,
 
+    [ValidateRange(0, 3)]
+    [int]$AutoRecoverCount = 1,
+
     [ValidateSet("google", "duckduckgo")]
     [string]$SearchEngine = "google",
 
@@ -47,13 +50,53 @@ function Find-Chrome {
 function Test-CdpEndpoint([string]$Endpoint) {
     try {
         $info = Invoke-RestMethod "$Endpoint/json/version" -TimeoutSec 2
-        if (-not $info.webSocketDebuggerUrl) {
-            return $false
-        }
-        return $true
+        return [bool]$info.webSocketDebuggerUrl
     } catch {
         return $false
     }
+}
+
+function Start-FapChrome(
+    [string]$Chrome,
+    [string]$ProfilePath,
+    [int]$DebugPort,
+    [string]$Endpoint
+) {
+    if (Test-CdpEndpoint $Endpoint) {
+        return
+    }
+
+    $chromeArgs = @(
+        "--remote-debugging-port=$DebugPort",
+        "--user-data-dir=$ProfilePath",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "https://chatgpt.com/"
+    )
+    Start-Process -FilePath $Chrome -ArgumentList $chromeArgs | Out-Null
+
+    for ($i = 0; $i -lt 40; $i++) {
+        Start-Sleep -Milliseconds 500
+        if (Test-CdpEndpoint $Endpoint) {
+            return
+        }
+    }
+    throw "Chrome DevTools endpoint did not become ready at $Endpoint."
+}
+
+function Invoke-BrowserPreflight(
+    [string]$Endpoint,
+    [int]$WaitSeconds,
+    [string]$Engine
+) {
+    $preflightArgs = @(
+        "fap_browser_preflight.py",
+        "--cdp-url", $Endpoint,
+        "--wait-sec", "$WaitSeconds",
+        "--search-engine", $Engine
+    )
+    & python @preflightArgs
+    return $LASTEXITCODE
 }
 
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
@@ -97,30 +140,7 @@ $marker = [ordered]@{
 $marker | ConvertTo-Json | Set-Content -LiteralPath $markerPath -Encoding UTF8
 
 $endpoint = "http://127.0.0.1:$Port"
-$ready = Test-CdpEndpoint $endpoint
-
-if (-not $ready) {
-    $chromeArgs = @(
-        "--remote-debugging-port=$Port",
-        "--user-data-dir=$Profile",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "https://chatgpt.com/"
-    )
-    Start-Process -FilePath $chrome -ArgumentList $chromeArgs | Out-Null
-
-    for ($i = 0; $i -lt 40; $i++) {
-        Start-Sleep -Milliseconds 500
-        if (Test-CdpEndpoint $endpoint) {
-            $ready = $true
-            break
-        }
-    }
-}
-
-if (-not $ready) {
-    throw "Chrome DevTools endpoint did not become ready at $endpoint."
-}
+Start-FapChrome $chrome $Profile $Port $endpoint
 
 $waitSeconds = [int]($WaitForLoginMinutes * 60)
 
@@ -128,21 +148,14 @@ Write-Host "FAP browser backend: $endpoint"
 Write-Host "Browser profile: $Profile"
 Write-Host "Runtime state: $RuntimeDir"
 Write-Host "Branch: $Branch"
+Write-Host "Auto-recovery attempts: $AutoRecoverCount"
 Write-Host ""
 Write-Host "Checking ChatGPT Web readiness..."
 Write-Host "If login is required, complete it in the visible FAP Chrome window."
 Write-Host "The same command continues automatically after the composer appears."
 Write-Host ""
 
-$preflightArgs = @(
-    "fap_browser_preflight.py",
-    "--cdp-url", $endpoint,
-    "--wait-sec", "$waitSeconds",
-    "--search-engine", $SearchEngine
-)
-& python @preflightArgs
-$preflightCode = $LASTEXITCODE
-
+$preflightCode = Invoke-BrowserPreflight $endpoint $waitSeconds $SearchEngine
 if ($preflightCode -ne 0) {
     if ($preflightCode -eq 3) {
         Write-Error "ChatGPT login did not become ready before the login wait timeout."
@@ -171,19 +184,38 @@ $argsList = @(
 if ($NoWebSearch) {
     $argsList += "--no-web-search"
 }
-
 foreach ($path in $PreferredPath) {
     if ($path) {
         $argsList += @("--preferred-path", $path)
     }
 }
 
-Write-Host ""
-Write-Host "Starting browser-driven FAP self-improvement..."
-Write-Host ""
+$recoveryAttempt = 0
+while ($true) {
+    Write-Host ""
+    Write-Host "Starting browser-driven FAP self-improvement..."
+    if ($recoveryAttempt -gt 0) {
+        Write-Host "Recovery attempt: $recoveryAttempt / $AutoRecoverCount"
+    }
+    Write-Host ""
 
-& python @argsList
-$code = $LASTEXITCODE
+    & python @argsList
+    $code = $LASTEXITCODE
+
+    if ($code -ne 5 -or $recoveryAttempt -ge $AutoRecoverCount) {
+        break
+    }
+
+    $recoveryAttempt += 1
+    Write-Warning "Browser runtime failed. Re-establishing Chrome/CDP before one bounded retry."
+
+    Start-FapChrome $chrome $Profile $Port $endpoint
+    $preflightCode = Invoke-BrowserPreflight $endpoint $waitSeconds $SearchEngine
+    if ($preflightCode -ne 0) {
+        $code = $preflightCode
+        break
+    }
+}
 
 $statePath = Join-Path $RuntimeDir "state.json"
 if (Test-Path -LiteralPath $statePath) {

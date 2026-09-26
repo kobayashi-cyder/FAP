@@ -8,6 +8,7 @@ from fap_browser_operator import (
     BrowserEvidence,
     BrowserSessionConfig,
     ChatGPTReadiness,
+    PlaywrightBrowser,
     _clean_result_url,
     _normalize_http_url,
     _parse_queries,
@@ -33,6 +34,43 @@ class BrowserConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "http"):
             _normalize_http_url("javascript:alert(1)")
         self.assertEqual(_clean_result_url("mailto:test@example.com"), "")
+
+    def test_google_wrapped_result_url_is_unwrapped(self) -> None:
+        self.assertEqual(
+            _clean_result_url("/url?q=https%3A%2F%2Fexample.com%2Fdocs&sa=U"),
+            "https://example.com/docs",
+        )
+
+    def test_duckduckgo_wrapped_result_url_is_unwrapped(self) -> None:
+        self.assertEqual(
+            _clean_result_url(
+                "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Fguide"
+            ),
+            "https://example.org/guide",
+        )
+
+
+class SearchFallbackTests(unittest.TestCase):
+    def test_search_falls_back_to_second_engine(self) -> None:
+        browser = PlaywrightBrowser(BrowserSessionConfig(search_engine="google"))
+        calls = []
+
+        def fake_search_once(query: str, engine: str):
+            calls.append((query, engine))
+            return () if engine == "google" else ("https://example.com/result",)
+
+        browser._search_once = fake_search_once
+        self.assertEqual(
+            browser.search("browser automation"),
+            ("https://example.com/result",),
+        )
+        self.assertEqual(
+            calls,
+            [
+                ("browser automation", "google"),
+                ("browser automation", "duckduckgo"),
+            ],
+        )
 
 
 class QueryParsingTests(unittest.TestCase):

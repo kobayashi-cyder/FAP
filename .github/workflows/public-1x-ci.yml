@@ -47,7 +47,9 @@ jobs:
           python tests/test_fap_speech_fluent.py
           python tests/test_fap_audio_device.py
       - name: Self improvement
-        run: python -m unittest discover -s tests -p "test_fap_self_improvement_controller.py" -v
+        run: |
+          python -m py_compile fap_browser_operator.py fap_browser_preflight.py fap_browser_runtime.py fap_self_improvement_controller.py
+          python -m unittest -v tests.test_fap_browser_operator tests.test_fap_browser_runtime tests.test_fap_self_improvement_controller
   native_cpp:
     runs-on: ubuntu-latest
     timeout-minutes: 15
