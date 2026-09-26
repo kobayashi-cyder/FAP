@@ -467,7 +467,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 setStatus("FAPが読み上げ中…");
-                voice.speak(result.answer, () -> listenIfActive());
+                voice.speak(result.answer, null);
             }
         });
         renderTimeline();
@@ -490,14 +490,14 @@ public class MainActivity extends Activity {
         }
         voiceLoop = true;
         refreshVoiceButton();
-        chatLog.appendBack("system", "voice", "音声会話を開始");
+        chatLog.appendBack("system", "voice", "音声会話を開始 · continuous=ON");
         renderTimeline();
-        listenIfActive();
+        voice.startContinuous();
     }
 
     private void stopVoiceLoop() {
         voiceLoop = false;
-        if (voice != null) voice.stopAll();
+        if (voice != null) voice.stopContinuous();
         refreshVoiceButton();
         chatLog.appendBack("system", "voice", "音声会話を停止");
         renderTimeline();
@@ -524,7 +524,7 @@ public class MainActivity extends Activity {
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             voiceLoop = true;
             refreshVoiceButton();
-            listenIfActive();
+            voice.startContinuous();
         } else {
             stopVoiceLoop();
             Toast.makeText(this, "音声会話にはマイク権限が必要です", Toast.LENGTH_LONG).show();
@@ -581,7 +581,7 @@ public class MainActivity extends Activity {
     private void pauseVoiceForGitOperation() {
         resumeVoiceAfterGit = voiceLoop;
         if (voiceLoop && voice != null) {
-            voice.stopAll();
+            voice.stopContinuous();
             voiceLoop = false;
             refreshVoiceButton();
         }
@@ -594,7 +594,7 @@ public class MainActivity extends Activity {
                 == PackageManager.PERMISSION_GRANTED) {
             voiceLoop = true;
             refreshVoiceButton();
-            mainHandler.postDelayed(this::listenIfActive, 350);
+            mainHandler.postDelayed(() -> voice.startContinuous(), 350);
         }
     }
 
