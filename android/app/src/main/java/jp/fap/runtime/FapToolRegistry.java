@@ -102,6 +102,11 @@ public final class FapToolRegistry {
                 true,
                 "FMG connectome import · 1024外部生成プロファイル + ローカル簡易fallback"));
         out.add(new ToolState(
+                "video_generation",
+                "動画生成",
+                true,
+                "FMG keyframes + Android MediaCodec H.264 MP4"));
+        out.add(new ToolState(
                 "vision",
                 "画像理解",
                 true,
