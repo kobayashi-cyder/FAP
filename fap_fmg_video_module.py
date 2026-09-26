@@ -6,12 +6,13 @@ from pathlib import Path
 from typing import Any
 
 from fap_fmg_image_module import FMGImportedImageModule
+from fap_media_policy import release_transient_memory, strip_control_directives, video_profile
 
 
 VIDEO_VERSION = "FAP-FMG-VIDEO-0.1"
 DEFAULT_DURATION_SECONDS = 8
 DEFAULT_FPS = 12
-MAX_KEYFRAMES = 4
+MAX_KEYFRAMES = 6
 
 
 def _video_intent(text: str) -> bool:
@@ -89,7 +90,7 @@ class FMGImportedVideoModule:
             "output_contract": "video_storyboard -> Android MediaCodec -> H.264 MP4",
         }
 
-    def _scene_prompts(self, prompt: str) -> list[str]:
+    def _scene_prompts(self, prompt: str, quality: str, keyframes: int) -> list[str]:
         suffixes = (
             "opening establishing shot, wide composition, coherent scene",
             "camera moves closer, medium-wide composition, preserve subjects and location",
@@ -97,9 +98,15 @@ class FMGImportedVideoModule:
             "closing shot, cinematic composition, preserve the same world and subjects",
         )
         out: list[str] = []
-        for suffix in suffixes[: self.keyframes]:
+        expanded = list(suffixes)
+        if keyframes > len(expanded):
+            expanded.extend((
+                "continuity bridge shot, preserve identity, lighting and scene geometry",
+                "final cinematic hold, preserve identity, lighting and scene geometry",
+            ))
+        for suffix in expanded[:keyframes]:
             out.append(
-                "画像生成: "
+                f"[FAP_MEDIA quality={quality}] 画像生成: "
                 + prompt
                 + "\nTemporal video keyframe: "
                 + suffix
@@ -122,7 +129,9 @@ class FMGImportedVideoModule:
         return ""
 
     def generate(self, text: str) -> dict[str, Any]:
-        prompt = str(text or "").strip()
+        raw_prompt = str(text or "").strip()
+        profile = video_profile(raw_prompt)
+        prompt = strip_control_directives(raw_prompt)
         if not prompt:
             return {
                 "ok": False,
@@ -130,11 +139,12 @@ class FMGImportedVideoModule:
                 "confidence": 1.0,
             }
 
-        duration = _duration_seconds(prompt)
+        duration = min(_duration_seconds(prompt), profile.max_duration_s)
         frame_paths: list[str] = []
         frame_notes: list[dict[str, Any]] = []
 
-        for index, scene_prompt in enumerate(self._scene_prompts(prompt), 1):
+        for index, scene_prompt in enumerate(
+                self._scene_prompts(prompt, profile.name, profile.keyframes), 1):
             result = self.image_module.generate(scene_prompt)
             path = self._artifact_path(result)
             frame_notes.append(
@@ -181,21 +191,24 @@ class FMGImportedVideoModule:
             "video_pipeline": VIDEO_VERSION,
             "video_profile": {
                 "duration_seconds": duration,
-                "fps": DEFAULT_FPS,
-                "width": 512,
-                "height": 512,
+                "fps": profile.fps,
+                "width": profile.width,
+                "height": profile.height,
+                "quality": profile.name,
                 "codec": "video/avc",
             },
             "frame_attempts": frame_notes,
+            "memory_release": release_transient_memory(),
             "artifacts": [
                 {
                     "type": "video_storyboard",
                     "name": "fap_fmg_storyboard",
                     "frames": frame_paths,
                     "duration_seconds": duration,
-                    "fps": DEFAULT_FPS,
-                    "width": 512,
-                    "height": 512,
+                    "fps": profile.fps,
+                    "width": profile.width,
+                    "height": profile.height,
+                    "quality": profile.name,
                 }
             ],
         }
