@@ -1,0 +1,42 @@
+name: Hypothetical 5.8Sol Intelligence Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'side/public-1.0.01-r002-port-20260926'
+    paths:
+      - 'tests/test_fap_hypothetical_58sol_gate.py'
+      - 'FAP_HYPOTHETICAL_58SOL_GATE.md'
+      - 'fap_*.py'
+      - '.github/workflows/public-r002-hypothetical-58sol-gate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/test_fap_hypothetical_58sol_gate.py'
+      - 'FAP_HYPOTHETICAL_58SOL_GATE.md'
+      - 'fap_*.py'
+      - '.github/workflows/public-r002-hypothetical-58sol-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  intelligence-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest psutil
+      - name: Compile intelligence gate
+        run: python -m py_compile tests/test_fap_hypothetical_58sol_gate.py
+      - name: Run hypothetical 5.8Sol gate shard ${{ matrix.shard }}
+        run: pytest -q tests/test_fap_hypothetical_58sol_gate.py
