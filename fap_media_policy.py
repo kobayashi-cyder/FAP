@@ -85,6 +85,50 @@ def video_profile(text: str) -> VideoProfile:
     return VIDEO_PROFILES[quality_mode(text)]
 
 
+def image_dimensions(text: str, profile: ImageProfile) -> tuple[int, int]:
+    raw = str(text or "").casefold()
+    ratio = "1:1"
+    if any(token in raw for token in ("16:9", "横長", "widescreen", "landscape")):
+        ratio = "16:9"
+    elif any(token in raw for token in ("9:16", "縦長", "portrait", "vertical")):
+        ratio = "9:16"
+    elif "4:3" in raw:
+        ratio = "4:3"
+    elif "3:4" in raw:
+        ratio = "3:4"
+
+    long_edge = int(profile.width)
+
+    def m64(value: float) -> int:
+        return max(256, int(round(value / 64.0)) * 64)
+
+    if ratio == "16:9":
+        return long_edge, m64(long_edge * 9.0 / 16.0)
+    if ratio == "9:16":
+        return m64(long_edge * 9.0 / 16.0), long_edge
+    if ratio == "4:3":
+        return long_edge, m64(long_edge * 3.0 / 4.0)
+    if ratio == "3:4":
+        return m64(long_edge * 3.0 / 4.0), long_edge
+    return int(profile.width), int(profile.height)
+
+
+def enhance_prompt(text: str, profile: ImageProfile) -> str:
+    prompt = strip_control_directives(text)
+    if profile.name == "draft":
+        return prompt
+    if profile.name == "high":
+        suffix = (
+            "highly detailed, coherent composition, consistent lighting, "
+            "refined materials, accurate geometry, cinematic depth, clean details"
+        )
+    else:
+        suffix = "coherent composition, consistent lighting, clean details"
+    if not prompt:
+        return suffix
+    return prompt.rstrip(" ,") + ", " + suffix
+
+
 class ArtifactBudget:
     """Bound generated-file growth without touching pinned/current artifacts."""
 
