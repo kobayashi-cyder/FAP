@@ -112,6 +112,25 @@ class FAP1xStandardRuntimeTests(unittest.TestCase):
             "1.0.01-cpp-native-r008",
         )
 
+    def test_runtime_exposes_reasoning_episode(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        result = runtime.run_turn("計算してください: (19+8)*4")
+        episode = result.payload.get("reasoning_episode") or {}
+        self.assertEqual(episode.get("contract"), "fap.reasoning.episode.v1")
+        self.assertEqual(episode.get("verdict"), "OK")
+        self.assertTrue(episode.get("false_success_guard"))
+        self.assertTrue(episode.get("plan_execute_verify_repair_reverify"))
+        self.assertGreaterEqual(episode.get("attempted_passes", 0), 1)
+
+    def test_reasoning_status_reports_episode_contract(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        intelligence = runtime.status().get("response_intelligence") or {}
+        self.assertEqual(
+            intelligence.get("episode_contract"),
+            "fap.reasoning.episode.v1",
+        )
+        self.assertEqual(intelligence.get("max_escalation_passes"), 3)
+
     def test_known_primary_fact_remains_primary_when_already_strong(self):
         runtime = FAP1xStandardRuntime(root=ROOT)
         result = runtime.run_turn("真空中の光速は？")
