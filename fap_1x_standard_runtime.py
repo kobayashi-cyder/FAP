@@ -7,6 +7,7 @@ from fap_1x_runtime import FAP1xRuntime
 from fap_interaction_fabric import InteractionDispatch
 from fap_response_redundancy import ResponseRedundancyPlanner
 from fap_response_series_executor import ResponseSeriesExecutor
+from fap_request_deliberation import analyze_request
 from fap_factual_qa import FactualQAOrgan
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_reflective_conversation import ReflectiveConversationOrgan
@@ -57,6 +58,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "response-specialists:16-readonly",
             "verified-specialist-answer-takeover",
             "deterministic-complementary-synthesis",
+            "request-deliberation-routing",
         ]
         if self.memory is not None:
             caps.append("semantic-memory")
@@ -87,6 +89,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "safe_specialists": list(self.response_series.SAFE_SPECIALISTS),
                 "side_effecting_specialists_redundantly_executed": False,
                 "native_revision": "1.0.01-cpp-native-r008",
+                "request_analysis_contract": "fap.request.deliberation.v1",
             },
         }
 
@@ -99,12 +102,25 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         pressure_hint: float = 0.0,
         metadata: Mapping[str, Any] | None = None,
     ) -> InteractionDispatch:
+        signals = analyze_request(str(text), history)
+        routed_metadata = dict(metadata) if isinstance(metadata, Mapping) else {}
+        for key, value in signals.routing_metadata().items():
+            routed_metadata.setdefault(key, value)
+        try:
+            requested_pressure = float(pressure_hint)
+        except (TypeError, ValueError, OverflowError):
+            requested_pressure = 0.0
+        routed_pressure = min(
+            1.0,
+            max(0.0, requested_pressure, signals.pressure_hint),
+        )
+
         primary = super().dispatch(
             text,
             history=history,
             channel=channel,
-            pressure_hint=pressure_hint,
-            metadata=metadata,
+            pressure_hint=routed_pressure,
+            metadata=routed_metadata,
         )
         if channel != "chat":
             return primary
@@ -124,7 +140,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             confidence = 0.50
         confidence = min(1.0, max(0.0, confidence))
 
-        uncertainty = min(
+        base_uncertainty = min(
             1.0,
             max(
                 0.0,
@@ -133,9 +149,21 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 + (0.18 if primary.state != "handled" else 0.0),
             ),
         )
-        disagreement = primary.state != "handled" or any(
-            attempt.state not in {"handled", "declined"}
-            for attempt in primary.attempts
+        uncertainty = min(
+            1.0,
+            max(
+                base_uncertainty,
+                signals.verification_pressure,
+                0.35 * signals.history_pressure,
+            ),
+        )
+        disagreement = (
+            primary.state != "handled"
+            or signals.correction_requested
+            or any(
+                attempt.state not in {"handled", "declined"}
+                for attempt in primary.attempts
+            )
         )
 
         plan = self.response_redundancy.plan(
@@ -143,14 +171,14 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             uncertainty=uncertainty,
             confidence=confidence,
             disagreement=disagreement,
-            counterexample=False,
+            counterexample=signals.counterexample,
             route_candidates=min(8, max(1, int(primary.budget.route_candidates))),
             verification_depth=min(
                 6,
                 max(1, 1 + int(primary.budget.reasoning_steps) // 20),
             ),
             retries=min(4, max(0, int(primary.budget.repair_rounds))),
-            intent_count=0,
+            intent_count=signals.intent_count,
             has_route=primary.state == "handled",
         )
         enhanced = self.response_series.run(
@@ -160,6 +188,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             plan,
         )
         enhanced["response_redundancy"] = plan.to_dict()
+        enhanced["request_deliberation"] = signals.to_dict()
 
         reply = self._payload_text(enhanced)
         if not reply:
