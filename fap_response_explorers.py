@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-_EXPR_CHUNK = re.compile(r"[0-9eE.+\\-*/%()\\s]{3,}")
+_EXPR_CHUNK = re.compile(r"[0-9eE.+\-*/%()\s]{3,}")
 _MATH_TRIGGER = re.compile(r"(計算|evaluate|calculate|それぞれ|each|複数|multi)", re.I)
-_CODE_BLOCK = re.compile(r"`{3}(?:python|py)?\\s*\\n(.*?)`{3}", re.I | re.S)
+_CODE_BLOCK = re.compile(r"`{3}(?:python|py)?\s*\n(.*?)`{3}", re.I | re.S)
 _COUNTER_CUE = re.compile(r"(反例|counterexample|always|never|すべて|全て|必ず|絶対|例外)", re.I)
-_CAUSAL_ARROW = re.compile(r"([^\\n。！？;；]{1,80}?)\\s*(?:->|→|⇒|causes?|leads? to|が原因で|によって)\\s*([^\\n。！？;；]{1,80})", re.I)
+_CAUSAL_ARROW = re.compile(r"([^\n。！？;；]{1,80}?)\s*(?:->|→|⇒|causes?|leads? to|が原因で|によって)\s*([^\n。！？;；]{1,80})", re.I)
 _FACT_LINE = re.compile(
-    r"(?im)^\\s*([A-Za-z_][A-Za-z0-9_ .-]{0,48})\\s*[:=]\\s*"
-    r"([^\\n]{1,120})\\s*$"
+    r"(?im)^\s*([A-Za-z_][A-Za-z0-9_ .-]{0,48})\s*[:=]\s*"
+    r"([^\n]{1,120})\s*$"
 )
 
 
@@ -60,7 +60,7 @@ class MultiStepMathExplorer:
         chunks: list[str] = []
         for chunk in _EXPR_CHUNK.findall(raw):
             expr = chunk.strip()
-            if not re.search(r"\\d", expr) or not re.search(r"(?:\\*\\*|[+\\-*/%])", expr):
+            if not re.search(r"\d", expr) or not re.search(r"(?:\*\*|[+\-*/%])", expr):
                 continue
             if expr not in chunks:
                 chunks.append(expr)
@@ -105,11 +105,11 @@ class PythonRepairExplorer:
         lines = source.splitlines()
         for i, line in enumerate(lines):
             stripped = line.rstrip()
-            if re.match(r"^\\s*(def|class|if|elif|else|for|while|try|except|finally|with)\\b", stripped) and not stripped.endswith(":"):
+            if re.match(r"^\s*(def|class|if|elif|else|for|while|try|except|finally|with)\b", stripped) and not stripped.endswith(":"):
                 fixed = list(lines)
                 fixed[i] = stripped + ":"
-                variants.append(("append_colon", "\\n".join(fixed) + ("\\n" if source.endswith("\\n") else "")))
-        variants.append(("repair_empty_parameter_list", re.sub(r"(def\\s+[A-Za-z_]\\w*)\\s*\\(\\s*:", r"\\1():", source)))
+                variants.append(("append_colon", "\n".join(fixed) + ("\n" if source.endswith("\n") else "")))
+        variants.append(("repair_empty_parameter_list", re.sub(r"(def\s+[A-Za-z_]\w*)\s*\(\s*:", r"\1():", source)))
 
         for repair, candidate in variants[:6]:
             if candidate == source:
@@ -120,7 +120,7 @@ class PythonRepairExplorer:
                 continue
             return {
                 "ok": True,
-                "reply": "Python修復候補を静的検証しました。\\n" + candidate.rstrip(),
+                "reply": "Python修復候補を静的検証しました。\n" + candidate.rstrip(),
                 "confidence": 0.94,
                 "verified": True,
                 "grounded": True,
@@ -145,8 +145,8 @@ class CausalGraphExplorer:
         raw = str(text or "")
         edges: list[CausalEdge] = []
         for a, b in _CAUSAL_ARROW.findall(raw):
-            source = re.sub(r"\\s+", " ", a).strip(" ,、")
-            target = re.sub(r"\\s+", " ", b).strip(" ,、")
+            source = re.sub(r"\s+", " ", a).strip(" ,、")
+            target = re.sub(r"\s+", " ", b).strip(" ,、")
             if source and target and source != target:
                 edge = CausalEdge(source, target)
                 if edge not in edges:
@@ -179,7 +179,7 @@ class CounterexampleConditionExplorer:
         raw = str(text or "").strip()
         if not raw or not _COUNTER_CUE.search(raw):
             return None
-        claims = [x.strip() for x in re.split(r"[\\n。！？!?;；]+", raw) if _COUNTER_CUE.search(x)]
+        claims = [x.strip() for x in re.split(r"[\n。！？!?;；]+", raw) if _COUNTER_CUE.search(x)]
         if not claims:
             return None
         rows = ["「" + claim[:180] + "」は、主張が成立しない単一事例が見つかれば反証できます。" for claim in claims[:6]]
@@ -196,8 +196,8 @@ class CounterexampleConditionExplorer:
 
 
 class LongFormContradictionExplorer:
-    NEG = re.compile(r"^(?:not\\s+|no\\s+|false\\s*$|off\\s*$|disabled\\s*$|禁止|不要|使わない|しない)", re.I)
-    POS = re.compile(r"^(?:yes\\s*$|true\\s*$|on\\s*$|enabled\\s*$|必要|必須|使う|する)", re.I)
+    NEG = re.compile(r"^(?:not\s+|no\s+|false\s*$|off\s*$|disabled\s*$|禁止|不要|使わない|しない)", re.I)
+    POS = re.compile(r"^(?:yes\s*$|true\s*$|on\s*$|enabled\s*$|必要|必須|使う|する)", re.I)
 
     def run(self, text: str, history: list[Mapping[str, Any]] | None = None) -> dict[str, Any] | None:
         corpus: list[str] = []
@@ -209,8 +209,8 @@ class LongFormContradictionExplorer:
         values: dict[str, set[str]] = {}
         for chunk in corpus:
             for key, raw in _FACT_LINE.findall(chunk):
-                k = re.sub(r"\\s+", " ", key.strip().casefold())
-                v = re.sub(r"\\s+", " ", raw.strip().casefold())
+                k = re.sub(r"\s+", " ", key.strip().casefold())
+                v = re.sub(r"\s+", " ", raw.strip().casefold())
                 values.setdefault(k, set()).add(v)
 
         conflicts: list[tuple[str, list[str]]] = []
