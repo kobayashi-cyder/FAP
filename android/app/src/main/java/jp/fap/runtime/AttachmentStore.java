@@ -120,7 +120,7 @@ public final class AttachmentStore {
         String sha = hex(digest.digest());
         String preview = isTextLike(mime, safe)
                 ? readTextPreview(output)
-                : "";
+                : AttachmentAnalyzer.analyze(app, output, safe, mime);
 
         Attachment attachment = new Attachment(
                 id,
