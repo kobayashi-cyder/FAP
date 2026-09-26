@@ -65,12 +65,12 @@ public final class FapToolRegistry {
 
         out.add(new ToolState(
                 "local_reasoning",
-                "ローカル推論",
+                "FAP Core",
                 true,
-                "FAP 1.x runtime / semantic memory / 3段階深考"));
+                "connectome runtime / semantic memory / FAP思考"));
         out.add(new ToolState(
                 "web_research",
-                "Web調査",
+                "外部調査",
                 accessibility,
                 accessibility
                         ? "Chrome/ChatGPT委譲 + FAP統合"
@@ -118,13 +118,13 @@ public final class FapToolRegistry {
                 "GitHub Release manifest + signer/SHA検証"));
         out.add(new ToolState(
                 "chat_archive",
-                "チャット履歴",
+                "記録庫",
                 true,
-                "複数チャット保存 / 全文検索 / 分岐スナップショット"));
+                "複数会話保存 / 全文検索 / 横枝スナップショット"));
         int externalConnected = connectedExternalCount(context);
         out.add(new ToolState(
                 "external_connectors",
-                "外部コネクタ",
+                "外部接続",
                 externalConnected > 0,
                 externalConnected > 0
                         ? "接続済みadapter=" + externalConnected
