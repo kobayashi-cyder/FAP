@@ -174,6 +174,18 @@ jobs:
           grep -q 'chip("再生成")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'chip("コピー")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'chip("新規")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'Text-only sending is explicitly supported' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'setReplyListener' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'setThreadListener' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'selectReplyTarget' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'openThreadForEntry' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'threadSnapshot' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'appendFrontThreaded' android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          grep -q 'reply_to_id' android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          grep -q 'thread_root_id' android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          grep -q 'ThreadListener' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q '↩ 返信' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q '🧵 スレッド' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
           grep -q 'Linkify.WEB_URLS' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
           grep -q 'TextRecognition.getClient' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'ImageLabeling.getClient' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
