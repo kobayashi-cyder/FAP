@@ -3,6 +3,7 @@
 /android_packaging/sync_pixel_runtime.py
 /knowledge/
 /fap_1x_runtime.py
+/fap_adaptive_reasoning.py
 /fap_1x_standard_runtime.py
 /fap_discourse_context.py
 /fap_dynamic_sparse_routing.py
