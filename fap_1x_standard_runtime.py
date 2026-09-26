@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from fap_1x_runtime import FAP1xRuntime
+from fap_adaptive_reasoning import AdaptiveReasoningGovernor
 from fap_interaction_fabric import InteractionDispatch
 from fap_response_redundancy import ResponseRedundancyPlanner
 from fap_response_series_executor import ResponseSeriesExecutor
@@ -39,6 +40,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         self.self_profile = RuntimeSelfProfile(self.semantic_router)
         self.response_redundancy = ResponseRedundancyPlanner()
         self.response_series = ResponseSeriesExecutor(self.root)
+        self.reasoning_governor = AdaptiveReasoningGovernor()
         self._register_standard_endpoints()
 
     def capabilities(self) -> tuple[str, ...]:
@@ -57,6 +59,10 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "response-specialists:16-readonly",
             "verified-specialist-answer-takeover",
             "deterministic-complementary-synthesis",
+            "adaptive-reasoning-governor",
+            "counterexample-escalation",
+            "confidence-calibration",
+            "fail-closed-epistemics",
         ]
         if self.memory is not None:
             caps.append("semantic-memory")
@@ -87,6 +93,10 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "safe_specialists": list(self.response_series.SAFE_SPECIALISTS),
                 "side_effecting_specialists_redundantly_executed": False,
                 "native_revision": "1.0.01-cpp-native-r008",
+                "governor_contract": self.reasoning_governor.CONTRACT,
+                "max_escalation_passes": self.reasoning_governor.MAX_ESCALATION_PASSES,
+                "confidence_calibrated": True,
+                "fail_closed": True,
             },
         }
 
@@ -165,13 +175,110 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         if not reply:
             return primary
 
-        execution = enhanced.get("response_series_execution")
-        selected = (
-            str(execution.get("selected") or "primary")
-            if isinstance(execution, Mapping)
+        first_execution = enhanced.get("response_series_execution")
+        first_selected = (
+            str(first_execution.get("selected") or "primary")
+            if isinstance(first_execution, Mapping)
             else "primary"
         )
-        endpoint_id = primary.endpoint_id if selected == "primary" else "response_series"
+        endpoint_id = (
+            primary.endpoint_id
+            if first_selected == "primary"
+            else "response_series"
+        )
+
+        assessment = self.reasoning_governor.assess(
+            str(text),
+            enhanced,
+            dispatch_state=primary.state,
+        )
+        assessments = [assessment]
+        best = enhanced
+        best_score = self.reasoning_governor.quality_score(best)
+        passes = 1
+
+        escalation_budget = min(
+            self.reasoning_governor.MAX_ESCALATION_PASSES,
+            max(0, int(assessment.escalation_level)),
+        )
+        current_assessment = assessment
+
+        for pass_index in range(1, escalation_budget + 1):
+            if (
+                current_assessment.selected_verified
+                and current_assessment.confidence >= 0.90
+                and current_assessment.disagreement_count == 0
+                and current_assessment.requirement_coverage >= 0.90
+                and current_assessment.segment_coverage >= 0.90
+            ):
+                break
+
+            stronger = self.response_redundancy.plan(
+                str(text),
+                **self.reasoning_governor.escalation_plan_kwargs(
+                    current_assessment,
+                    pass_index,
+                ),
+            )
+            candidate = self.response_series.run(
+                str(text),
+                list(history),
+                best,
+                stronger,
+            )
+            candidate["response_redundancy"] = stronger.to_dict()
+
+            candidate_assessment = self.reasoning_governor.assess(
+                str(text),
+                candidate,
+                dispatch_state="handled",
+            )
+            assessments.append(candidate_assessment)
+            passes += 1
+
+            candidate_score = self.reasoning_governor.quality_score(candidate)
+            verified_gain = (
+                candidate_assessment.selected_verified
+                and not current_assessment.selected_verified
+            )
+            coverage_gain = (
+                candidate_assessment.requirement_coverage
+                    > current_assessment.requirement_coverage + 0.08
+                or candidate_assessment.segment_coverage
+                    > current_assessment.segment_coverage + 0.08
+            )
+            lower_risk = (
+                candidate_assessment.epistemic_risk
+                < current_assessment.epistemic_risk - 0.06
+            )
+
+            if (
+                candidate_score > best_score + 0.005
+                or verified_gain
+                or coverage_gain
+                or lower_risk
+            ):
+                best = candidate
+                best_score = candidate_score
+                execution = candidate.get("response_series_execution")
+                selected = (
+                    str(execution.get("selected") or "primary")
+                    if isinstance(execution, Mapping)
+                    else "primary"
+                )
+                if selected != "primary":
+                    endpoint_id = "response_series"
+
+            current_assessment = candidate_assessment
+
+        final_payload = self.reasoning_governor.calibrate(
+            str(text),
+            best,
+            dispatch_state="handled",
+            passes=passes,
+            assessments=assessments,
+        )
+
         return InteractionDispatch(
             contract=primary.contract,
             state="handled",
@@ -179,7 +286,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             demand=primary.demand,
             budget=primary.budget,
             attempts=primary.attempts,
-            payload=enhanced,
+            payload=final_payload,
         )
 
     def _register_standard_endpoints(self) -> None:
