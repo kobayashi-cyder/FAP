@@ -97,6 +97,11 @@ public final class FapToolRegistry {
                 true,
                 "複数添付 / PDF本文+OCR / Office / archive / APK"));
         out.add(new ToolState(
+                "image_generation",
+                "画像生成",
+                true,
+                "FMG connectome import · 1024外部生成プロファイル + ローカル簡易fallback"));
+        out.add(new ToolState(
                 "vision",
                 "画像理解",
                 true,
