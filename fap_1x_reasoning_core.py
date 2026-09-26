@@ -1,0 +1,391 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+from pathlib import Path
+import re
+from typing import Any, Mapping
+
+from fap_benchmark_reasoning import StructuredMCQParser, StructuredMCQReasoner
+from fap_factual_qa import FactualQAOrgan
+from fap_generic_derivation import GenericDerivationEngine
+from fap_generic_rule_reasoner import GenericRuleReasoner
+from fap_hypothesis_engine import HYPOTHESIS_CUES, HypothesisEngine
+from fap_physics_solver_v2 import ExpandedPhysicsSolver
+from fap_scientific_reasoning import OptionConditionedScientificReasoner
+
+
+@dataclass(frozen=True)
+class ReasoningCandidate:
+    source: str
+    reply: str
+    confidence: float
+    verification: str
+    payload: Mapping[str, Any]
+    answer_key: str = ""
+    evidence_count: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        row = asdict(self)
+        row["payload"] = dict(self.payload)
+        return row
+
+
+@dataclass(frozen=True)
+class ReasoningPlan:
+    task_form: str
+    stages: tuple[str, ...]
+    candidate_lanes: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+class FAP1xGeneralReasoningCore:
+    """Evidence-gated multi-lane reasoning for the public 1.x runtime.
+
+    The core does not treat an unresolved forced choice as knowledge. It builds
+    several independent candidates, ranks verified results first, exposes
+    disagreements, and keeps hypotheses explicitly provisional.
+    """
+
+    VERIFIED = {
+        "verified_arithmetic",
+        "deterministic_physics",
+        "rule_verified",
+        "derivation_verified",
+        "local_fact",
+    }
+    SUPPORTED = {
+        "option_conditioned_science",
+    }
+
+    def __init__(self, root: str | Path) -> None:
+        self.root = Path(root).expanduser().resolve()
+        self.mcq_parser = StructuredMCQParser()
+        self.mcq_base = StructuredMCQReasoner()
+        self.science = OptionConditionedScientificReasoner(self.mcq_base)
+        self.physics = ExpandedPhysicsSolver()
+        self.factual = FactualQAOrgan()
+        self.rules = GenericRuleReasoner(self.root)
+        self.derivation = GenericDerivationEngine(self.root)
+        self.hypotheses = HypothesisEngine(self.root)
+
+    def plan(self, text: str) -> ReasoningPlan:
+        query = str(text or "").strip()
+        task = self.mcq_parser.parse(query)
+        if task is not None:
+            return ReasoningPlan(
+                task_form="multiple_choice",
+                stages=(
+                    "parse_contract",
+                    "generate_independent_candidates",
+                    "verify_deterministic_candidates",
+                    "compare_candidate_answers",
+                    "select_or_fail_closed",
+                ),
+                candidate_lanes=(
+                    "deterministic_physics",
+                    "verified_arithmetic",
+                    "option_conditioned_science",
+                ),
+            )
+        if HYPOTHESIS_CUES.search(query):
+            return ReasoningPlan(
+                task_form="hypothesis",
+                stages=(
+                    "retrieve_context",
+                    "generate_competing_hypotheses",
+                    "attach_predictions",
+                    "attach_falsifiers",
+                    "keep_provisional",
+                ),
+                candidate_lanes=("hypothesis_engine",),
+            )
+        if re.search(r"(導出|証明|示して|導いて|derive|proof|prove)", query, re.I):
+            return ReasoningPlan(
+                task_form="derivation",
+                stages=(
+                    "retrieve_derivation",
+                    "symbolic_normalize",
+                    "derive_target",
+                    "countercheck",
+                ),
+                candidate_lanes=("generic_derivation", "rule_reasoner"),
+            )
+        return ReasoningPlan(
+            task_form="open",
+            stages=(
+                "generate_candidates",
+                "check_grounding",
+                "rank_by_verification",
+                "fail_closed_if_unresolved",
+            ),
+            candidate_lanes=("factual_qa", "rule_reasoner"),
+        )
+
+    def probe(self, text: str) -> float:
+        query = str(text or "").strip()
+        if not query:
+            return 0.0
+        if self.mcq_parser.parse(query) is not None:
+            return 0.99
+        if HYPOTHESIS_CUES.search(query):
+            return 0.88
+        if re.search(r"(導出|証明|示して|導いて|derive|proof|prove)", query, re.I):
+            return 0.91
+        if self.factual.match(query) is not None:
+            return 0.96
+        if self.rules._resolve_relation(query) is not None:
+            return 0.86
+        return 0.0
+
+    @staticmethod
+    def _history(history: tuple[Mapping[str, Any], ...] | list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+        return [dict(row) for row in history]
+
+    @staticmethod
+    def _reply(payload: Mapping[str, Any]) -> str:
+        return str(payload.get("reply") or payload.get("text") or "").strip()
+
+    @staticmethod
+    def _letter(payload: Mapping[str, Any]) -> str:
+        reply = str(payload.get("reply") or "")
+        match = re.search(r"(?i)Answer\s*:\s*\$?([A-D])\$?", reply)
+        return match.group(1).upper() if match else ""
+
+    def _mcq_candidates(
+        self,
+        text: str,
+        history: list[Mapping[str, Any]],
+    ) -> list[ReasoningCandidate]:
+        task = self.mcq_parser.parse(text)
+        if task is None:
+            return []
+
+        out: list[ReasoningCandidate] = []
+
+        physics = self.physics.run(task)
+        if physics is not None and physics.get("ok"):
+            out.append(
+                ReasoningCandidate(
+                    source="deterministic_physics",
+                    reply=self._reply(physics),
+                    confidence=float(physics.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=physics,
+                    answer_key=self._letter(physics),
+                    evidence_count=1,
+                )
+            )
+
+        base = self.mcq_base.run(task, history, teacher_allowed=False)
+        base_source = str(base.get("decision_source") or "")
+        if base_source == "verified_arithmetic":
+            out.append(
+                ReasoningCandidate(
+                    source="verified_arithmetic",
+                    reply=self._reply(base),
+                    confidence=float(base.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=base,
+                    answer_key=self._letter(base),
+                    evidence_count=1,
+                )
+            )
+
+        scientific = self.science.run(task, history, teacher_allowed=False)
+        science_source = str(scientific.get("decision_source") or "")
+        if science_source == "option_conditioned_science":
+            assessments = scientific.get("option_assessments") or []
+            evidence_count = sum(
+                len(row.get("evidence") or []) + len(row.get("contradictions") or [])
+                for row in assessments
+                if isinstance(row, Mapping)
+            )
+            out.append(
+                ReasoningCandidate(
+                    source="option_conditioned_science",
+                    reply=self._reply(scientific),
+                    confidence=float(scientific.get("confidence", 0.0)),
+                    verification="supported",
+                    payload=scientific,
+                    answer_key=self._letter(scientific),
+                    evidence_count=evidence_count,
+                )
+            )
+
+        # Deliberately exclude unresolved_content_tiebreak. A content hash is a
+        # deterministic fallback, not evidence that the answer is correct.
+        return out
+
+    def _open_candidates(
+        self,
+        text: str,
+        history: list[Mapping[str, Any]],
+    ) -> list[ReasoningCandidate]:
+        out: list[ReasoningCandidate] = []
+
+        factual = self.factual.run(text)
+        if factual is not None and factual.get("ok"):
+            out.append(
+                ReasoningCandidate(
+                    source="local_fact",
+                    reply=self._reply(factual),
+                    confidence=float(factual.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=factual,
+                    evidence_count=1,
+                )
+            )
+
+        rule = self.rules.run(text, history)
+        if rule is not None and rule.get("ok") and rule.get("rule_verified"):
+            evidence = rule.get("evidence_ids") or []
+            out.append(
+                ReasoningCandidate(
+                    source="rule_verified",
+                    reply=self._reply(rule),
+                    confidence=float(rule.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=rule,
+                    evidence_count=len(evidence),
+                )
+            )
+
+        derivation = self.derivation.run(text, history)
+        if (
+            derivation is not None
+            and derivation.get("ok")
+            and derivation.get("derivation_verified")
+        ):
+            evidence = derivation.get("evidence_ids") or []
+            out.append(
+                ReasoningCandidate(
+                    source="derivation_verified",
+                    reply=self._reply(derivation),
+                    confidence=float(derivation.get("confidence", 0.0)),
+                    verification="verified",
+                    payload=derivation,
+                    evidence_count=len(evidence),
+                )
+            )
+
+        hypothesis = self.hypotheses.run(text, history)
+        if hypothesis is not None and hypothesis.get("ok"):
+            hypotheses = hypothesis.get("hypotheses") or []
+            out.append(
+                ReasoningCandidate(
+                    source="hypothesis_provisional",
+                    reply=self._reply(hypothesis),
+                    confidence=float(hypothesis.get("confidence", 0.0)),
+                    verification="provisional",
+                    payload=hypothesis,
+                    evidence_count=sum(
+                        len(row.get("evidence_ids") or [])
+                        for row in hypotheses
+                        if isinstance(row, Mapping)
+                    ),
+                )
+            )
+
+        return out
+
+    @staticmethod
+    def _rank(candidate: ReasoningCandidate) -> tuple[int, float, int, str]:
+        tier = {"verified": 3, "supported": 2, "provisional": 1}.get(
+            candidate.verification,
+            0,
+        )
+        return (
+            tier,
+            float(candidate.confidence),
+            int(candidate.evidence_count),
+            candidate.source,
+        )
+
+    @staticmethod
+    def _disagreement(candidates: list[ReasoningCandidate]) -> bool:
+        answers = {
+            candidate.answer_key
+            for candidate in candidates
+            if candidate.answer_key and candidate.verification in {"verified", "supported"}
+        }
+        return len(answers) > 1
+
+    def solve(
+        self,
+        text: str,
+        history: tuple[Mapping[str, Any], ...] | list[Mapping[str, Any]] = (),
+    ) -> Mapping[str, Any] | None:
+        query = str(text or "").strip()
+        if not query:
+            return None
+
+        plan = self.plan(query)
+        rows = self._history(history)
+        if plan.task_form == "multiple_choice":
+            candidates = self._mcq_candidates(query, rows)
+        else:
+            candidates = self._open_candidates(query, rows)
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=self._rank, reverse=True)
+        disagreement = self._disagreement(candidates)
+        verified = [x for x in candidates if x.verification == "verified"]
+        supported = [x for x in candidates if x.verification == "supported"]
+        provisional = [x for x in candidates if x.verification == "provisional"]
+
+        selected: ReasoningCandidate | None = None
+        if verified:
+            verified_answers = {x.answer_key for x in verified if x.answer_key}
+            if len(verified_answers) <= 1:
+                selected = verified[0]
+        elif supported and not disagreement:
+            selected = supported[0]
+        elif provisional and plan.task_form == "hypothesis":
+            selected = provisional[0]
+
+        if selected is None:
+            return {
+                "ok": False,
+                "text": "",
+                "reply": "",
+                "confidence": 0.0,
+                "verification_state": "unresolved",
+                "reasoning_plan": plan.to_dict(),
+                "candidate_count": len(candidates),
+                "candidate_disagreement": disagreement,
+                "candidates": [x.to_dict() for x in candidates[:8]],
+                "reasoning_trace": [
+                    "candidate_generation",
+                    "verification_gate",
+                    "disagreement_check",
+                    "fail_closed",
+                ],
+            }
+
+        return {
+            "ok": True,
+            "text": selected.reply,
+            "reply": selected.reply,
+            "confidence": selected.confidence,
+            "verification_state": selected.verification,
+            "reasoning_source": selected.source,
+            "reasoning_plan": plan.to_dict(),
+            "candidate_count": len(candidates),
+            "candidate_disagreement": disagreement,
+            "alternatives": [
+                x.to_dict()
+                for x in candidates
+                if x is not selected
+            ][:6],
+            "reasoning_trace": [
+                "candidate_generation",
+                "verification_gate",
+                "disagreement_check",
+                f"selected:{selected.source}",
+            ],
+            "selected_payload": dict(selected.payload),
+        }
