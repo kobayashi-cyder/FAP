@@ -3,7 +3,8 @@ plugins {
     id("com.chaquo.python")
 }
 
-val fapVersion = providers.environmentVariable("FAP_VERSION").orElse("59").get().toIntOrNull() ?: 59
+val fapVersionCode = providers.environmentVariable("FAP_VERSION_CODE").orElse("10001").get().toIntOrNull() ?: 10001
+val fapVersionName = providers.environmentVariable("FAP_VERSION_NAME").orElse("1.0.01-pixel").get()
 
 android {
     namespace = "jp.fap.runtime"
@@ -13,8 +14,8 @@ android {
         applicationId = "jp.fap.runtime"
         minSdk = 26
         targetSdk = 37
-        versionCode = fapVersion
-        versionName = "${fapVersion}.0-android"
+        versionCode = fapVersionCode
+        versionName = fapVersionName
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
