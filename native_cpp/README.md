@@ -1,6 +1,6 @@
 # FAP C/C++ Native Variant
 
-Version: **1.0.01-cpp-native-r004**
+Version: **1.0.01-cpp-native-r005**
 
 This directory is a separate native implementation of the public FAP 1.x behavior.
 It does **not** replace the Python mainline. The source branch is
@@ -8,7 +8,7 @@ It does **not** replace the Python mainline. The source branch is
 
 ## Response-series execution
 
-The r004 bridge makes the r003 6–64 lane response plan affect the answer
+The r004 bridge makes the r003 6–128 lane response plan affect the answer
 selection rather than only exposing capacity metadata.
 
 Each planned lane now casts an actual role-sensitive vote across available
@@ -44,7 +44,7 @@ semantic routing, persistent goal state, multi-intent planning, bounded semantic
 memory, response redundancy planning, the C ABI, WebAssembly UI tracing, CLI
 and regression tests.
 
-The response-series capacity remains **6–64 planned lanes**, with a **2–8 lane
+The response-series capacity remains **6–128 planned lanes**, with a **2–16 lane
 synthesis committee** and **55–90% partial salient coverage target**. The
 capacity number is a scheduling/evaluation scale, not a claim that 64
 independent language models are running.
