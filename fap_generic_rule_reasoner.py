@@ -237,13 +237,36 @@ class GenericRuleReasoner:
         if direct and direct[0][0] > 0:
             return direct[0][1], "current-turn"
 
-        context = self._history_text(history)
-        historical = sorted(
-            ((self._best_alias_match(context, ent.aliases), ent) for ent in self.entities),
-            key=lambda item: (-item[0], item[1].entity_id),
+        # Prefer explicit subjects from user turns over assistant-generated
+        # text. Otherwise a previous answer can inject a different entity and
+        # hijack a subjectless follow-up.
+        for row in reversed(history[-10:]):
+            if row.get("role") != "user":
+                continue
+            value = re.sub(r"\s+", " ", str(row.get("text", ""))).strip()
+            if not value:
+                continue
+            ranked = sorted(
+                ((self._best_alias_match(value, ent.aliases), ent) for ent in self.entities),
+                key=lambda item: (-item[0], item[1].entity_id),
+            )
+            if ranked and ranked[0][0] > 0:
+                return ranked[0][1], "conversation-context"
+
+        # Assistant context is a last-resort continuity hint only when no user
+        # turn contains an explicit known entity.
+        assistant_context = "\n".join(
+            re.sub(r"\s+", " ", str(row.get("text", ""))).strip()[:700]
+            for row in history[-6:]
+            if row.get("role") == "assistant" and str(row.get("text", "")).strip()
         )
-        if historical and historical[0][0] > 0:
-            return historical[0][1], "conversation-context"
+        if assistant_context:
+            historical = sorted(
+                ((self._best_alias_match(assistant_context, ent.aliases), ent) for ent in self.entities),
+                key=lambda item: (-item[0], item[1].entity_id),
+            )
+            if historical and historical[0][0] > 0:
+                return historical[0][1], "conversation-context"
         return None, ""
 
     def _rules_for(self, relation_id: str, entity: SemanticEntity) -> list[SemanticRule]:
