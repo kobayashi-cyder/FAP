@@ -1,0 +1,40 @@
+name: Public Common Test Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'side/public-1.0.01-r002-port-20260926'
+    paths:
+      - 'benchmarks/common_test_public.py'
+      - 'benchmarks/common_test_synthetic.py'
+      - 'docs/PUBLIC_COMMON_TEST_BENCHMARK.md'
+      - '.github/workflows/public-common-test-benchmark.yml'
+      - 'fap_*.py'
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-public-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate public Common Test-style set
+        run: python benchmarks/common_test_synthetic.py --seed 20260926 --per-subject 4
+      - name: Run benchmark
+        run: |
+          python benchmarks/common_test_public.py \
+            --questions runtime/common_test_synthetic_questions.jsonl \
+            --answers runtime/common_test_synthetic_answers.jsonl \
+            --output runtime/common_test_report.json
+      - name: Publish benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fap-public-common-test-benchmark
+          path: runtime/common_test_report.json
+          retention-days: 30

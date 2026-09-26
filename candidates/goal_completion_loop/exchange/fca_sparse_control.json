@@ -1,0 +1,23 @@
+{
+  "schema": "fca-fap.exchange.v1",
+  "source_project": "FCA",
+  "source_commit": "86611fe758717d33bfa43906c6605e04f4073339",
+  "capability": "sparse_capability_activation",
+  "mechanism": {
+    "score": "relevance * (expected_value + information_gain) - cost",
+    "constraints": [
+      "activation_budget",
+      "max_active"
+    ],
+    "intended_use": "filter planner-visible capabilities before planning"
+  },
+  "evidence": {
+    "status": "implemented_and_tested_in_FCA",
+    "inherited_from": "FCA ValueScheduler and connectome sparse activation discipline"
+  },
+  "constraints": [
+    "Capability filtering must fail closed if it returns an empty or unregistered set.",
+    "The gate is a resource scheduler, not a correctness oracle.",
+    "FAP retains its planner/critic completion boundaries."
+  ]
+}

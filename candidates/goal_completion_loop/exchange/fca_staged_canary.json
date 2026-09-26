@@ -1,0 +1,23 @@
+{
+  "schema": "fca-fap.exchange.v1",
+  "source_project": "FCA",
+  "source_commit": "c5c616eced8484641acd68714a2b210c3a157e1d",
+  "capability": "bounded_staged_canary",
+  "mechanism": {
+    "source_surface": "fca/canary.py",
+    "pattern": "evidence_isolated_staged_rollout_gate",
+    "adaptation": "FAP-neutral candidate digest and observations; advisory advance/rollback only"
+  },
+  "evidence": {
+    "source_status": "implemented_in_fca_with_control_plane_tests",
+    "fap_tests": "candidates/goal_completion_loop/tests/test_staged_canary.py"
+  },
+  "constraints": [
+    "FAP planner remains authoritative for plan construction and action selection.",
+    "FAP critic and verification remain authoritative for success and completion.",
+    "The canary gate cannot execute, promote, verify, or mark a goal complete.",
+    "Evidence is isolated per rollout stage and duplicate evidence cannot fill a stage.",
+    "Candidate digest mismatches and invalid thresholds fail closed.",
+    "This import does not introduce FCA connectome control into FAP."
+  ]
+}

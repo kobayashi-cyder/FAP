@@ -1,0 +1,39 @@
+name: V72 Audio Lifecycle Verify
+
+on:
+  push:
+    branches:
+      - feature/v72-audio-session-lifecycle-main
+  pull_request:
+    paths:
+      - "releases/v72/audio_lifecycle/**"
+      - "releases/v72/*AUDIO_LIFECYCLE*"
+      - ".github/workflows/v72-audio-lifecycle-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V72-V69 interaction stack
+        run: python -m compileall -q releases/v72/audio_lifecycle releases/v71/runtime releases/v70/media_adapters releases/v69/interaction
+      - name: V72 focused tests
+        run: python -m unittest discover -s releases/v72/audio_lifecycle/tests -p "test_*.py" -v
+      - name: V71 runtime regression
+        run: python -m unittest discover -s releases/v71/runtime/tests -p "test_*.py" -v
+      - name: V70 adapter regression
+        run: python -m unittest discover -s releases/v70/media_adapters/tests -p "test_*.py" -v
+      - name: V69 interaction regression
+        run: python -m unittest discover -s releases/v69/interaction/tests -p "test_*.py" -v
+      - name: V66-V68 core cumulative regression
+        working-directory: releases/v68
+        run: |
+          python -m unittest discover -s tests -p "test_v66_operational.py" -v
+          python -m unittest discover -s tests -p "test_v67_code_factory.py" -v
+          python -m unittest discover -s tests -p "test_v68_code_factory.py" -v

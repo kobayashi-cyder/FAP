@@ -1,0 +1,62 @@
+name: FAP V87.80 multi-turn consistency fuzz
+
+on:
+  push:
+    branches:
+      - feature/v87-80-multiturn-consistency-fuzz
+      - main
+    paths:
+      - "fap_multiturn_consistency_fuzz.py"
+      - "fap_discourse_context.py"
+      - "knowledge/conversation_discourse_ja.jsonl"
+      - "fap_reflective_conversation.py"
+      - "fap_inquiry_engine.py"
+      - "tests/test_fap_multiturn_consistency.py"
+      - "fap_v87_80_multiturn_consistency_gateway.py"
+      - "tests/test_v87_80_multiturn_gateway.py"
+      - "RUN_FAP_CHAT_LATEST.*"
+      - "FAP_LATEST.md"
+      - ".github/workflows/v87-80-multiturn-consistency-fuzz.yml"
+  pull_request:
+    paths:
+      - "fap_multiturn_consistency_fuzz.py"
+      - "fap_discourse_context.py"
+      - "knowledge/conversation_discourse_ja.jsonl"
+      - "fap_reflective_conversation.py"
+      - "fap_inquiry_engine.py"
+      - "tests/test_fap_multiturn_consistency.py"
+      - "fap_v87_80_multiturn_consistency_gateway.py"
+      - "tests/test_v87_80_multiturn_gateway.py"
+      - "RUN_FAP_CHAT_LATEST.*"
+      - "FAP_LATEST.md"
+      - ".github/workflows/v87-80-multiturn-consistency-fuzz.yml"
+
+jobs:
+  multiturn-fuzz:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: |
+          python -m compileall -q \
+            fap_multiturn_consistency_fuzz.py \
+            fap_discourse_context.py \
+            fap_reflective_conversation.py \
+            fap_inquiry_engine.py \
+            fap_v87_80_multiturn_consistency_gateway.py
+      - name: Run multi-turn consistency fuzz
+        run: python -m unittest tests.test_fap_multiturn_consistency -v
+      - name: Run V87.80 gateway E2E
+        run: python -m unittest tests.test_v87_80_multiturn_gateway -v
+
+      - name: Run prior quality regressions
+        run: |
+          python -m unittest tests.test_fap_conversation_quality -v
+          python -m unittest tests.test_relevance_isolation -v
+          python -m unittest tests.test_v87_78_conversation_fuzz_gateway -v

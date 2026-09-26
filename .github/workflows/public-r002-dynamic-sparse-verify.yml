@@ -1,0 +1,52 @@
+name: Public r002 Dynamic Sparse Verify
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'side/**'
+    paths:
+      - 'fap_revision_r001.py'
+      - 'fap_revision_r002.py'
+      - 'tests/test_fap_revision_r001.py'
+      - 'tests/test_fap_revision_r002.py'
+      - 'FAP_R002_DYNAMIC_SPARSE.md'
+      - 'fap_session_continuity.py'
+      - 'fap_v87_10_program_synth_gateway.py'
+      - 'fap_v87_76_session_continuity_gateway.py'
+      - 'fap_sol_gap_controller.py'
+      - 'tests/test_v87_76_session_gateway.py'
+      - '.github/workflows/public-r002-dynamic-sparse-verify.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'fap_revision_r001.py'
+      - 'fap_revision_r002.py'
+      - 'tests/test_fap_revision_r001.py'
+      - 'tests/test_fap_revision_r002.py'
+      - 'FAP_R002_DYNAMIC_SPARSE.md'
+      - 'fap_session_continuity.py'
+      - 'fap_v87_10_program_synth_gateway.py'
+      - 'fap_v87_76_session_continuity_gateway.py'
+      - 'fap_sol_gap_controller.py'
+      - 'tests/test_v87_76_session_gateway.py'
+      - '.github/workflows/public-r002-dynamic-sparse-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile public revisions
+        run: python -m compileall -q fap_revision_r001.py fap_revision_r002.py fap_session_continuity.py fap_v87_10_program_synth_gateway.py fap_v87_76_session_continuity_gateway.py fap_sol_gap_controller.py
+      - name: Run public reasoning regressions
+        run: python -m unittest -v tests.test_fap_revision_r001 tests.test_fap_revision_r002
+      - name: Run chapter boundary regressions
+        run: python -m unittest -v tests.test_v87_76_session_gateway

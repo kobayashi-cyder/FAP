@@ -1,0 +1,36 @@
+name: V67 Persistence Identity Verify
+
+on:
+  push:
+    branches:
+      - skill/v67-persistence-identity
+  pull_request:
+    paths:
+      - 'releases/v67/skills/persistence_identity/**'
+      - 'releases/v66/fap_autonomy/**'
+      - 'releases/v66/tests/**'
+      - '.github/workflows/v67-persistence-identity-verify.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V67 skill
+        run: python -m compileall -q releases/v67/skills/persistence_identity
+      - name: V67 skill tests
+        working-directory: releases/v67/skills/persistence_identity
+        run: python -W error -m unittest discover -p 'test_*.py' -v
+      - name: V66 operational regression
+        working-directory: releases/v66
+        run: python -W error -m unittest discover -s tests -p 'test_v66_operational.py' -v

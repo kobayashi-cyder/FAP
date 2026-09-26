@@ -1,0 +1,30 @@
+name: Official 2025 Common Test English Reading Holdout
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['side/public-1.0.01-r002-port-20260926']
+    paths:
+      - 'benchmarks/common_test_official_2025_reading.py'
+      - '.github/workflows/official-2025-common-test-reading.yml'
+      - 'fap_*.py'
+
+permissions:
+  contents: read
+
+jobs:
+  official-reading-holdout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pypdf cryptography fonttools
+      - run: python benchmarks/common_test_official_2025_reading.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fap-official-r7-reading-holdout
+          path: runtime/official_r7_reading_report.json
+          retention-days: 30
