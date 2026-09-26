@@ -273,6 +273,7 @@ def run_agent(query: str, recent_log_json: str = "[]", source_channel: str = "ag
             "confidence": confidence,
             "state": str(result.state),
             "needs_teacher": bool(payload.get("needs_teacher", False)),
+            "payload": payload,
             "status": _status_payload()["status"],
         },
         ensure_ascii=False,
