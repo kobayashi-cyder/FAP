@@ -183,6 +183,53 @@ class FMGImportedImageModule:
             },
         }
 
+    def _refine_external(
+        self,
+        source: Path,
+        prompt: str,
+        profile,
+        width: int,
+        height: int,
+    ) -> tuple[Path, dict[str, Any]]:
+        source_b64 = base64.b64encode(source.read_bytes()).decode("ascii")
+        started = time.perf_counter()
+        value = self._json(
+            "/sdapi/v1/img2img",
+            method="POST",
+            data={
+                "init_images": [source_b64],
+                "prompt": (
+                    prompt
+                    + ", preserve composition, refine visible details, "
+                      "coherent anatomy, clean edges, natural texture"
+                ),
+                "negative_prompt": DEFAULT_NEGATIVE,
+                "width": width,
+                "height": height,
+                "steps": max(20, int(profile.steps * 0.55)),
+                "cfg_scale": profile.guidance,
+                "seed": -1,
+                "denoising_strength": 0.20,
+                "batch_size": 1,
+                "n_iter": 1,
+            },
+            timeout=profile.timeout_s,
+        )
+        images = value.get("images") if isinstance(value, dict) else None
+        if not images:
+            raise RuntimeError("FMG high-quality refine returned no image")
+        raw = base64.b64decode(str(images[0]).split(",", 1)[-1], validate=False)
+        refined = self._save_external(raw, random.SystemRandom().randint(0, 2**31 - 1))
+        if refined.stat().st_size <= 128:
+            refined.unlink(missing_ok=True)
+            raise RuntimeError("FMG high-quality refine artifact verification failed")
+        return refined, {
+            "applied": True,
+            "operation": "global_img2img_refine",
+            "denoising_strength": 0.20,
+            "elapsed_s": round(time.perf_counter() - started, 3),
+        }
+
     def _save_external(self, raw: bytes, seed: int) -> Path:
         if raw.startswith(b"\x89PNG\r\n\x1a\n"):
             suffix = ".png"
@@ -251,6 +298,27 @@ class FMGImportedImageModule:
         if not verified:
             raise RuntimeError("FMG artifact structural verification failed")
 
+        refine = {"applied": False}
+        if profile.name == "high":
+            try:
+                refined_path, refine = self._refine_external(
+                    path,
+                    prompt,
+                    profile,
+                    width,
+                    height,
+                )
+                try:
+                    path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                path = refined_path
+            except Exception as exc:
+                refine = {
+                    "applied": False,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+
         return {
             "ok": True,
             "reply": (
@@ -268,6 +336,7 @@ class FMGImportedImageModule:
                 "quality": profile.name,
             },
             "connectome_route": decision.as_dict(),
+            "refine": refine,
             "artifact_path": str(path),
             "artifacts": [
                 {
