@@ -405,7 +405,7 @@ class SelfImprovementController:
         self,
         root: str | Path,
         *,
-        client: OpenAIResponsesClient,
+        client: ReasonerClient,
         orchestrator: RepositoryAutoCodingOrchestrator | None = None,
     ) -> None:
         self.root = Path(root).expanduser().resolve()
