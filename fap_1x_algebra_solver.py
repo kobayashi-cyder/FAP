@@ -117,9 +117,11 @@ class GenericLinearEquationSolver:
                 right_head.append(token)
             if not left_tail or not right_head:
                 continue
-            # Short suffix/prefix pairs are attempted first so instruction
-            # fragments such as "for x" are not absorbed into the equation.
-            for li in range(len(left_tail) - 1, -1, -1):
+            # Prefer the longest parseable suffix. Instruction fragments
+            # such as "for x" make the longest candidate invalid, after which
+            # the next suffix retains the full coefficient expression (for
+            # example 4*x+3) instead of prematurely accepting x+3.
+            for li in range(0, len(left_tail)):
                 lhs = "".join(left_tail[li:])
                 for rj in range(1, len(right_head) + 1):
                     rhs = "".join(right_head[:rj])
