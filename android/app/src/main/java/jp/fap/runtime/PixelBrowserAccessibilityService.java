@@ -1,6 +1,8 @@
 package jp.fap.runtime;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
+import android.graphics.Path;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 
 public final class PixelBrowserAccessibilityService extends AccessibilityService {
+    private static volatile PixelBrowserAccessibilityService activeInstance;
     private static final long INPUT_TIMEOUT_MS = 120_000L;
     private static final long RESPONSE_TIMEOUT_MS = 240_000L;
     private static final String KEY_BASELINE = "baseline";
@@ -32,6 +35,7 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
+        activeInstance = this;
         AgentOrchestrator.get(this).reconcileAsync();
         handler.removeCallbacks(agentHeartbeat);
         handler.postDelayed(agentHeartbeat, 800L);
@@ -208,7 +212,60 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
     @Override
     public void onDestroy() {
         handler.removeCallbacks(agentHeartbeat);
+        if (activeInstance == this) activeInstance = null;
         super.onDestroy();
+    }
+
+    public static boolean isConnected() {
+        return activeInstance != null;
+    }
+
+    public static boolean dispatchTap(float x, float y, long durationMs) {
+        PixelBrowserAccessibilityService service = activeInstance;
+        if (service == null) return false;
+        try {
+            Path path = new Path();
+            path.moveTo(x, y);
+            GestureDescription.StrokeDescription stroke =
+                    new GestureDescription.StrokeDescription(
+                            path,
+                            0L,
+                            Math.max(1L, Math.min(1000L, durationMs)));
+            GestureDescription gesture =
+                    new GestureDescription.Builder()
+                            .addStroke(stroke)
+                            .build();
+            return service.dispatchGesture(gesture, null, service.handler);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static boolean dispatchDrag(
+            float x1,
+            float y1,
+            float x2,
+            float y2,
+            long durationMs) {
+        PixelBrowserAccessibilityService service = activeInstance;
+        if (service == null) return false;
+        try {
+            Path path = new Path();
+            path.moveTo(x1, y1);
+            path.lineTo(x2, y2);
+            GestureDescription.StrokeDescription stroke =
+                    new GestureDescription.StrokeDescription(
+                            path,
+                            0L,
+                            Math.max(120L, Math.min(5000L, durationMs)));
+            GestureDescription gesture =
+                    new GestureDescription.Builder()
+                            .addStroke(stroke)
+                            .build();
+            return service.dispatchGesture(gesture, null, service.handler);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private void fail(String message) {
