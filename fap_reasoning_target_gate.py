@@ -42,6 +42,7 @@ def run_gate() -> dict:
         checks += 1
         reply = str((result.payload or {}).get("reply") or "")
         governor = (result.payload or {}).get("reasoning_governor") or {}
+        episode = (result.payload or {}).get("reasoning_episode") or {}
         if result.state != "handled" or not _contains_number(reply, expected):
             failures.append({
                 "kind": "generated_arithmetic",
@@ -54,6 +55,16 @@ def run_gate() -> dict:
             failures.append({
                 "kind": "governor_missing",
                 "query": query,
+            })
+        elif (
+            episode.get("contract") != "fap.reasoning.episode.v1"
+            or episode.get("verdict") != "OK"
+            or not episode.get("false_success_guard")
+        ):
+            failures.append({
+                "kind": "reasoning_episode_missing_or_not_ok",
+                "query": query,
+                "episode": episode,
             })
 
     # Generated linear equations with an integer solution.
@@ -187,6 +198,16 @@ def run_gate() -> dict:
             "kind": "status_contract",
             "value": intelligence.get("governor_contract"),
         })
+    if intelligence.get("episode_contract") != "fap.reasoning.episode.v1":
+        failures.append({
+            "kind": "episode_status_contract",
+            "value": intelligence.get("episode_contract"),
+        })
+    if int(intelligence.get("max_escalation_passes", 0)) != 3:
+        failures.append({
+            "kind": "episode_reverify_budget",
+            "value": intelligence.get("max_escalation_passes"),
+        })
     checks += 1
 
     return {
@@ -204,6 +225,8 @@ def run_gate() -> dict:
             "opaque_unknown_fail_closed",
             "multi_intent_subproblem_composition",
             "partial_answer_takeover_guard",
+            "plan_execute_verify_repair_reverify",
+            "false_success_guard",
         ],
     }
 
