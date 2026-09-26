@@ -37,7 +37,7 @@ class V8781CodingConversationGatewayTests(unittest.TestCase):
         self.assertTrue(response.get("lane_votes_execute"))
         self.assertTrue(response.get("verified_specialist_can_replace_weak_primary"))
         self.assertFalse(response.get("side_effecting_specialists_redundantly_executed"))
-        self.assertEqual(response.get("native_parity_revision"), "1.0.01-cpp-native-r005")
+        self.assertEqual(response.get("native_parity_revision"), "1.0.01-cpp-native-r006")
         self.assertIn("factual", response.get("safe_specialists", []))
         self.assertIn("derivation", response.get("safe_specialists", []))
 
