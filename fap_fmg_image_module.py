@@ -297,6 +297,16 @@ class FMGImportedImageModule:
             height=768,
         )
         if local.get("ok"):
+            artifacts = local.get("artifacts")
+            if isinstance(artifacts, list):
+                for row in artifacts:
+                    if not isinstance(row, dict):
+                        continue
+                    name = str(row.get("name") or "").strip()
+                    if name and not row.get("path"):
+                        candidate = self.artifact_dir / name
+                        if candidate.is_file():
+                            row["path"] = str(candidate)
             local["generator"] = "fmg-import:fap-fallback"
             local["fmg_source_commit"] = FMG_SOURCE_COMMIT
             local["fmg_external_error"] = external_error
