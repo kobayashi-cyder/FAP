@@ -329,6 +329,25 @@ class FAP1xGeneralReasoningCore:
             candidates = self._open_candidates(query, rows)
 
         if not candidates:
+            if plan.task_form == "multiple_choice":
+                return {
+                    "ok": True,
+                    "text": "この選択問題は、現在のローカル根拠と検証器では正答を検証できません。推測で選択肢を返しません。",
+                    "reply": "この選択問題は、現在のローカル根拠と検証器では正答を検証できません。推測で選択肢を返しません。",
+                    "confidence": 0.0,
+                    "verification_state": "unresolved",
+                    "needs_verification": True,
+                    "reasoning_source": "fail_closed",
+                    "reasoning_plan": plan.to_dict(),
+                    "candidate_count": 0,
+                    "candidate_disagreement": False,
+                    "alternatives": [],
+                    "reasoning_trace": [
+                        "candidate_generation",
+                        "no_supported_candidate",
+                        "fail_closed_without_forced_choice",
+                    ],
+                }
             return None
 
         candidates.sort(key=self._rank, reverse=True)
