@@ -63,13 +63,16 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          python -m py_compile fap_1x_standard_runtime.py
+          python -m py_compile fap_1x_standard_runtime.py fap_adaptive_reasoning.py
+          python -m unittest -v tests.test_adaptive_reasoning_governor
           python - <<'PY'
           from fap_1x_standard_runtime import FAP1xStandardRuntime
           runtime = FAP1xStandardRuntime(root=".")
           status = runtime.status()
           assert status["version"] == "1.0.01"
           assert "factual-qa" in status["capabilities"]
+          assert "adaptive-reasoning-governor" in status["capabilities"]
+          assert status["response_intelligence"]["governor_contract"] == "fap.reasoning.governor.v1"
           print(status)
           PY
 
@@ -93,6 +96,7 @@ jobs:
           paths = {x["path"] for x in current["files"]}
           assert "fap_speech.py" in paths
           assert "fap_1x_standard_runtime.py" in paths
+          assert "fap_adaptive_reasoning.py" in paths
           print("published manifest:", current["source_commit"], current["file_count"], current["total_bytes"])
           PY
 
@@ -220,6 +224,9 @@ jobs:
           grep -q '"/append "' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
           grep -q '"/enter"' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
           ! grep -q 'android:packageNames=' android/app/src/main/res/xml/fap_pixel_accessibility_service.xml
+          test -s android/app/src/main/python/fap_adaptive_reasoning.py
+          grep -q 'AdaptiveReasoningGovernor' android/app/src/main/python/fap_1x_standard_runtime.py
+          grep -q 'fap.reasoning.governor.v1' android/app/src/main/python/fap_adaptive_reasoning.py
           grep -q 'run_agent' android/app/src/main/python/android_bridge.py
           grep -q 'durable_chat_log' android/app/src/main/python/android_bridge.py
           grep -q 'validate_runtime' android/app/src/main/python/android_bridge.py
