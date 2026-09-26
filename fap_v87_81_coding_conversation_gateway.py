@@ -123,8 +123,8 @@ class FAPV8781Unified(v80.FAPV8780Unified):
             "multi-turn-coding-followup-path-affinity",
             "coding-collaboration-handoff",
             "side-branch-capability-consolidation",
-            "response-series-redundancy:64-lanes",
-            "response-synthesis-committee:8-max",
+            "response-series-redundancy:128-lanes",
+            "response-synthesis-committee:16-max",
             "partial-salient-coverage",
             "uncertainty-adaptive-response-expansion",
             "executed-response-lane-voting",
@@ -165,7 +165,7 @@ class FAPV8781Unified(v80.FAPV8780Unified):
                     "partial_coverage_allowed": True,
                     "coverage_target_range": [0.55, 0.90],
                     "topic_specific_branches": False,
-                    "native_parity_revision": "1.0.01-cpp-native-r004",
+                    "native_parity_revision": "1.0.01-cpp-native-r005",
                 },
             }
         )
@@ -213,10 +213,10 @@ def main():
         raise SystemExit(f"missing UI: {base.WEB_FILE}")
     print("FAP V87.81 CODING + CONVERSATION CONSOLIDATION")
     print(f"UI: http://{base.HOST}:{base.PORT}/")
-    print("Response series expand adaptively up to 64 lanes and every planned lane votes.")
+    print("Response series expand adaptively up to 128 lanes and every planned lane votes.")
     print("Read-only factual/reflective/rule/derivation specialists can replace a weak primary answer.")
     print("Side-effecting artifact, repository-write and network endpoints are never redundantly replayed.")
-    print("Synthesis committee expands up to 8 lanes; exhaustive coverage is not required.")
+    print("Synthesis committee expands up to 16 lanes; exhaustive coverage is not required.")
     print("FCA: optional, not required.")
     print("Qwen: not used")
     ThreadingHTTPServer((base.HOST, base.PORT), Handler).serve_forever()
