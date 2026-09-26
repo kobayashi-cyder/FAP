@@ -43,7 +43,9 @@ class V8781CodingConversationGatewayTests(unittest.TestCase):
 
     def test_response_series_can_improve_actual_route_result(self) -> None:
         core = gateway.FAPV8781Unified()
-        text = "真空中の光速は何ですか？"\n        intent = core.intent.classify(text)\n        result = core.route(intent, text, [])
+        text = "真空中の光速は何ですか？"
+        intent = core.intent.classify(text)
+        result = core.route(intent, text, [])
         execution = result.get("response_series_execution") or {}
         self.assertEqual(execution.get("executed_lane_votes"), (result.get("response_redundancy") or {}).get("active_lanes"))
         self.assertFalse(execution.get("side_effecting_specialists_executed"))
