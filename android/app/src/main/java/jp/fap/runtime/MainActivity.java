@@ -10,6 +10,7 @@ import android.media.projection.MediaProjectionManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,6 +18,8 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -82,6 +85,17 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.WHITE);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int bottom = 0;
+            if (Build.VERSION.SDK_INT >= 30) {
+                bottom = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+            } else {
+                bottom = insets.getStableInsetBottom();
+            }
+            view.setPadding(0, 0, 0, Math.max(0, bottom));
+            return insets;
+        });
 
         root.addView(buildHeader(), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -324,6 +338,8 @@ public class MainActivity extends Activity {
         LinearLayout wrapper = new LinearLayout(this);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         wrapper.setBackgroundColor(Color.WHITE);
+        wrapper.setMinimumHeight(dp(84));
+        wrapper.setElevation(dp(6));
 
         View line = new View(this);
         line.setBackgroundColor(BORDER);
@@ -332,52 +348,48 @@ public class MainActivity extends Activity {
                 dp(1)));
 
         attachmentStatus = new TextView(this);
+        attachmentStatus.setText("添付なし · 「参照」でファイルを追加");
         attachmentStatus.setTextSize(12f);
         attachmentStatus.setTextColor(MUTED);
-        attachmentStatus.setPadding(dp(58), dp(6), dp(12), 0);
-        attachmentStatus.setVisibility(View.GONE);
+        attachmentStatus.setPadding(dp(12), dp(7), dp(12), dp(2));
+        attachmentStatus.setVisibility(View.VISIBLE);
         wrapper.addView(attachmentStatus, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
 
         LinearLayout composer = new LinearLayout(this);
         composer.setOrientation(LinearLayout.HORIZONTAL);
-        composer.setGravity(Gravity.BOTTOM);
-        composer.setPadding(dp(12), dp(8), dp(12), dp(10));
+        composer.setGravity(Gravity.CENTER_VERTICAL);
+        composer.setPadding(dp(10), dp(6), dp(10), dp(10));
 
-        TextView avatar = new TextView(this);
-        avatar.setText("あ");
-        avatar.setGravity(Gravity.CENTER);
-        avatar.setTextSize(14f);
-        avatar.setTypeface(Typeface.DEFAULT_BOLD);
-        avatar.setTextColor(BLACK);
-        avatar.setBackground(circle(SOFT));
-        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(38), dp(38));
-        avatarParams.setMargins(0, dp(2), dp(8), 0);
-        composer.addView(avatar, avatarParams);
-
-        TextView attach = new TextView(this);
-        attach.setText("＋");
-        attach.setTextSize(24f);
-        attach.setTextColor(BLUE);
-        attach.setGravity(Gravity.CENTER);
-        attach.setContentDescription("ファイルを添付");
+        Button attach = new Button(this);
+        attach.setText("参照");
+        attach.setAllCaps(false);
+        attach.setTextSize(13f);
+        attach.setTypeface(Typeface.DEFAULT_BOLD);
+        attach.setTextColor(BLACK);
+        attach.setContentDescription("ファイルを参照して添付");
+        attach.setPadding(dp(12), 0, dp(12), 0);
+        attach.setBackground(roundRect(Color.WHITE, 18, Color.rgb(207, 217, 222), 1));
         attach.setOnClickListener(v -> openFilePicker());
-        LinearLayout.LayoutParams attachParams = new LinearLayout.LayoutParams(dp(38), dp(38));
-        attachParams.setMargins(0, dp(2), dp(6), 0);
+        LinearLayout.LayoutParams attachParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(46));
+        attachParams.setMargins(0, 0, dp(8), 0);
         composer.addView(attach, attachParams);
 
         input = new EditText(this);
-        input.setHint("いまどうしてる？ / FAPへ指示");
+        input.setHint("メッセージを入力…");
         input.setHintTextColor(MUTED);
         input.setTextColor(BLACK);
-        input.setTextSize(15f);
+        input.setTextSize(16f);
         input.setMinLines(1);
         input.setMaxLines(5);
-        input.setGravity(Gravity.TOP);
+        input.setMinHeight(dp(48));
+        input.setGravity(Gravity.CENTER_VERTICAL);
         input.setPadding(dp(14), dp(10), dp(14), dp(10));
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        input.setBackground(roundRect(SOFT, 22, 0, 0));
+        input.setBackground(roundRect(SOFT, 22, Color.rgb(225, 232, 236), 1));
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -386,19 +398,20 @@ public class MainActivity extends Activity {
         composer.addView(input, inputParams);
 
         sendButton = new Button(this);
-        sendButton.setText("投稿");
+        sendButton.setText("送信");
         sendButton.setTextSize(14f);
         sendButton.setTextColor(Color.WHITE);
         sendButton.setAllCaps(false);
         sendButton.setTypeface(Typeface.DEFAULT_BOLD);
-        sendButton.setPadding(dp(16), 0, dp(16), 0);
+        sendButton.setPadding(dp(15), 0, dp(15), 0);
         sendButton.setBackground(roundRect(BLACK, 22, 0, 0));
         sendButton.setOnClickListener(v -> runFap());
         composer.addView(sendButton, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                dp(44)));
+                dp(46)));
 
         wrapper.addView(composer);
+        refreshAttachmentStatus();
         return wrapper;
     }
 
@@ -492,10 +505,10 @@ public class MainActivity extends Activity {
             count = pendingAttachments.size();
         }
         if (count <= 0) {
-            attachmentStatus.setText("");
-            attachmentStatus.setVisibility(View.GONE);
+            attachmentStatus.setText("添付なし · 「参照」でファイルを追加");
+            attachmentStatus.setVisibility(View.VISIBLE);
         } else {
-            attachmentStatus.setText("📎 " + count + "件 添付済み · 投稿で送信");
+            attachmentStatus.setText("📎 " + count + "件 添付済み · 送信で一緒に投稿");
             attachmentStatus.setVisibility(View.VISIBLE);
         }
     }
