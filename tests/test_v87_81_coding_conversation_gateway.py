@@ -39,7 +39,12 @@ class V8781CodingConversationGatewayTests(unittest.TestCase):
         self.assertFalse(response.get("side_effecting_specialists_redundantly_executed"))
         self.assertEqual(response.get("native_parity_revision"), "1.0.01-cpp-native-r007")
         self.assertIn("factual", response.get("safe_specialists", []))
-        self.assertIn("derivation", response.get("safe_specialists", []))\n        self.assertEqual(len(response.get("safe_specialists", [])), 11)\n        self.assertIn("linear_equation", response.get("safe_specialists", []))\n        self.assertIn("physics_numeric", response.get("safe_specialists", []))\n        self.assertIn("python_static", response.get("safe_specialists", []))\n        self.assertIn("contradiction", response.get("safe_specialists", []))
+        self.assertIn("derivation", response.get("safe_specialists", []))
+        self.assertEqual(len(response.get("safe_specialists", [])), 11)
+        self.assertIn("linear_equation", response.get("safe_specialists", []))
+        self.assertIn("physics_numeric", response.get("safe_specialists", []))
+        self.assertIn("python_static", response.get("safe_specialists", []))
+        self.assertIn("contradiction", response.get("safe_specialists", []))
 
     def test_response_series_can_improve_actual_route_result(self) -> None:
         core = gateway.FAPV8781Unified()
