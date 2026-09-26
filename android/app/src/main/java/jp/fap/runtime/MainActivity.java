@@ -2,22 +2,32 @@ package jp.fap.runtime;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.widget.*;
 
 public class MainActivity extends Activity {
     private static final int REQ_RECORD_AUDIO = 601;
+    private static final int REQ_MEDIA_PROJECTION = 710;
+    private static final int REQ_OPEN_DOCUMENT = 711;
 
     private PythonFapEngine engine;
     private AndroidVoiceController voice;
     private EditText input;
     private TextView output;
     private TextView status;
+    private TextView permissionStatus;
     private Button run;
     private Button voiceButton;
     private PythonFapEngine.Result last;
@@ -28,9 +38,11 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         engine = new PythonFapEngine(this);
 
+        ScrollView scroll = new ScrollView(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(28, 28, 28, 28);
+        scroll.addView(root);
 
         TextView title = new TextView(this);
         title.setText("FAP Android · Live Python Core");
@@ -41,12 +53,41 @@ public class MainActivity extends Activity {
         status.setText(engine.status());
         root.addView(status);
 
+        permissionStatus = new TextView(this);
+        permissionStatus.setPadding(0, 10, 0, 10);
+        root.addView(permissionStatus);
+
+        LinearLayout permissionRow = new LinearLayout(this);
+        permissionRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        Button accessibility = new Button(this);
+        accessibility.setText("操作権限");
+        accessibility.setOnClickListener(v -> openAccessibilitySettings());
+
+        Button overlay = new Button(this);
+        overlay.setText("重ねて表示");
+        overlay.setOnClickListener(v -> requestOverlayPermission());
+
+        Button share = new Button(this);
+        share.setText("画面共有");
+        share.setOnClickListener(v -> requestScreenCapture());
+
+        permissionRow.addView(accessibility, new LinearLayout.LayoutParams(0, -2, 1f));
+        permissionRow.addView(overlay, new LinearLayout.LayoutParams(0, -2, 1f));
+        permissionRow.addView(share, new LinearLayout.LayoutParams(0, -2, 1f));
+        root.addView(permissionRow);
+
+        Button file = new Button(this);
+        file.setText("ファイルを開く（全形式）");
+        file.setOnClickListener(v -> openDocument());
+        root.addView(file);
+
         input = new EditText(this);
         input.setHint("質問・命令を入力");
         input.setMinLines(3);
         input.setGravity(Gravity.TOP);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        root.addView(input, new LinearLayout.LayoutParams(-1, 0, 1f));
+        root.addView(input, new LinearLayout.LayoutParams(-1, 420));
 
         run = new Button(this);
         run.setText("FAPで処理");
@@ -61,7 +102,7 @@ public class MainActivity extends Activity {
         output = new TextView(this);
         output.setTextIsSelectable(true);
         output.setPadding(0, 16, 0, 16);
-        root.addView(output, new LinearLayout.LayoutParams(-1, 0, 1f));
+        root.addView(output, new LinearLayout.LayoutParams(-1, 560));
 
         LinearLayout feedback = new LinearLayout(this);
         Button ok = new Button(this); ok.setText("検証OK");
@@ -80,10 +121,10 @@ public class MainActivity extends Activity {
         root.addView(feedback);
 
         TextView note = new TextView(this);
-        note.setText("main更新時に最新Pythonコアとrelease sidecarをAPKへ封入。音声会話は端末能力を検出し、オンデバイスSTTを優先します。");
+        note.setText("操作権限=アクセシビリティ、画面共有=AndroidのMediaProjection確認、重ねて表示=特別なアクセスです。これらは通常の「アプリの権限」一覧にはマイクと同じ形では表示されません。");
         root.addView(note);
 
-        setContentView(root);
+        setContentView(scroll);
 
         voice = new AndroidVoiceController(this, new AndroidVoiceController.Listener() {
             @Override public void onStatus(String message) {
@@ -112,6 +153,98 @@ public class MainActivity extends Activity {
             }
         });
         status.setText(engine.status() + " · " + voice.capabilitySummary());
+        refreshPermissionStatus();
+    }
+
+    private void refreshPermissionStatus() {
+        boolean mic = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        boolean overlay = Settings.canDrawOverlays(this);
+        boolean a11y = isAccessibilityServiceEnabled();
+        permissionStatus.setText(
+                "権限状態 · mic=" + yesNo(mic) +
+                " · accessibility=" + yesNo(a11y) +
+                " · overlay=" + yesNo(overlay) +
+                " · screen=" + yesNo(ScreenCaptureService.isRunning())
+        );
+    }
+
+    private String yesNo(boolean value) {
+        return value ? "ON" : "OFF";
+    }
+
+    private boolean isAccessibilityServiceEnabled() {
+        String enabled = Settings.Secure.getString(
+                getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabled == null) return false;
+        ComponentName mine = new ComponentName(this, FapAccessibilityService.class);
+        String flat = mine.flattenToString();
+        for (String value : enabled.split(":")) {
+            if (flat.equalsIgnoreCase(value)) return true;
+        }
+        return false;
+    }
+
+    private void openAccessibilitySettings() {
+        startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+    }
+
+    private void requestOverlayPermission() {
+        if (Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "重ねて表示は許可済みです", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName()));
+        startActivity(intent);
+    }
+
+    private void requestScreenCapture() {
+        MediaProjectionManager manager =
+                (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        startActivityForResult(manager.createScreenCaptureIntent(), REQ_MEDIA_PROJECTION);
+    }
+
+    private void openDocument() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQ_OPEN_DOCUMENT);
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQ_MEDIA_PROJECTION) {
+            if (resultCode != RESULT_OK || data == null) {
+                Toast.makeText(this, "画面共有は許可されませんでした", Toast.LENGTH_SHORT).show();
+                refreshPermissionStatus();
+                return;
+            }
+            Intent service = ScreenCaptureService.startIntent(this, resultCode, data);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(service);
+            } else {
+                startService(service);
+            }
+            mainHandler.postDelayed(this::refreshPermissionStatus, 500);
+            return;
+        }
+
+        if (requestCode == REQ_OPEN_DOCUMENT && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            if (uri != null) {
+                try {
+                    getContentResolver().takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (SecurityException ignored) {
+                    // Some providers grant a temporary URI only.
+                }
+                input.setText(uri.toString());
+                Toast.makeText(this, "ファイルURIを取得しました", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void runFap() {
@@ -153,17 +286,14 @@ public class MainActivity extends Activity {
                     return;
                 }
                 status.setText("VOICE · SPEAKING · " + engine.status());
-                voice.speak(result.answer, () -> listenIfActive());
+                voice.speak(result.answer, this::listenIfActive);
             });
         }, "fap-voice-python").start();
     }
 
     private void toggleVoiceLoop() {
-        if (voiceLoop) {
-            stopVoiceLoop();
-        } else {
-            startVoiceLoop();
-        }
+        if (voiceLoop) stopVoiceLoop();
+        else startVoiceLoop();
     }
 
     private void startVoiceLoop() {
@@ -208,6 +338,7 @@ public class MainActivity extends Activity {
             stopVoiceLoop();
             Toast.makeText(this, "音声会話にはマイク権限が必要です", Toast.LENGTH_LONG).show();
         }
+        refreshPermissionStatus();
     }
 
     private void verify(boolean success) {
@@ -219,15 +350,14 @@ public class MainActivity extends Activity {
 
     @Override protected void onPause() {
         super.onPause();
-        if (voiceLoop && voice != null) {
-            voice.stopListening();
-        }
+        if (voiceLoop && voice != null) voice.stopListening();
     }
 
     @Override protected void onResume() {
         super.onResume();
+        refreshPermissionStatus();
         if (voiceLoop && voice != null) {
-            mainHandler.postDelayed(() -> listenIfActive(), 250);
+            mainHandler.postDelayed(this::listenIfActive, 250);
         }
     }
 
