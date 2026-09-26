@@ -13,6 +13,7 @@ from fap_hypothesis_engine import HYPOTHESIS_CUES, HypothesisEngine
 from fap_physics_solver_v2 import ExpandedPhysicsSolver
 from fap_scientific_reasoning import OptionConditionedScientificReasoner
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
+from fap_1x_confidence_calibrator import ConfidenceCalibrator
 from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
 from fap_1x_problem_decomposer import ProblemDecomposer
 from fap_1x_search_controller import AdaptiveSearchController
@@ -75,6 +76,7 @@ class FAP1xGeneralReasoningCore:
         self.hypotheses = HypothesisEngine(self.root)
         self.decomposer = ProblemDecomposer()
         self.verifier = IndependentCandidateVerifier(self.root)
+        self.calibrator = ConfidenceCalibrator()
         self.retrieval = GroundedRetrievalReasoner(self.root)
         self.search_controller = AdaptiveSearchController()
 
@@ -409,6 +411,50 @@ class FAP1xGeneralReasoningCore:
             )
         return out
 
+    def _calibrate_candidates(
+        self,
+        candidates: list[ReasoningCandidate],
+        *,
+        repeated_verification: bool,
+        disagreement: bool,
+    ) -> list[ReasoningCandidate]:
+        out: list[ReasoningCandidate] = []
+        for candidate in candidates:
+            payload = dict(candidate.payload)
+            report = payload.get(
+                "repeat_independent_verification"
+                if repeated_verification
+                else "independent_verification"
+            )
+            if not isinstance(report, Mapping):
+                report = payload.get("independent_verification")
+            verifier_score = (
+                float(report.get("score", 0.0))
+                if isinstance(report, Mapping)
+                else 0.0
+            )
+            calibrated = self.calibrator.calibrate(
+                verification=candidate.verification,
+                generator_confidence=candidate.confidence,
+                verifier_score=verifier_score,
+                evidence_count=candidate.evidence_count,
+                repeated_verification=repeated_verification,
+                disagreement=disagreement,
+            )
+            payload["confidence_calibration"] = calibrated.to_dict()
+            out.append(
+                ReasoningCandidate(
+                    source=candidate.source,
+                    reply=candidate.reply,
+                    confidence=calibrated.confidence,
+                    verification=candidate.verification,
+                    payload=payload,
+                    answer_key=candidate.answer_key,
+                    evidence_count=candidate.evidence_count,
+                )
+            )
+        return out
+
     @staticmethod
     def _rank(candidate: ReasoningCandidate) -> tuple[int, float, int, str]:
         tier = {"verified": 3, "supported": 2, "provisional": 1}.get(
@@ -493,8 +539,13 @@ class FAP1xGeneralReasoningCore:
             return None
 
         candidates = [x for x in candidates if x.verification != "rejected"]
-        candidates.sort(key=self._rank, reverse=True)
         disagreement = self._disagreement(candidates)
+        candidates = self._calibrate_candidates(
+            candidates,
+            repeated_verification=verification_rounds > 1,
+            disagreement=disagreement,
+        )
+        candidates.sort(key=self._rank, reverse=True)
         verified = [x for x in candidates if x.verification == "verified"]
         supported = [x for x in candidates if x.verification == "supported"]
         provisional = [x for x in candidates if x.verification == "provisional"]
