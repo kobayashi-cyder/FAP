@@ -1,0 +1,36 @@
+name: FAP native C++ verify
+
+on:
+  push:
+    branches:
+      - "side/1.0.01-cpp-native-*"
+    paths:
+      - "native_cpp/**"
+      - ".github/workflows/native-cpp-verify.yml"
+  pull_request:
+    paths:
+      - "native_cpp/**"
+      - ".github/workflows/native-cpp-verify.yml"
+  workflow_dispatch:
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S native_cpp -B build/native_cpp -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/native_cpp --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build/native_cpp --output-on-failure
+
+      - name: Smoke CLI
+        run: |
+          ./build/native_cpp/fap_native_cli version
+          ./build/native_cpp/fap_native_cli budget 0.8 1
+          ./build/native_cpp/fap_native_cli analyze . "今日の天気と時刻を確認"
