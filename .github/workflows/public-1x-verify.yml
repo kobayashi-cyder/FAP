@@ -2,7 +2,7 @@ name: Public 1.x canonical verify
 
 on:
   push:
-    branches: [main, integration/public-1.0.01-clean-20260926]
+    branches: [main, side/1.0.01-clean-integration-20260926]
   pull_request:
     branches: [main]
   workflow_dispatch:
