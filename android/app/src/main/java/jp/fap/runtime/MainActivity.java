@@ -181,8 +181,8 @@ public class MainActivity extends Activity {
         top.setPadding(dp(16), dp(10), dp(12), dp(4));
 
         TextView title = new TextView(this);
-        title.setText("FAP");
-        title.setTextSize(21f);
+        title.setText("FAP · connectome runtime");
+        title.setTextSize(19f);
         title.setTextColor(BLACK);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         top.addView(title, new LinearLayout.LayoutParams(0, dp(42), 1f));
@@ -269,13 +269,13 @@ public class MainActivity extends Activity {
         voiceButton.setOnClickListener(v -> toggleVoiceLoop());
         tools.addView(voiceButton);
 
-        Button webResearch = chip("Web");
-        webResearch.setContentDescription("現在の入力をウェブ調査へ送る");
+        Button webResearch = chip("外部調査");
+        webResearch.setContentDescription("現在の入力を外部調査へ委譲しFAPへ統合");
         webResearch.setOnClickListener(v -> startWebResearch());
         tools.addView(webResearch);
 
-        Button deep = chip("深考");
-        deep.setContentDescription("3段階の自己批判付き推論を実行");
+        Button deep = chip("FAP思考");
+        deep.setContentDescription("FAPの3段階自己批判推論を実行");
         deep.setOnClickListener(v -> startDeepReasoning());
         tools.addView(deep);
 
@@ -284,32 +284,32 @@ public class MainActivity extends Activity {
         stopButton.setOnClickListener(v -> stopCurrentTurn());
         tools.addView(stopButton);
 
-        Button history = chip("履歴");
-        history.setContentDescription("保存したチャットを検索して開く");
+        Button history = chip("記録庫");
+        history.setContentDescription("保存したFAP会話を記録庫から検索して開く");
         history.setOnClickListener(v -> showConversationHistory());
         tools.addView(history);
 
-        Button allThreads = chip("全体");
-        allThreads.setContentDescription("スレッド表示を終了して全体へ戻る");
+        Button allThreads = chip("本流");
+        allThreads.setContentDescription("スレッド表示を終了して本流へ戻る");
         allThreads.setOnClickListener(v -> leaveThread());
         tools.addView(allThreads);
 
-        Button toolsButton = chip("ツール");
-        toolsButton.setContentDescription("FAPが現在使えるツールを表示");
+        Button toolsButton = chip("能力");
+        toolsButton.setContentDescription("FAPが現在使える能力を表示");
         toolsButton.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("FAP ツール")
+                .setTitle("FAP 能力")
                 .setMessage(FapToolRegistry.describe(this))
                 .setPositiveButton("閉じる", null)
                 .show());
         tools.addView(toolsButton);
 
-        Button branchChat = chip("分岐");
-        branchChat.setContentDescription("現在の会話を分岐点として保存");
+        Button branchChat = chip("横枝");
+        branchChat.setContentDescription("現在の会話を横枝として保存");
         branchChat.setOnClickListener(v -> branchCurrentChat());
         tools.addView(branchChat);
 
-        Button regenerate = chip("再生成");
-        regenerate.setContentDescription("直前のユーザー依頼へ別回答を生成");
+        Button regenerate = chip("再考");
+        regenerate.setContentDescription("直前の依頼をFAPが別経路で再考");
         regenerate.setOnClickListener(v -> regenerateLast());
         tools.addView(regenerate);
 
@@ -318,8 +318,8 @@ public class MainActivity extends Activity {
         copyAnswer.setOnClickListener(v -> copyLastAnswer());
         tools.addView(copyAnswer);
 
-        Button newChat = chip("新規");
-        newChat.setContentDescription("メモリを残して新しいチャットを開始");
+        Button newChat = chip("新章");
+        newChat.setContentDescription("FAPメモリを残して新章を開始");
         newChat.setOnClickListener(v -> startNewChat());
         tools.addView(newChat);
 
@@ -331,7 +331,7 @@ public class MainActivity extends Activity {
         controlButton.setOnClickListener(v -> toggleDeviceControl());
         tools.addView(controlButton);
 
-        Button browser = chip("Browser");
+        Button browser = chip("外部Browser");
         browser.setOnClickListener(v -> {
             if (!PixelBrowserController.isAccessibilityEnabled(this)) {
                 PixelBrowserController.openAccessibilitySettings(this);
@@ -351,7 +351,7 @@ public class MainActivity extends Activity {
         });
         tools.addView(browser);
 
-        Button browserSetup = chip("Browser設定");
+        Button browserSetup = chip("外部設定");
         browserSetup.setOnClickListener(v ->
                 PixelBrowserController.openAccessibilitySettings(this));
         tools.addView(browserSetup);
@@ -386,7 +386,7 @@ public class MainActivity extends Activity {
         verifyNg.setOnClickListener(v -> verify(false));
         tools.addView(verifyNg);
 
-        Button clear = chip("全消去");
+        Button clear = chip("初期化");
         clear.setOnClickListener(v -> {
             engine.clear();
             chatLog.clear();
@@ -626,7 +626,7 @@ public class MainActivity extends Activity {
         chatLog.appendBack(
                 "system",
                 "session",
-                "新規チャットを開始 · semantic memoryは保持"
+                "新章を開始 · semantic memoryは保持"
                         + (archived == null ? "" : " · archived=" + archived.title));
         renderTimeline();
         if (input != null) {
@@ -635,7 +635,7 @@ public class MainActivity extends Activity {
         }
         sendButton.setEnabled(true);
         refreshProcessingButton();
-        setStatus("新規チャット · ローカルメモリは保持されています");
+        setStatus("新章 · ローカルメモリは保持されています");
     }
 
     private void showConversationHistory() {
@@ -647,7 +647,7 @@ public class MainActivity extends Activity {
         search.setPadding(dp(18), dp(8), dp(18), dp(8));
 
         new AlertDialog.Builder(this)
-                .setTitle("チャット履歴を検索")
+                .setTitle("記録庫を検索")
                 .setView(search)
                 .setPositiveButton("表示", (dialog, which) ->
                         showConversationResults(search.getText().toString()))
@@ -673,7 +673,7 @@ public class MainActivity extends Activity {
 
         new AlertDialog.Builder(this)
                 .setTitle(query == null || query.trim().isEmpty()
-                        ? "チャット履歴"
+                        ? "記録庫"
                         : "検索結果 · " + query.trim())
                 .setItems(labels, (dialog, which) -> {
                     if (which < 0 || which >= sessions.size()) return;
@@ -696,9 +696,9 @@ public class MainActivity extends Activity {
         chatLog.appendBack(
                 "system",
                 "session",
-                "分岐点を保存 · " + snapshot.title);
+                "横枝を保存 · " + snapshot.title);
         renderTimeline();
-        setStatus("分岐点を保存しました · 履歴から戻れます");
+        setStatus("横枝を保存しました · 記録庫から戻れます");
     }
 
     private void restoreConversation(ConversationArchiveStore.Session session) {
