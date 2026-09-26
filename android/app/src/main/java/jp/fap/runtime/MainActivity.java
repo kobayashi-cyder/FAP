@@ -277,9 +277,14 @@ public class MainActivity extends Activity {
         tools.addView(stopButton);
 
         Button history = chip("履歴");
-        history.setContentDescription("保存したチャットを開く");
+        history.setContentDescription("保存したチャットを検索して開く");
         history.setOnClickListener(v -> showConversationHistory());
         tools.addView(history);
+
+        Button branchChat = chip("分岐");
+        branchChat.setContentDescription("現在の会話を分岐点として保存");
+        branchChat.setOnClickListener(v -> branchCurrentChat());
+        tools.addView(branchChat);
 
         Button regenerate = chip("再生成");
         regenerate.setContentDescription("直前のユーザー依頼へ別回答を生成");
@@ -592,9 +597,29 @@ public class MainActivity extends Activity {
 
     private void showConversationHistory() {
         if (conversationArchive == null) return;
-        List<ConversationArchiveStore.Session> sessions = conversationArchive.list();
+
+        EditText search = new EditText(this);
+        search.setHint("検索語（空欄ですべて表示）");
+        search.setSingleLine(true);
+        search.setPadding(dp(18), dp(8), dp(18), dp(8));
+
+        new AlertDialog.Builder(this)
+                .setTitle("チャット履歴を検索")
+                .setView(search)
+                .setPositiveButton("表示", (dialog, which) ->
+                        showConversationResults(search.getText().toString()))
+                .setNeutralButton("すべて", (dialog, which) ->
+                        showConversationResults(""))
+                .setNegativeButton("閉じる", null)
+                .show();
+    }
+
+    private void showConversationResults(String query) {
+        if (conversationArchive == null) return;
+        List<ConversationArchiveStore.Session> sessions =
+                conversationArchive.search(query);
         if (sessions.isEmpty()) {
-            Toast.makeText(this, "保存済みチャットはありません", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "一致する保存済みチャットはありません", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -604,13 +629,33 @@ public class MainActivity extends Activity {
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("チャット履歴")
+                .setTitle(query == null || query.trim().isEmpty()
+                        ? "チャット履歴"
+                        : "検索結果 · " + query.trim())
                 .setItems(labels, (dialog, which) -> {
                     if (which < 0 || which >= sessions.size()) return;
                     restoreConversation(sessions.get(which));
                 })
                 .setNegativeButton("閉じる", null)
                 .show();
+    }
+
+    private void branchCurrentChat() {
+        if (conversationArchive == null || chatLog.size() <= 0) {
+            Toast.makeText(this, "分岐できる会話がありません", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ConversationArchiveStore.Session snapshot = conversationArchive.archive(chatLog);
+        if (snapshot == null) {
+            Toast.makeText(this, "分岐スナップショットの保存に失敗しました", Toast.LENGTH_LONG).show();
+            return;
+        }
+        chatLog.appendBack(
+                "system",
+                "session",
+                "分岐点を保存 · " + snapshot.title);
+        renderTimeline();
+        setStatus("分岐点を保存しました · 履歴から戻れます");
     }
 
     private void restoreConversation(ConversationArchiveStore.Session session) {
@@ -642,6 +687,14 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "現在の処理を停止してから開始してください", Toast.LENGTH_SHORT).show();
             return;
         }
+        ArrayList<AttachmentStore.Attachment> deepAttachments =
+                new ArrayList<>(pendingAttachments);
+        pendingAttachments.clear();
+        refreshAttachmentStatus();
+        if (!deepAttachments.isEmpty()) {
+            q = q + "\n\n[添付ファイル]\n" + AttachmentStore.describe(deepAttachments);
+        }
+
         input.setText("");
         sendButton.setEnabled(false);
         refreshProcessingButton();
