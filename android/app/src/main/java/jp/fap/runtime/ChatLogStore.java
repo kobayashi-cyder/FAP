@@ -215,6 +215,19 @@ public final class ChatLogStore {
         return renderSurface(null, limit);
     }
 
+    public synchronized List<Entry> snapshot(String mode, int limit) {
+        String selectedMode = mode == null ? "timeline" : mode;
+        int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
+        ArrayList<Entry> selected = new ArrayList<>();
+        for (int i = entries.size() - 1; i >= 0 && selected.size() < take; i--) {
+            Entry entry = entries.get(i);
+            if ("front".equals(selectedMode) && !SURFACE_FRONT.equals(entry.surface)) continue;
+            if ("back".equals(selectedMode) && !SURFACE_BACK.equals(entry.surface)) continue;
+            selected.add(0, entry);
+        }
+        return new ArrayList<>(selected);
+    }
+
     public synchronized String renderTimeline(int limit) {
         int take = Math.max(1, Math.min(MAX_ENTRIES, limit));
         int start = Math.max(0, entries.size() - take);
