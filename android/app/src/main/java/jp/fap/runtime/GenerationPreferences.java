@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 public final class GenerationPreferences {
     private static final String PREFS = "fap_generation";
     private static final String KEY_QUALITY = "quality";
+    private static final String KEY_IMAGE_ENDPOINT = "image_endpoint";
 
     private GenerationPreferences() {}
 
@@ -33,6 +34,20 @@ public final class GenerationPreferences {
                 .putString(KEY_QUALITY, next)
                 .apply();
         return next;
+    }
+
+    public static String endpoint(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_IMAGE_ENDPOINT, "")
+                .trim();
+    }
+
+    public static void setEndpoint(Context context, String endpoint) {
+        String value = endpoint == null ? "" : endpoint.trim();
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_IMAGE_ENDPOINT, value)
+                .apply();
     }
 
     public static String directive(Context context) {
