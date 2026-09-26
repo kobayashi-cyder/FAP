@@ -260,6 +260,8 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 and current_assessment.disagreement_count == 0
                 and current_assessment.requirement_coverage >= 0.90
                 and current_assessment.segment_coverage >= 0.90
+                and "prior_epistemic_conflict"
+                    not in current_assessment.reasons
             ):
                 break
 
