@@ -1,0 +1,40 @@
+name: V87.59 Semantic Conversation Verify
+
+on:
+  push:
+    paths:
+      - "fap_semantic_conversation.py"
+      - "fap_v87_59_semantic_conversation_gateway.py"
+      - "knowledge/conversation_intents_ja.jsonl"
+      - "tests/test_semantic_conversation.py"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - ".github/workflows/v87-59-semantic-conversation-verify.yml"
+  pull_request:
+    paths:
+      - "fap_semantic_conversation.py"
+      - "fap_v87_59_semantic_conversation_gateway.py"
+      - "knowledge/conversation_intents_ja.jsonl"
+      - "tests/test_semantic_conversation.py"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - ".github/workflows/v87-59-semantic-conversation-verify.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile semantic conversation stack
+        run: |
+          python -m py_compile fap_semantic_conversation.py fap_v87_59_semantic_conversation_gateway.py
+      - name: Run semantic conversation tests
+        run: |
+          python -m unittest tests.test_semantic_conversation -v

@@ -1,0 +1,21 @@
+{
+  "version": "V68",
+  "name": "TaskPlan AST Repair + Candidate Race Code Factory",
+  "parent": "V67",
+  "validation": {
+    "v68_delta": "34/34 PASS",
+    "v67_v68_cumulative": "62/62 PASS",
+    "compileall": "PASS",
+    "warnings_as_errors": "PASS",
+    "synthetic_demo": "PASS"
+  },
+  "scope": [
+    "constrained natural-language TaskPlan",
+    "safe expression to Code IR",
+    "AST patch alternatives",
+    "NameError/AttributeError/ImportError/contracted-TypeError/safe SyntaxError repair",
+    "isolated candidate race",
+    "non-executable candidate handoff"
+  ],
+  "artifact_sha256": "f07ff0097e2842f73fed80b297a249e7ad92d6cf2df67510cace155bfd59b8ef"
+}

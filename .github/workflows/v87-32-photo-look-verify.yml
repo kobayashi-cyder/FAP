@@ -1,0 +1,65 @@
+name: V87.32 Photo-Look Verify
+
+on:
+  push:
+    branches:
+      - feature/v87-32-photo-look
+      - main
+    paths:
+      - "releases/v87_32/**"
+      - "fap_v87_32_photo_look_lab.py"
+      - "fap_v87_32_photo_look_demo.py"
+      - "RUN_FAP_V87_32_PHOTO_LOOK_LAB.cmd"
+      - "web/FAP_Media_Lab_V87_32.html"
+      - ".github/workflows/v87-32-photo-look-verify.yml"
+  pull_request:
+    paths:
+      - "releases/v87_32/**"
+      - "fap_v87_32_photo_look_lab.py"
+      - "fap_v87_32_photo_look_demo.py"
+      - "RUN_FAP_V87_32_PHOTO_LOOK_LAB.cmd"
+      - "web/FAP_Media_Lab_V87_32.html"
+      - ".github/workflows/v87-32-photo-look-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip pytest
+      - name: Compile V87.32
+        run: |
+          python -m py_compile releases/v87_32/photo_look/fap_photo_look/renderer.py
+          python -m py_compile releases/v87_32/photo_look/fap_photo_look/detail.py
+          python -m py_compile releases/v87_32/photo_look/fap_photo_look/engine.py
+          python -m py_compile releases/v87_32/photo_look/fap_photo_look/critic.py
+          python -m py_compile releases/v87_32/photo_look/fap_photo_look/manager.py
+          python -m py_compile releases/v87_32/photo_look/fap_photo_look/runtime.py
+          python -m py_compile fap_v87_32_photo_look_lab.py
+          python -m py_compile fap_v87_32_photo_look_demo.py
+      - name: Run V87.32 focused tests
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_29/native_image:releases/v87_30/human_lbs:releases/v87_31/scene_image:releases/v87_32/photo_look
+        run: pytest -q releases/v87_32/photo_look/tests
+      - name: Run V87.31 regression
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_29/native_image:releases/v87_30/human_lbs:releases/v87_31/scene_image
+        run: pytest -q releases/v87_31/scene_image/tests
+      - name: Generate visual comparison
+        if: matrix.python-version == '3.11'
+        env:
+          PYTHONPATH: releases/v87_13/media_generation:releases/v87_15/observed_media:releases/v87_16/media_portfolio:releases/v87_17/adaptive_fast_path:releases/v87_19/autonomous_media:releases/v87_20/media_lab:releases/v87_29/native_image:releases/v87_30/human_lbs:releases/v87_31/scene_image:releases/v87_32/photo_look
+        run: python fap_v87_32_photo_look_demo.py
+      - name: Upload visual comparison
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: V87_32_PHOTO_LOOK_COMPARISON
+          path: runtime/v87_32_photo_look_demo/
+          if-no-files-found: error

@@ -1,0 +1,36 @@
+name: FAP V87.71 FCA repository evidence verify
+
+on:
+  push:
+    branches:
+      - feature/v87-71-fca-repository-evidence
+    paths:
+      - "fap_fca_repository_exchange.py"
+      - "fap_repository_agent.py"
+      - "tests/test_fap_fca_repository_exchange.py"
+      - ".github/workflows/v87-71-fca-repository-evidence-verify.yml"
+  pull_request:
+    paths:
+      - "fap_fca_repository_exchange.py"
+      - "fap_repository_agent.py"
+      - "tests/test_fap_fca_repository_exchange.py"
+      - ".github/workflows/v87-71-fca-repository-evidence-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: Compile exchange stack
+        run: |
+          python -m compileall -q fap_fca_repository_exchange.py fap_repository_agent.py
+      - name: Run repository exchange regression
+        run: |
+          python -m unittest discover -s tests -p "test_fap_repository_agent.py" -v
+          python -m unittest discover -s tests -p "test_fap_fca_repository_exchange.py" -v
