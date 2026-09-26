@@ -34,6 +34,8 @@ public final class GitApkUpdater {
     }
 
     public static final String MANIFEST_URL =
+            "https://github.com/kobayashi-cyder/FAP/releases/latest/download/latest-apk.json";
+    public static final String FALLBACK_MANIFEST_URL =
             "https://raw.githubusercontent.com/kobayashi-cyder/FAP/main/pixel_update/apk/latest.json";
 
     private static final long MAX_APK_BYTES = 256L * 1024L * 1024L;
@@ -60,10 +62,19 @@ public final class GitApkUpdater {
                 }
 
                 listener.onStatus("Git APK manifestを取得中…");
-                JSONObject manifest = new JSONObject(
-                        new String(
-                                fetchBytes(MANIFEST_URL, MAX_MANIFEST_BYTES),
-                                StandardCharsets.UTF_8));
+                JSONObject manifest;
+                try {
+                    manifest = new JSONObject(
+                            new String(
+                                    fetchBytes(MANIFEST_URL, MAX_MANIFEST_BYTES),
+                                    StandardCharsets.UTF_8));
+                } catch (Throwable releaseManifestFailure) {
+                    listener.onStatus("Release manifest未公開 · repo manifestへフォールバック");
+                    manifest = new JSONObject(
+                            new String(
+                                    fetchBytes(FALLBACK_MANIFEST_URL, MAX_MANIFEST_BYTES),
+                                    StandardCharsets.UTF_8));
+                }
 
                 validateManifest(manifest, app);
                 int remoteVersion = manifest.getInt("version_code");
