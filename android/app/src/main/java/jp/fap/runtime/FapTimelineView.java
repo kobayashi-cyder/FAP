@@ -5,6 +5,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
+import android.text.method.LinkMovementMethod;
+import android.text.util.Linkify;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -132,6 +134,9 @@ public final class FapTimelineView extends ScrollView {
         text.setTextColor(Color.rgb(15, 20, 25));
         text.setLineSpacing(0f, 1.08f);
         text.setTextIsSelectable(true);
+        text.setAutoLinkMask(Linkify.WEB_URLS);
+        text.setLinksClickable(true);
+        text.setMovementMethod(LinkMovementMethod.getInstance());
         text.setPadding(0, dp(4), 0, dp(8));
         body.addView(text, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
