@@ -12,7 +12,7 @@ from typing import Any
 
 
 RUNTIME_VERSION = "fap.browser.runtime.1.0.01.v1"
-TERMINAL_STATES = frozenset({"completed", "failed", "login_timeout"})
+TERMINAL_STATES = frozenset({"completed", "login_timeout"})
 VALID_STATES = frozenset(
     {
         "created",
