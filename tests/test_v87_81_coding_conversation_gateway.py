@@ -32,12 +32,12 @@ class V8781CodingConversationGatewayTests(unittest.TestCase):
         status = core.status()
         response = status.get("response_redundancy") or {}
         self.assertTrue(response.get("enabled"))
-        self.assertEqual(response.get("max_lanes"), 64)
-        self.assertEqual(response.get("max_synthesis_width"), 8)
+        self.assertEqual(response.get("max_lanes"), 128)
+        self.assertEqual(response.get("max_synthesis_width"), 16)
         self.assertTrue(response.get("lane_votes_execute"))
         self.assertTrue(response.get("verified_specialist_can_replace_weak_primary"))
         self.assertFalse(response.get("side_effecting_specialists_redundantly_executed"))
-        self.assertEqual(response.get("native_parity_revision"), "1.0.01-cpp-native-r004")
+        self.assertEqual(response.get("native_parity_revision"), "1.0.01-cpp-native-r005")
         self.assertIn("factual", response.get("safe_specialists", []))
         self.assertIn("derivation", response.get("safe_specialists", []))
 
