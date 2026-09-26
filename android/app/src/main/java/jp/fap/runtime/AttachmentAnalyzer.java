@@ -57,7 +57,7 @@ public final class AttachmentAnalyzer {
                 return analyzeImage(file);
             }
             if (m.startsWith("audio/") || m.startsWith("video/")) {
-                return analyzeMedia(file);
+                return analyzeMedia(context, file);
             }
             if (lower.endsWith(".apk")
                     || "application/vnd.android.package-archive".equals(m)) {
@@ -367,7 +367,7 @@ public final class AttachmentAnalyzer {
         return out.toString();
     }
 
-    private static String analyzeMedia(File file) throws Exception {
+    private static String analyzeMedia(Context context, File file) throws Exception {
         MediaMetadataRetriever retriever = new MediaMetadataRetriever();
         try {
             retriever.setDataSource(file.getAbsolutePath());
@@ -410,6 +410,14 @@ public final class AttachmentAnalyzer {
                         frame.recycle();
                     }
                 }
+            }
+
+            String transcript = AudioFileTranscriber.transcribe(
+                    context,
+                    file,
+                    90_000L);
+            if (transcript != null && !transcript.trim().isEmpty()) {
+                out.append("\n\n[").append(transcript.trim()).append("]");
             }
             return out.toString();
         } finally {
