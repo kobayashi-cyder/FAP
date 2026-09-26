@@ -1,10 +1,10 @@
 {
   "schema": "fap.pixel.runtime.manifest.v1",
   "runtime_version": "1.0.01",
-  "source_commit": "ed75168374a225487839e139b52f8d0138467c61",
+  "source_commit": "8fd60506c6f9c892a816c0c623df7b7a67d90a16",
   "entrypoint": "fap_1x_standard_runtime.py",
-  "file_count": 31,
-  "total_bytes": 338838,
+  "file_count": 32,
+  "total_bytes": 352835,
   "files": [
     {
       "path": "fap_1x_runtime.py",
@@ -13,13 +13,13 @@
     },
     {
       "path": "fap_1x_standard_runtime.py",
-      "sha256": "dd3e08830097f58030dea20cf54425d65ad67a4b62a571b391bd2c2446d0db06",
-      "bytes": 14919
+      "sha256": "d9ff90812b17014d3e295873bb893b33df21d2be681fb731517f3ee88bf10771",
+      "bytes": 15183
     },
     {
       "path": "fap_adaptive_reasoning.py",
-      "sha256": "07847a035155687b102065c8612c3cefb5b173ce2b34bf858c4f3e86cdcb570b",
-      "bytes": 12904
+      "sha256": "a2ea0588e775e8bfdb5d0ff5af7fdf81c4c2c96b631519c27d2ed579e7791f1c",
+      "bytes": 13081
     },
     {
       "path": "fap_discourse_context.py",
@@ -83,8 +83,8 @@
     },
     {
       "path": "fap_response_series_executor.py",
-      "sha256": "5660ac5b6ed53f9c6ad303d4da173c2669495461184eb6c9770b82ca76f2056e",
-      "bytes": 24376
+      "sha256": "57e6bdcbf92b6715c9424118a9a43044ef31ad3f5d0e7bbae716412f2758acba",
+      "bytes": 27424
     },
     {
       "path": "fap_response_specialists.py",
@@ -110,6 +110,11 @@
       "path": "fap_speech.py",
       "sha256": "56afddcc7ce0fab8e1d67c588f6ee5ffdf53b82362edd27934e066e949a9ab92",
       "bytes": 15041
+    },
+    {
+      "path": "fap_subproblem_reasoner.py",
+      "sha256": "a170402d5079e6c5b2d3928dd2aa9a7d60e80f53318674f53099f4916f691a66",
+      "bytes": 10508
     },
     {
       "path": "knowledge/conversation_discourse_ja.jsonl",
