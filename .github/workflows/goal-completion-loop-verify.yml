@@ -1,0 +1,31 @@
+name: Goal Completion Loop Verify
+
+on:
+  push:
+    branches:
+      - main
+      - feature/goal-completion-loop-20260919
+      - feature/autonomy-runtime-wiring-20260919
+    paths:
+      - "candidates/goal_completion_loop/**"
+      - ".github/workflows/goal-completion-loop-verify.yml"
+  pull_request:
+    paths:
+      - "candidates/goal_completion_loop/**"
+      - ".github/workflows/goal-completion-loop-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile
+        run: python -m compileall -q candidates/goal_completion_loop
+      - name: Goal loop tests
+        run: python -m unittest discover -s candidates/goal_completion_loop/tests -p "test_*.py" -v

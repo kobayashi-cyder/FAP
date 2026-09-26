@@ -1,0 +1,44 @@
+name: FAP V87.66 repository planner verify
+
+on:
+  push:
+    branches:
+      - feature/v87-66-repository-planner
+    paths:
+      - "fap_repository_index.py"
+      - "fap_repository_reader.py"
+      - "fap_repository_planner.py"
+      - "tests/test_fap_repository_index.py"
+      - "tests/test_fap_repository_planner.py"
+      - ".github/workflows/v87-66-repository-planner-verify.yml"
+  pull_request:
+    paths:
+      - "fap_repository_index.py"
+      - "fap_repository_reader.py"
+      - "fap_repository_planner.py"
+      - "tests/test_fap_repository_index.py"
+      - "tests/test_fap_repository_planner.py"
+      - ".github/workflows/v87-66-repository-planner-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python-version }}"
+      - name: Compile repository planning modules
+        run: |
+          python -m compileall -q fap_repository_index.py fap_repository_reader.py fap_repository_planner.py
+      - name: Run V87.65/V87.66 focused regression
+        run: |
+          python -m unittest discover -s tests -p "test_fap_repository_index.py" -v
+          python -m unittest discover -s tests -p "test_fap_repository_planner.py" -v
+      - name: Smoke read-only planner against repository
+        run: |
+          python fap_repository_planner.py "Inspect fap_repository_index.py dependencies" --root . --max-files 6 --max-source-bytes 60000 > /tmp/fap-v87-66-plan.json
+          python -c "import json; p=json.load(open('/tmp/fap-v87-66-plan.json')); assert p['write_enabled'] is False; assert p['status'] == 'ready'; assert p['files']"

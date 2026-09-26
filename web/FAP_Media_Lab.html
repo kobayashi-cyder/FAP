@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>FAP Media Lab 87.20</title>
+<style>
+:root{--bg:#07110f;--panel:#0d1a17;--line:#223a34;--text:#eef7f3;--muted:#8fa79f;--ok:#47df8d;--warn:#f0bb4d;--bad:#ff7474}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% -10%,#173a30 0,#07110f 40%,#030806 100%);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Noto Sans JP",sans-serif}
+main{max-width:1120px;margin:auto;padding:26px 16px 60px}.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.brand{font-size:20px;font-weight:850;letter-spacing:.08em}.badge{border:1px solid var(--line);border-radius:999px;padding:4px 9px;color:var(--muted)}.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.grid{display:grid;grid-template-columns:minmax(300px,390px) 1fr;gap:16px}@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:rgba(13,26,23,.93);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 16px 50px rgba(0,0,0,.18)}
+label{display:block;color:var(--muted);margin:0 0 6px}textarea,input,select{width:100%;background:#07110f;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;outline:none}textarea{min-height:128px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.field{margin-top:12px}
+button{width:100%;margin-top:16px;border:0;border-radius:13px;padding:12px 16px;background:#e7f3eb;color:#06100d;font-weight:850;cursor:pointer}button:disabled{opacity:.45;cursor:wait}
+.preview{min-height:430px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:15px;overflow:hidden;background:#050b09}.preview img,.preview video{display:block;max-width:100%;max-height:70vh}.empty{color:var(--muted);text-align:center;padding:35px}
+.meta{margin-top:13px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.kv{background:#08130f;border:1px solid var(--line);border-radius:11px;padding:9px}.k{color:var(--muted);font-size:11px}.v{overflow-wrap:anywhere;margin-top:2px}
+.engine{margin-top:8px;padding:8px;border-left:2px solid var(--line);color:var(--muted)}.notice{margin-top:12px;padding:10px;border-radius:12px;background:#111913;color:#b9c9c3}.error{color:#ff9a9a;white-space:pre-wrap}
+small{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div class="brand">FAP MEDIA LAB</div>
+    <div class="badge">V87.20</div>
+    <div id="state" class="badge warn">CHECKING</div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="field">
+        <label for="prompt">Prompt</label>
+        <textarea id="prompt" placeholder="例: 海岸を走るビーグル犬、写真風、朝の柔らかい光"></textarea>
+      </div>
+      <div class="row">
+        <div><label for="type">種類</label><select id="type"><option value="image">Image</option><option value="video">Video</option></select></div>
+        <div><label for="attempts">最大試行</label><input id="attempts" type="number" min="1" max="8" value="3"></div>
+      </div>
+      <div class="row">
+        <div><label for="width">Width</label><input id="width" type="number" min="64" max="4096" value="1024"></div>
+        <div><label for="height">Height</label><input id="height" type="number" min="64" max="4096" value="1024"></div>
+      </div>
+      <div id="videoFields" class="row" hidden>
+        <div><label for="duration">秒数</label><input id="duration" type="number" min="0.1" max="120" step="0.1" value="4"></div>
+        <div><label for="fps">FPS</label><input id="fps" type="number" min="1" max="120" value="24"></div>
+      </div>
+      <div class="field">
+        <label for="constraints">Hard constraints（1行1件）</label>
+        <textarea id="constraints" style="min-height:82px" placeholder="被写体を中央に保つ&#10;写真風"></textarea>
+      </div>
+      <button id="generate">FAPで生成</button>
+      <div id="error" class="error"></div>
+      <div class="notice">V87.20内蔵の表示用Verifierは「実ファイルが生成され、digestが一致すること」を検証します。画像・動画の意味的/美的品質を1.0と主張するものではありません。</div>
+      <div class="field"><label>接続エンジン</label><div id="engines"><small>確認中...</small></div></div>
+    </section>
+
+    <section class="card">
+      <div id="preview" class="preview"><div class="empty">生成結果がここに表示されます。</div></div>
+      <div id="meta" class="meta"></div>
+    </section>
+  </div>
+</main>
+<script>
+(()=>{
+const $=s=>document.querySelector(s), state=$('#state'), err=$('#error'), button=$('#generate');
+function setState(text,kind){state.textContent=text;state.className='badge '+(kind||'warn')}
+async function api(path,opt={}){const r=await fetch(path,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});const t=await r.text();let d={};try{d=t?JSON.parse(t):{}}catch{d={error:t}}if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}
+function renderEngines(s){const box=$('#engines');box.innerHTML='';if(!s.skills||!s.skills.length){box.innerHTML='<div class="engine bad">生成エンジン未設定。FAP_MEDIA_ENGINES_JSON を設定してください。</div>';return}for(const x of s.skills){const d=document.createElement('div');d.className='engine';d.textContent=x.media_type+' · '+x.engine_id+' · '+x.stage+' · credential '+(x.credential_present?'OK':'MISSING');box.append(d)}}
+async function refresh(){try{const s=await api('/api/v1/status');renderEngines(s);setState(s.state==='ready'?'READY':'NEEDS ENGINE',s.state==='ready'?'ok':'warn')}catch(e){setState('OFFLINE','bad');err.textContent=e.message}}
+function meta(k,v){const d=document.createElement('div');d.className='kv';d.innerHTML='<div class="k"></div><div class="v"></div>';d.children[0].textContent=k;d.children[1].textContent=String(v??'—');return d}
+$('#type').addEventListener('change',()=>{$('#videoFields').hidden=$('#type').value!=='video'});
+button.addEventListener('click',async()=>{
+  err.textContent='';button.disabled=true;button.textContent='生成中...';
+  const media_type=$('#type').value;
+  const payload={prompt:$('#prompt').value,media_type,width:+$('#width').value,height:+$('#height').value,max_attempts:+$('#attempts').value,constraints:$('#constraints').value};
+  if(media_type==='video'){payload.duration_s=+$('#duration').value;payload.fps=+$('#fps').value}
+  try{
+    const d=await api('/api/v1/generate',{method:'POST',body:JSON.stringify(payload)});
+    const p=$('#preview');p.innerHTML='';
+    const a=d.artifact;
+    if(!a){p.innerHTML='<div class="empty">Artifactは返りませんでした。</div>'}
+    else if(a.media_type==='image'){const x=document.createElement('img');x.src=a.url+'?t='+Date.now();x.alt='FAP generated image';p.append(x)}
+    else{const x=document.createElement('video');x.controls=true;x.autoplay=false;x.src=a.url+'?t='+Date.now();p.append(x)}
+    const m=$('#meta');m.innerHTML='';[
+      ['status',d.status],['backend',a?.backend_id],['generator calls',d.generator_calls],['rounds',d.rounds],
+      ['verification',a?.verification_kind],['integrity score',a?.verification_score],['mime',a?.mime_type],['digest',a?.digest]
+    ].forEach(([k,v])=>m.append(meta(k,v)));
+    setState(d.accepted?'ARTIFACT READY':'NOT ACCEPTED',d.accepted?'ok':'warn');
+    await refresh();
+  }catch(e){err.textContent=e.message;setState('ERROR','bad')}
+  finally{button.disabled=false;button.textContent='FAPで生成'}
+});
+refresh();
+})();
+</script>
+</body>
+</html>

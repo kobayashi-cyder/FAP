@@ -1,0 +1,8 @@
+{"id":"m1","domain":"math","task":"word problem multi-step quantity relation","success":false,"error":"wrong relation extraction","latency_ms":8.4,"teacher_used":true}
+{"id":"m2","domain":"math","task":"word problem multi-step quantity relation","success":false,"error":"wrong answer","latency_ms":7.8,"teacher_used":true}
+{"id":"m3","domain":"math","task":"word problem multi-step quantity relation","success":true,"latency_ms":5.2,"teacher_used":true}
+{"id":"c1","domain":"code","task":"repository compile repair","success":false,"error":"compile failed","latency_ms":15.0,"teacher_used":false}
+{"id":"c2","domain":"code","task":"repository compile repair","success":true,"latency_ms":13.2,"teacher_used":false}
+{"id":"v1","domain":"vision","task":"object counting screenshot","success":false,"error":"object count mismatch","latency_ms":22.0,"teacher_used":true}
+{"id":"w1","domain":"web_design","task":"responsive layout accessibility","success":false,"error":"responsive overflow","latency_ms":12.0,"teacher_used":false}
+{"id":"k1","domain":"knowledge","task":"freshness source verification","success":true,"latency_ms":6.0,"teacher_used":false}

@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "packages": [
+    {
+      "source": "releases/v69/interaction/fap_interaction",
+      "destination": "fap_interaction"
+    },
+    {
+      "source": "releases/v70/media_adapters/fap_provider_adapters",
+      "destination": "fap_provider_adapters"
+    },
+    {
+      "source": "releases/v71/runtime/fap_runtime",
+      "destination": "fap_runtime"
+    },
+    {
+      "source": "releases/v72/audio_lifecycle/fap_audio_lifecycle",
+      "destination": "fap_audio_lifecycle"
+    },
+    {
+      "source": "releases/v73/provider_probe/fap_provider_probe",
+      "destination": "fap_provider_probe"
+    },
+    {
+      "source": "releases/v74/gated_runtime/fap_gated_runtime",
+      "destination": "fap_gated_runtime"
+    },
+    {
+      "source": "releases/v75/managed_chat/fap_managed_chat",
+      "destination": "fap_managed_chat"
+    }
+  ]
+}
