@@ -20,7 +20,12 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 public final class FapTimelineView extends ScrollView {
+    public interface ReplyListener {
+        void onReplyRequested(ChatLogStore.Entry entry);
+    }
+
     private final LinearLayout feed;
+    private ReplyListener replyListener;
 
     public FapTimelineView(Context context) {
         super(context);
@@ -34,6 +39,10 @@ public final class FapTimelineView extends ScrollView {
         addView(feed, new ScrollView.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.WRAP_CONTENT));
+    }
+
+    public void setReplyListener(ReplyListener listener) {
+        replyListener = listener;
     }
 
     public void render(List<ChatLogStore.Entry> entries) {
@@ -142,12 +151,39 @@ public final class FapTimelineView extends ScrollView {
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.WRAP_CONTENT));
 
+        LinearLayout actions = new LinearLayout(getContext());
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+
         TextView channel = new TextView(getContext());
         channel.setText(channelLabel(entry));
         channel.setTextSize(11f);
         channel.setTextColor(Color.rgb(83, 100, 113));
         channel.setSingleLine(true);
-        body.addView(channel);
+        actions.addView(channel, new LinearLayout.LayoutParams(
+                0,
+                LayoutParams.WRAP_CONTENT,
+                1f));
+
+        if (ChatLogStore.SURFACE_FRONT.equals(entry.surface)
+                && ("user".equals(entry.role) || "assistant".equals(entry.role))) {
+            TextView reply = new TextView(getContext());
+            reply.setText("↩ 返信");
+            reply.setTextSize(12f);
+            reply.setTextColor(Color.rgb(29, 155, 240));
+            reply.setGravity(Gravity.CENTER);
+            reply.setPadding(dp(10), dp(5), dp(10), dp(5));
+            reply.setContentDescription("投稿 #" + entry.id + " に返信");
+            reply.setOnClickListener(v -> {
+                ReplyListener listener = replyListener;
+                if (listener != null) listener.onReplyRequested(entry);
+            });
+            actions.addView(reply, new LinearLayout.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    dp(30)));
+        }
+
+        body.addView(actions);
 
         LinearLayout wrapper = new LinearLayout(getContext());
         wrapper.setOrientation(LinearLayout.VERTICAL);
