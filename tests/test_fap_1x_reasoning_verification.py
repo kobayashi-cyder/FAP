@@ -5,6 +5,7 @@ import unittest
 
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
 from fap_1x_problem_decomposer import ProblemDecomposer
+from fap_1x_search_controller import AdaptiveSearchController
 from fap_1x_reasoning_core import FAP1xGeneralReasoningCore
 
 
@@ -46,6 +47,35 @@ class ProblemDecomposerTests(unittest.TestCase):
         self.assertIn("repository_analysis", kinds)
         self.assertIn("candidate_generation", kinds)
         self.assertIn("verification", kinds)
+
+
+class AdaptiveSearchControllerTests(unittest.TestCase):
+    def test_low_risk_task_stays_sparse(self):
+        model = ProblemDecomposer().decompose("四角形の内角の和は？")
+        policy = AdaptiveSearchController().policy(
+            model,
+            disagreement=False,
+            candidate_verifications=("verified",),
+        )
+        self.assertEqual(policy.max_rounds, 1)
+        self.assertLessEqual(policy.branch_budget, 3)
+        self.assertFalse(policy.repeat_independent_verification)
+
+    def test_high_risk_or_disagreement_densifies_and_requires_verification(self):
+        model = ProblemDecomposer().decompose(
+            "この複雑な導出を証明してください。条件A以上、条件B以内、推測せず必ず検証してください。"
+            + "追加の前提と長い説明を含めます。" * 30
+        )
+        policy = AdaptiveSearchController().policy(
+            model,
+            disagreement=True,
+            candidate_verifications=("supported", "verified"),
+        )
+        self.assertGreaterEqual(policy.max_rounds, 3)
+        self.assertGreaterEqual(policy.branch_budget, 10)
+        self.assertTrue(policy.require_verified)
+        self.assertTrue(policy.repeat_independent_verification)
+        self.assertFalse(policy.allow_supported)
 
 
 class IndependentCandidateVerifierTests(unittest.TestCase):
