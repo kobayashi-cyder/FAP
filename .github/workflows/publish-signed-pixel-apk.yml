@@ -123,9 +123,10 @@ jobs:
           SHA="$(sha256sum "$APK" | awk '{print $1}')"
           BYTES="$(stat -c '%s' "$APK")"
           APK_NAME="FAP-Pixel-${FAP_VERSION_NAME}.apk"
-          RELEASE_URL="https://github.com/kobayashi-cyder/FAP/releases/download/${FAP_RELEASE_TAG}/${APK_NAME}"
+          LATEST_APK_NAME="FAP-Pixel-latest.apk"
+          RELEASE_URL="https://github.com/kobayashi-cyder/FAP/releases/latest/download/${LATEST_APK_NAME}"
 
-          export SHA BYTES SIGNER APK_NAME RELEASE_URL APK
+          export SHA BYTES SIGNER APK_NAME LATEST_APK_NAME RELEASE_URL APK
           python - <<'PY'
           import json, os
           payload = {
@@ -150,21 +151,26 @@ jobs:
           PY
 
           cp "$APK" "$RUNNER_TEMP/$APK_NAME"
+          cp "$APK" "$RUNNER_TEMP/$LATEST_APK_NAME"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "latest_apk_name=$LATEST_APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "apk_sha256=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release assets
         shell: bash
         run: |
           set -euo pipefail
           APK_NAME="${{ steps.meta.outputs.apk_name }}"
+          LATEST_APK_NAME="${{ steps.meta.outputs.latest_apk_name }}"
           APK_PATH="$RUNNER_TEMP/$APK_NAME"
+          LATEST_APK_PATH="$RUNNER_TEMP/$LATEST_APK_NAME"
           MANIFEST="$RUNNER_TEMP/latest-apk.json"
 
           if gh release view "$FAP_RELEASE_TAG" --repo kobayashi-cyder/FAP >/dev/null 2>&1; then
-            gh release upload "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --clobber               --repo kobayashi-cyder/FAP
+            gh release upload "$FAP_RELEASE_TAG"               "$APK_PATH"               "$LATEST_APK_PATH"               "$MANIFEST#latest-apk.json"               --clobber               --repo kobayashi-cyder/FAP
             gh release edit "$FAP_RELEASE_TAG" --latest --repo kobayashi-cyder/FAP
           else
-            gh release create "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --title "FAP Pixel $FAP_VERSION_NAME"               --notes "Signed Pixel APK built from $FAP_SOURCE_REF at $FAP_SOURCE_SHA."               --latest               --repo kobayashi-cyder/FAP
+            gh release create "$FAP_RELEASE_TAG"               "$APK_PATH"               "$LATEST_APK_PATH"               "$MANIFEST#latest-apk.json"               --title "FAP Pixel $FAP_VERSION_NAME"               --notes "Signed Pixel APK built from $FAP_SOURCE_REF at $FAP_SOURCE_SHA. Fixed install URL: https://github.com/kobayashi-cyder/FAP/releases/latest/download/FAP-Pixel-latest.apk"               --latest               --repo kobayashi-cyder/FAP
           fi
 
       - name: Verify public update feed
@@ -172,6 +178,9 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --location --retry 5             "https://github.com/kobayashi-cyder/FAP/releases/latest/download/latest-apk.json"             -o "$RUNNER_TEMP/released-latest-apk.json"
+          curl --fail --location --retry 5             "https://github.com/kobayashi-cyder/FAP/releases/latest/download/FAP-Pixel-latest.apk"             -o "$RUNNER_TEMP/released-FAP-Pixel-latest.apk"
+          EXPECTED_SHA="${{ steps.meta.outputs.apk_sha256 }}"
+          echo "$EXPECTED_SHA  $RUNNER_TEMP/released-FAP-Pixel-latest.apk" | sha256sum --check -
           python - <<'PY'
           import json, os
           p = os.path.join(os.environ["RUNNER_TEMP"], "released-latest-apk.json")
@@ -180,5 +189,6 @@ jobs:
           assert data["available"] is True
           assert data["package_name"] == "jp.fap.runtime"
           assert data["version_code"] == int(os.environ["FAP_VERSION_CODE"])
+          assert data["apk_url"] == "https://github.com/kobayashi-cyder/FAP/releases/latest/download/FAP-Pixel-latest.apk"
           print(data)
           PY
