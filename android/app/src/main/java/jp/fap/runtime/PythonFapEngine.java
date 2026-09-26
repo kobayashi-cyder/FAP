@@ -15,6 +15,7 @@ public final class PythonFapEngine {
         public final double confidence;
         public final String state;
         public final boolean needsTeacher;
+        public final String payloadJson;
 
         Result(
                 String query,
@@ -22,13 +23,15 @@ public final class PythonFapEngine {
                 String skill,
                 double confidence,
                 String state,
-                boolean needsTeacher) {
+                boolean needsTeacher,
+                String payloadJson) {
             this.query = query;
             this.answer = answer;
             this.skill = skill;
             this.confidence = confidence;
             this.state = state;
             this.needsTeacher = needsTeacher;
+            this.payloadJson = payloadJson == null ? "{}" : payloadJson;
         }
 
         public boolean needsExternalHelp() {
@@ -87,13 +90,15 @@ public final class PythonFapEngine {
                             sourceChannel == null ? "agent" : sourceChannel)
                             .toString());
             statusText = o.optString("status", statusText);
+            JSONObject payload = o.optJSONObject("payload");
             return new Result(
                     query,
                     o.optString("answer", ""),
                     o.optString("skill", "python_core"),
                     o.optDouble("confidence", 0.5),
                     o.optString("state", "unknown"),
-                    o.optBoolean("needs_teacher", false)
+                    o.optBoolean("needs_teacher", false),
+                    payload == null ? "{}" : payload.toString()
             );
         } catch (Throwable t) {
             FapEngine.Result r = fallback.process(query);
