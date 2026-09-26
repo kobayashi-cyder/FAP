@@ -6,6 +6,8 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -83,9 +85,7 @@ public final class ConversationArchiveStore {
     public boolean restore(Session session, ChatLogStore log) {
         if (session == null || log == null || session.file == null) return false;
         try {
-            String raw = java.nio.file.Files.readString(
-                    session.file.toPath(),
-                    StandardCharsets.UTF_8);
+            String raw = readUtf8(session.file);
             JSONObject payload = new JSONObject(raw);
             if (!"fap.pixel.chat.session.v1".equals(payload.optString("schema"))) {
                 return false;
@@ -104,9 +104,7 @@ public final class ConversationArchiveStore {
 
     private Session readMeta(File file) {
         try {
-            String raw = java.nio.file.Files.readString(
-                    file.toPath(),
-                    StandardCharsets.UTF_8);
+            String raw = readUtf8(file);
             JSONObject payload = new JSONObject(raw);
             if (!"fap.pixel.chat.session.v1".equals(payload.optString("schema"))) {
                 return null;
@@ -118,6 +116,22 @@ public final class ConversationArchiveStore {
                     file);
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    private static String readUtf8(File file) throws Exception {
+        try (FileInputStream input = new FileInputStream(file);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            while (true) {
+                int read = input.read(buffer);
+                if (read < 0) break;
+                output.write(buffer, 0, read);
+                if (output.size() > 24 * 1024 * 1024) {
+                    throw new IllegalArgumentException("conversation archive too large");
+                }
+            }
+            return output.toString(StandardCharsets.UTF_8.name());
         }
     }
 
