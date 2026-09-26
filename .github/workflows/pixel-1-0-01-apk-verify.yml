@@ -90,6 +90,9 @@ jobs:
           assert current["entrypoint"] == "fap_1x_standard_runtime.py"
           assert current["file_count"] == len(current["files"])
           assert sum(x["bytes"] for x in current["files"]) == current["total_bytes"]
+          paths = {x["path"] for x in current["files"]}
+          assert "fap_speech.py" in paths
+          assert "fap_1x_standard_runtime.py" in paths
           print("published manifest:", current["source_commit"], current["file_count"], current["total_bytes"])
           PY
 
@@ -131,7 +134,11 @@ jobs:
           grep -q 'PixelBrowserAccessibilityService' pixel-apk/dex-strings.txt
           grep -q 'PixelBrowserController' pixel-apk/dex-strings.txt
           grep -q 'GitRuntimeUpdater' pixel-apk/dex-strings.txt
+          grep -q 'AndroidVoiceController' pixel-apk/dex-strings.txt
+          grep -q 'ChatLogStore' pixel-apk/dex-strings.txt
           grep -q 'validate_runtime' android/app/src/main/python/android_bridge.py
+          test -s android/app/src/main/python/fap_speech.py
+          grep -q 'android.permission.RECORD_AUDIO' android/app/src/main/AndroidManifest.xml
           grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
           grep -q 'PixelBrowserAccessibilityService' android/app/src/main/AndroidManifest.xml
 
