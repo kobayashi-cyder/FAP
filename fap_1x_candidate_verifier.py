@@ -4,12 +4,13 @@ from dataclasses import asdict, dataclass
 import math
 import operator
 import re
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Mapping
 
 from fap_benchmark_reasoning import StructuredMCQParser
 from fap_factual_qa import FactualQAOrgan
-from fap_generic_derivation import GenericDerivationEngine
+from fap_generic_derivation import GenericDerivationEngine, parse_equation
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
 
@@ -254,6 +255,64 @@ class IndependentCandidateVerifier:
             "" if ok else "fresh symbolic replay/countercheck did not reproduce candidate",
         )
 
+    @staticmethod
+    def _fraction_value(value: object) -> Fraction | None:
+        try:
+            return Fraction(str(value))
+        except (ValueError, ZeroDivisionError):
+            return None
+
+    def _verify_linear_algebra(
+        self,
+        query: str,
+        payload: Mapping[str, Any],
+    ) -> VerificationReport:
+        row = payload.get("algebra_result")
+        if not isinstance(row, Mapping):
+            return VerificationReport("failed", "linear_substitution", 0.0, (), "missing algebra result")
+        variable = str(row.get("variable") or "")
+        equation = str(row.get("equation") or "")
+        value = self._fraction_value(row.get("value"))
+        if not variable or value is None:
+            return VerificationReport("failed", "linear_substitution", 0.0, (), "missing variable/value")
+        try:
+            _lhs, _rhs, diff = parse_equation(equation)
+        except (SyntaxError, ValueError, ZeroDivisionError):
+            return VerificationReport("failed", "linear_substitution", 0.0, (), "equation cannot be parsed")
+        total = Fraction(0)
+        for mono, coeff in diff.items():
+            term = Fraction(coeff)
+            for name, power in mono:
+                if name != variable:
+                    return VerificationReport(
+                        "indeterminate",
+                        "linear_substitution",
+                        0.0,
+                        (f"unexpected_variable={name}",),
+                        "verification only covers one-variable equations",
+                    )
+                term *= value ** int(power)
+            total += term
+        ok = total == 0
+        checks = [f"substitution_residual={total}"]
+
+        task = self.parser.parse(query)
+        if task is not None:
+            letter = self._answer_letter(payload)
+            option_value = self._option_number(task.choices.get(letter, ""))
+            expected_float = float(value)
+            choice_ok = option_value is not None and self._close(option_value, expected_float, rel=1e-12)
+            checks.append(f"choice_match={choice_ok}")
+            ok = ok and choice_ok
+
+        return VerificationReport(
+            "passed" if ok else "failed",
+            "linear_substitution",
+            1.0 if ok else 0.0,
+            tuple(checks),
+            "" if ok else "candidate does not satisfy the original equation/choice",
+        )
+
     def _verify_grounded_retrieval(
         self,
         query: str,
@@ -296,6 +355,8 @@ class IndependentCandidateVerifier:
             return self._verify_derivation(query, history, payload)
         if source == "grounded_retrieval":
             return self._verify_grounded_retrieval(query, history, payload)
+        if source == "generic_linear_equation":
+            return self._verify_linear_algebra(query, payload)
         if source == "option_conditioned_science":
             return VerificationReport(
                 "indeterminate",
