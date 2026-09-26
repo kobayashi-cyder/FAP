@@ -87,8 +87,19 @@ The launcher:
 5. connects FAP to that browser;
 6. executes the browser-first self-improvement loop.
 
-If ChatGPT is not signed in, sign in manually in the opened FAP Chrome window
-and run the command again.
+If ChatGPT is not signed in, the launcher keeps the visible FAP Chrome window
+open and waits (15 minutes by default). Complete login manually; as soon as the
+ChatGPT composer appears, the same command automatically continues into the
+self-improvement run.
+
+To prepare the profile ahead of time without starting a self-improvement job:
+
+```powershell
+.\RUN_FAP_BROWSER_SELF_IMPROVE.ps1 -LoginOnly
+```
+
+This starts/reuses the dedicated FAP Chrome profile, waits for ChatGPT readiness,
+and exits successfully once the profile is ready for later runs.
 
 ## Direct Python use
 
@@ -115,6 +126,39 @@ python fap_self_improvement_controller.py `
 ```
 
 Browser mode is the CLI default, so `--backend browser` may be omitted.
+
+## Runtime supervision
+
+The browser path uses a local non-secret runtime directory (Windows default:
+`%LOCALAPPDATA%\FAP\browser-runtime`).
+
+It atomically records only operational metadata:
+
+- `browser_starting`
+- `login_required`
+- `chatgpt_ready`
+- `running`
+- `completed`
+- `failed`
+- `login_timeout`
+
+The goal text itself is not stored; only its SHA-256 digest is recorded.
+Query strings and URL fragments are stripped from stored URL metadata.
+
+A lock file prevents two FAP controllers from fighting over the same browser.
+Dead/stale locks can be recovered, and interrupted runs increment a restart
+counter. Re-running the same goal is safe at the repository level because patch
+application remains isolated in detached worktrees and main is never directly
+modified.
+
+Machine-readable exit codes:
+
+- `0`: verified candidate / readiness success
+- `2`: run completed but candidate was rejected by verification
+- `3`: ChatGPT login readiness timed out
+- `4`: another FAP browser controller is already running
+- `5`: browser/CDP/runtime error
+- `6`: unsafe branch (main/master or missing branch)
 
 ## Search behavior
 
@@ -183,6 +227,10 @@ tests the browser-control layer through fakes and verifies:
 - no-search mode skips search-engine navigation;
 - proposal edits cannot escape planner-selected paths;
 - planner SHA preconditions are preserved;
-- main/master self-modification is refused;
+- main/master self-modification is refused before browser startup;
+- initial-login readiness can wait and continue without a restart;
+- runtime state is atomically persisted without storing the goal text;
+- concurrent controllers are rejected by a lock;
+- stale runtime locks can be recovered;
 - the PowerShell launcher parses successfully;
 - credential-like material is not committed.
