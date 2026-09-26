@@ -248,6 +248,11 @@ public class MainActivity extends Activity {
         tools.setGravity(Gravity.CENTER_VERTICAL);
         tools.setPadding(dp(12), dp(5), dp(12), dp(5));
 
+        Button imageGeneration = chip("画像生成");
+        imageGeneration.setContentDescription("入力内容をFMG画像生成へ送る");
+        imageGeneration.setOnClickListener(v -> startImageGeneration());
+        tools.addView(imageGeneration);
+
         agentModeButton = chip("Agent");
         agentModeButton.setOnClickListener(v -> {
             agent.setAgentModeEnabled(!agent.isAgentModeEnabled());
@@ -479,6 +484,28 @@ public class MainActivity extends Activity {
         wrapper.addView(composer);
         refreshAttachmentStatus();
         return wrapper;
+    }
+
+    private void startImageGeneration() {
+        if (input == null || sendButton == null) return;
+        String q = input.getText().toString().trim();
+        if (q.isEmpty()) {
+            Toast.makeText(this, "生成したい画像を入力してください", Toast.LENGTH_SHORT).show();
+            input.setHint("例: 夕暮れの浮遊都市を映画的に画像生成");
+            input.requestFocus();
+            return;
+        }
+        String normalized = q;
+        if (!q.contains("画像生成")
+                && !q.contains("画像を生成")
+                && !q.contains("画像を作")
+                && !q.contains("絵を生成")
+                && !q.contains("イラスト")) {
+            normalized = "画像生成: " + q;
+        }
+        input.setText(normalized);
+        setStatus("FMG画像生成へ送信…");
+        runFap();
     }
 
     private void startWebResearch() {
