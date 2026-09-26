@@ -583,14 +583,18 @@ class FAP1xGeneralReasoningCore:
         provisional = [x for x in candidates if x.verification == "provisional"]
 
         selected: ReasoningCandidate | None = None
-        if verified:
+        if plan.task_form == "hypothesis" and provisional and search_policy.allow_provisional:
+            # For an explicit hypothesis request, a clearly-labelled
+            # falsifiable hypothesis is more appropriate than an extractive
+            # background passage. Verified direct results still win when the
+            # task is not asking for alternatives.
+            selected = provisional[0]
+        elif verified:
             verified_answers = {x.answer_key for x in verified if x.answer_key}
             if len(verified_answers) <= 1 and not disagreement:
                 selected = verified[0]
         elif supported and not disagreement and search_policy.allow_supported:
             selected = supported[0]
-        elif provisional and search_policy.allow_provisional:
-            selected = provisional[0]
 
         if selected is None:
             return {
