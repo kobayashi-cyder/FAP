@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any, Mapping
 
-from fap_knowledge_retrieval import RepositoryKnowledgeIndex
+from fap_knowledge_retrieval import RepositoryKnowledgeIndex, normalize, terms
 
 
 _EXPLAIN = re.compile(
@@ -23,6 +23,89 @@ _FRESH = re.compile(
     r"latest|today|current|news|price|weather|release)",
     re.I,
 )
+
+_GENERIC_QUERY = re.compile(
+    r"(知って(?:いる|る)こと|知識|教えて(?:ください)?|説明(?:して|してください)?|"
+    r"解説(?:して|してください)?|概要|まとめて|について|とは|"
+    r"what do you know|explain|overview|tell me about)",
+    re.I,
+)
+_REFERENTIAL = re.compile(
+    r"^(?:それ|これ|そのこと|このこと|もっと|詳しく|続き|it|that|this)$",
+    re.I,
+)
+
+
+def _subject_text(text: str) -> str:
+    value = str(text or "").strip()
+    value = _GENERIC_QUERY.sub(" ", value)
+    value = _FRESH.sub(" ", value)
+    value = re.sub(r"[?？!！。,:：;；()（）\[\]{}「」『』]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    value = re.sub(r"^(?:の|を|は|が|に|で|と)+", "", value)
+    value = re.sub(r"(?:の|を|は|が|に|で|と)+$", "", value)
+    return value.strip()
+
+
+def _history_subject(history: list[Mapping] | None) -> str:
+    for row in reversed(list(history or [])):
+        if row.get("role") != "user":
+            continue
+        value = _subject_text(str(row.get("text", "")))
+        if value and not _REFERENTIAL.fullmatch(value):
+            return value
+    return ""
+
+
+def _subject_relevance(subject: str, title: str, body: str) -> float:
+    subject = _subject_text(subject)
+    if not subject:
+        return 0.0
+
+    haystack = f"{title} {body}"
+    normalized_subject = normalize(subject).strip()
+    normalized_haystack = normalize(haystack)
+    if len(normalized_subject) >= 2 and normalized_subject in normalized_haystack:
+        return 1.0
+
+    q = terms(subject)
+    d = terms(haystack)
+    if not q or not d:
+        return 0.0
+
+    common = q & d
+    coverage = len(common) / max(1, len(q))
+    if len(q) == 1:
+        token = next(iter(q))
+        return 0.95 if token in d and len(token) >= 3 else 0.0
+
+    if len(common) < 2:
+        return 0.0
+    if coverage < 0.45:
+        return 0.0
+    return min(0.95, 0.55 + 0.40 * coverage)
+
+
+def _relevant_hits(query: str, history: list[Mapping] | None, hits):
+    subject = _subject_text(query)
+    if not subject or _REFERENTIAL.fullmatch(subject):
+        subject = _history_subject(history)
+    if not subject:
+        return []
+
+    out = []
+    for hit in hits:
+        relevance = _subject_relevance(
+            subject,
+            hit.chunk.title,
+            hit.chunk.text,
+        )
+        if relevance <= 0.0:
+            continue
+        out.append((relevance, hit))
+    out.sort(key=lambda row: (-row[0], -float(row[1].score), row[1].chunk.chunk_id))
+    return [hit for _, hit in out]
+
 
 
 def _clean_body(text: str, limit: int = 1500) -> str:
@@ -73,13 +156,14 @@ class KnowledgeNarrator:
             return 0.92 if self.index.chunks else 0.0
 
         context = self.index.context_from_history(list(history or []))
-        hits = self.index.search(query, context=context, limit=3)
+        hits = self.index.search(query, context=context, limit=8)
+        hits = _relevant_hits(query, history, hits)
         if not hits:
             return 0.0
 
         top = float(hits[0].score)
         explicit = bool(_EXPLAIN.search(query))
-        if top < (0.30 if explicit else 0.42):
+        if top < (0.24 if explicit else 0.38):
             return 0.0
         return min(0.96, 0.42 + 0.52 * top + (0.12 if explicit else 0.0))
 
@@ -120,12 +204,13 @@ class KnowledgeNarrator:
             }
 
         context = self.index.context_from_history(list(history or []))
-        hits = self.index.search(query, context=context, limit=6)
+        hits = self.index.search(query, context=context, limit=10)
+        hits = _relevant_hits(query, history, hits)
         if not hits:
             return None
 
         explicit = bool(_EXPLAIN.search(query))
-        threshold = 0.30 if explicit else 0.42
+        threshold = 0.24 if explicit else 0.38
         hits = [hit for hit in hits if hit.score >= threshold]
         if not hits:
             return None
