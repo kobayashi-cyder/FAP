@@ -115,6 +115,38 @@ def run_holdout(seed: int | None = None) -> HoldoutReport:
         )
         _record(stats, "generated_ohms_law", ok)
 
+    # Fresh one-variable linear equations; coefficients, targets and
+    # answer positions are generated per run.
+    for _ in range(12):
+        coefficient = rng.randrange(2, 16)
+        expected = rng.randrange(1, 31)
+        offset = rng.randrange(1, 25)
+        target = coefficient * expected + offset
+        choices, answer = _place_answer(
+            rng,
+            str(expected),
+            [
+                str(expected + rng.randrange(1, 5)),
+                str(max(0, expected - rng.randrange(1, 5))),
+                str(expected + rng.randrange(6, 12)),
+            ],
+        )
+        wording = rng.choice([
+            "Solve for x: {}x + {} = {}".format(coefficient, offset, target),
+            "Find x: {} * x + {} = {}".format(coefficient, offset, target),
+        ])
+        result = core.solve(_mcq(wording, choices))
+        ok = bool(
+            result
+            and result.get("verification_state") == "verified"
+            and result.get("reasoning_source") == "generic_linear_equation"
+            and ("Answer: $" + answer) in str(result.get("reply"))
+            and result.get("selected_payload", {})
+                .get("independent_verification", {})
+                .get("status") == "passed"
+        )
+        _record(stats, "generated_linear_equations", ok)
+
     # Unknown tasks must never be converted into a forced A-D guess.
     for _ in range(8):
         nonce = f"ZXQV-{rng.randrange(10**8, 10**9)}"
