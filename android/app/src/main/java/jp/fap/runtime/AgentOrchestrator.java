@@ -130,11 +130,29 @@ public final class AgentOrchestrator {
             String text,
             java.util.List<AttachmentStore.Attachment> attachments,
             Listener listener) {
-        submitUserTurnInternal(channel, text, attachments, listener, false);
+        submitUserTurnInternal(
+                channel, text, attachments, listener, false, 0L, 0L);
+    }
+
+    public void submitUserTurn(
+            String channel,
+            String text,
+            java.util.List<AttachmentStore.Attachment> attachments,
+            long replyToId,
+            long threadRootId,
+            Listener listener) {
+        submitUserTurnInternal(
+                channel,
+                text,
+                attachments,
+                listener,
+                false,
+                replyToId,
+                threadRootId);
     }
 
     public void submitWebResearch(String text, Listener listener) {
-        submitUserTurnInternal("web", text, null, listener, true);
+        submitUserTurnInternal("web", text, null, listener, true, 0L, 0L);
     }
 
     private void submitUserTurnInternal(
@@ -142,7 +160,9 @@ public final class AgentOrchestrator {
             String text,
             java.util.List<AttachmentStore.Attachment> attachments,
             Listener listener,
-            boolean forceBrowser) {
+            boolean forceBrowser,
+            long replyToId,
+            long threadRootId) {
         String clean = text == null ? "" : text.trim();
         String attachmentText = AttachmentStore.describe(attachments);
         if (clean.isEmpty() && attachmentText.isEmpty()) return;
@@ -154,12 +174,14 @@ public final class AgentOrchestrator {
             durable.append("[添付ファイル]\n").append(attachmentText);
         }
 
-        ChatLogStore.Entry entry = chatLog.appendFront(
+        ChatLogStore.Entry entry = chatLog.appendFrontThreaded(
                 "user",
                 attachments == null || attachments.isEmpty()
                         ? channel
                         : channel + ":file",
-                durable.toString());
+                durable.toString(),
+                replyToId,
+                threadRootId);
         if (entry == null) return;
 
         if (attachments != null && !attachments.isEmpty()) {
@@ -216,7 +238,7 @@ public final class AgentOrchestrator {
                     "system",
                     "agent",
                     "直前のユーザー依頼を再生成 · source=#" + source.id);
-            deliverResult(result, "regenerate", listener, generation);
+            deliverResult(result, "regenerate", listener, generation, source);
         });
     }
 
@@ -275,7 +297,7 @@ public final class AgentOrchestrator {
                             + " · first=" + first.skill
                             + " · critic=" + critique.skill
                             + " · final=" + result.skill);
-            deliverResult(result, "deep", listener, generation);
+            deliverResult(result, "deep", listener, generation, entry);
         });
     }
 
@@ -352,7 +374,12 @@ public final class AgentOrchestrator {
                     .remove(KEY_INFLIGHT_USER_ID)
                     .remove(KEY_INFLIGHT_STARTED_AT)
                     .apply();
-            deliverResult(result, "agent:web", listener, pendingGeneration);
+            deliverResult(
+                    result,
+                    "agent:web",
+                    listener,
+                    pendingGeneration,
+                    findEntry(pendingUserId));
         });
     }
 
@@ -427,7 +454,7 @@ public final class AgentOrchestrator {
                 .remove(KEY_INFLIGHT_USER_ID)
                 .remove(KEY_INFLIGHT_STARTED_AT)
                 .apply();
-        deliverResult(result, entry.channel, listener, generation);
+        deliverResult(result, entry.channel, listener, generation, entry);
     }
 
     private void reconcileBlocking() {
@@ -518,7 +545,8 @@ public final class AgentOrchestrator {
             PythonFapEngine.Result result,
             String sourceChannel,
             Listener listener,
-            long generation) {
+            long generation,
+            ChatLogStore.Entry sourceEntry) {
         if (!isGenerationActive(generation)) return;
 
         String answer = result.answer == null ? "" : result.answer.trim();
@@ -526,20 +554,31 @@ public final class AgentOrchestrator {
             answer = "このターンでは確定回答を生成できませんでした。";
         }
 
+        long assistantReplyTo =
+                sourceEntry != null && sourceEntry.threadRootId > 0L
+                        ? sourceEntry.id
+                        : 0L;
+        long assistantThreadRoot =
+                sourceEntry == null ? 0L : sourceEntry.threadRootId;
+
         if (listener == null) {
-            chatLog.appendFront(
+            chatLog.appendFrontThreaded(
                     "assistant",
                     "agent:" + normalizeChannel(sourceChannel),
-                    answer);
+                    answer,
+                    assistantReplyTo,
+                    assistantThreadRoot);
             appendResultMeta(result, sourceChannel);
             processing = false;
             return;
         }
 
-        ChatLogStore.Entry streamEntry = chatLog.appendFront(
+        ChatLogStore.Entry streamEntry = chatLog.appendFrontThreaded(
                 "assistant",
                 "agent:" + normalizeChannel(sourceChannel),
-                "…");
+                "…",
+                assistantReplyTo,
+                assistantThreadRoot);
         if (streamEntry == null) {
             appendResultMeta(result, sourceChannel);
             processing = false;
