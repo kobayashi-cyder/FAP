@@ -1,79 +1,126 @@
 from __future__ import annotations
 
+import ast
 import importlib
-import inspect
 import json
-import os
-import re
 from pathlib import Path
-from typing import Any
+import sys
 
 _runtime = None
-_runtime_name = "none"
 _storage_dir: Path | None = None
-_release_version = "unknown"
-_core_source = "unknown"
+_packaged_root = Path(__file__).resolve().parent
+_runtime_root = _packaged_root
+_runtime_source = "packaged"
+_runtime_commit = "unknown"
 _main_sha = "unknown"
-_autonomy_loaded = False
+_release_version = "1.0.01"
 _verified_count = 0
 
 
 def _read_meta() -> None:
-    global _release_version, _core_source, _main_sha
+    global _main_sha, _release_version
     try:
         meta = importlib.import_module("build_meta")
-        _release_version = str(getattr(meta, "RELEASE_VERSION", "unknown"))
-        _core_source = str(getattr(meta, "CORE_SOURCE", "unknown"))
         _main_sha = str(getattr(meta, "MAIN_SHA", "unknown"))
+        _release_version = str(getattr(meta, "RELEASE_VERSION", "1.0.01"))
     except Exception:
         pass
 
 
-def _patch_storage(module: Any) -> None:
+def _active_state_path() -> Path:
     if _storage_dir is None:
-        return
-    os.environ["FAP_ANDROID_DATA_DIR"] = str(_storage_dir)
-    if hasattr(module, "MEMORY_FILE"):
-        try:
-            module.MEMORY_FILE = _storage_dir / "fap_memory.json"
-        except Exception:
-            pass
+        raise RuntimeError("FAP storage is not initialized")
+    return _storage_dir / "runtime_active.json"
 
 
-def _select_runtime(module: Any):
-    candidates = []
-    for name, obj in vars(module).items():
-        match = re.fullmatch(r"FAPV(\d+)", name)
-        if match and inspect.isclass(obj):
-            candidates.append((int(match.group(1)), name, obj))
+def _read_active_state() -> dict:
+    if _storage_dir is None:
+        return {}
+    path = _active_state_path()
+    if not path.is_file():
+        return {}
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(value, dict):
+        return {}
+    slot = str(value.get("slot") or "")
+    commit = str(value.get("source_commit") or "")
+    if slot not in {"A", "B"}:
+        return {}
+    root = _storage_dir / "runtime_slots" / slot
+    if not (root / "fap_1x_standard_runtime.py").is_file():
+        return {}
+    value["root"] = str(root)
+    value["source_commit"] = commit
+    return value
 
-    errors = []
-    for _, name, cls in sorted(candidates, reverse=True):
-        try:
-            instance = cls()
-            if callable(getattr(instance, "think", None)):
-                return name, instance
-        except Exception as exc:
-            errors.append(f"{name}:{type(exc).__name__}")
 
-    raise RuntimeError("No runnable FAPVxx class: " + ",".join(errors[:8]))
+def _select_runtime_root() -> tuple[Path, str, str]:
+    state = _read_active_state()
+    root = state.get("root")
+    if root:
+        slot = str(state.get("slot"))
+        commit = str(state.get("source_commit") or "unknown")
+        return Path(root), f"git:{slot}", commit
+    return _packaged_root, "packaged", _main_sha
+
+
+def _purge_fap_modules() -> None:
+    for name in tuple(sys.modules):
+        if name.startswith("fap_"):
+            sys.modules.pop(name, None)
+    importlib.invalidate_caches()
+
+
+def _prepare_sys_path(root: Path) -> None:
+    root_text = str(root.resolve())
+    kept = []
+    for item in sys.path:
+        text = str(item)
+        if _storage_dir is not None:
+            slots = str((_storage_dir / "runtime_slots").resolve())
+            try:
+                if str(Path(text).resolve()).startswith(slots):
+                    continue
+            except Exception:
+                pass
+        if text == root_text:
+            continue
+        kept.append(item)
+    sys.path[:] = [root_text] + kept
+
+
+def _build_runtime(root: Path, *, with_memory: bool):
+    _prepare_sys_path(root)
+    _purge_fap_modules()
+    module = importlib.import_module("fap_1x_standard_runtime")
+    cls = getattr(module, "FAP1xStandardRuntime")
+    memory_root = (_storage_dir / "semantic_memory") if (with_memory and _storage_dir) else None
+    return cls(
+        root=root,
+        memory_root=memory_root,
+        max_history_messages=48,
+    )
+
+
+def _load_selected_runtime() -> None:
+    global _runtime, _runtime_root, _runtime_source, _runtime_commit
+    root, source, commit = _select_runtime_root()
+    _runtime = _build_runtime(root, with_memory=True)
+    _runtime_root = root
+    _runtime_source = source
+    _runtime_commit = commit
 
 
 def initialize(storage_dir: str) -> str:
-    global _runtime, _runtime_name, _storage_dir, _autonomy_loaded, _verified_count
+    global _storage_dir, _verified_count
     _storage_dir = Path(storage_dir)
     _storage_dir.mkdir(parents=True, exist_ok=True)
+    (_storage_dir / "runtime_slots").mkdir(parents=True, exist_ok=True)
     _read_meta()
-
-    core = importlib.import_module("fap_core")
-    _patch_storage(core)
-    _runtime_name, _runtime = _select_runtime(core)
-
-    try:
-        importlib.import_module("fap_autonomy")
-        _autonomy_loaded = True
-    except Exception:
-        _autonomy_loaded = False
+    _load_selected_runtime()
 
     log_path = _storage_dir / "verification.jsonl"
     if log_path.exists():
@@ -85,145 +132,237 @@ def initialize(storage_dir: str) -> str:
     return json.dumps(_status_payload(), ensure_ascii=False)
 
 
-def _jsonable(value: Any):
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, dict):
-        return {str(k): _jsonable(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_jsonable(v) for v in value]
-    if hasattr(value, "__dict__"):
-        return _jsonable(vars(value))
-    return str(value)
+def validate_runtime(root_path: str) -> str:
+    root = Path(root_path).resolve()
+    if _storage_dir is None:
+        raise RuntimeError("FAP storage is not initialized")
 
+    slots_root = (_storage_dir / "runtime_slots").resolve()
+    if root.parent != slots_root:
+        raise ValueError("runtime candidate must be an A/B slot")
+    if root.name not in {"A", "B"}:
+        raise ValueError("runtime candidate slot must be A or B")
 
-def _confidence(state: Any) -> float:
-    if isinstance(state, dict):
-        for key in ("confidence", "final_confidence", "score"):
+    entrypoint = root / "fap_1x_standard_runtime.py"
+    if not entrypoint.is_file():
+        raise FileNotFoundError("runtime entrypoint is missing")
+
+    python_files = sorted(root.glob("fap_*.py"))
+    if not python_files:
+        raise ValueError("runtime contains no FAP Python modules")
+
+    parsed = 0
+    for path in python_files:
+        ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        parsed += 1
+
+    knowledge = root / "knowledge"
+    knowledge_files = sorted(knowledge.rglob("*.jsonl")) if knowledge.is_dir() else []
+    for path in knowledge_files:
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
             try:
-                if key in state:
-                    return max(0.0, min(1.0, float(state[key])))
-            except Exception:
-                pass
-        organs = state.get("organs")
-        if isinstance(organs, dict):
-            integ = organs.get("integrate")
-            if isinstance(integ, dict):
-                try:
-                    return max(0.0, min(1.0, float(integ.get("confidence", 0.5))))
-                except Exception:
-                    pass
-    return 0.5
+                json.loads(line)
+            except Exception as exc:
+                raise ValueError(f"invalid JSONL: {path.name}:{line_no}") from exc
+
+    candidate = _build_runtime(root, with_memory=False)
+    status = candidate.status()
+    if str(status.get("version") or "") != "1.0.01":
+        raise ValueError("candidate runtime version mismatch")
+
+    # Deterministic smoke path which must not depend on network access.
+    result = candidate.run_turn("真空中の光速は？", session_id="ota-smoke")
+    if str(result.state) != "handled":
+        raise ValueError("candidate runtime failed deterministic smoke test")
+
+    return json.dumps(
+        {
+            "ok": True,
+            "python_files": parsed,
+            "knowledge_files": len(knowledge_files),
+            "endpoint_count": len(candidate.fabric.endpoint_ids),
+            "version": status.get("version"),
+        },
+        ensure_ascii=False,
+    )
 
 
-def _answer(state: Any) -> str:
-    if _runtime is not None and callable(getattr(_runtime, "verbalize", None)):
-        try:
-            text = _runtime.verbalize(state)
-            if text is not None:
-                return str(text)
-        except Exception:
-            pass
-    if isinstance(state, dict):
-        for key in ("answer", "text", "response", "output"):
-            value = state.get(key)
-            if isinstance(value, str) and value.strip():
-                return value
-    return json.dumps(_jsonable(state), ensure_ascii=False, indent=2)
+def reload_runtime() -> str:
+    _load_selected_runtime()
+    return json.dumps(_status_payload(), ensure_ascii=False)
+
+
+def _restore_agent_history(recent_log_json: str, query: str) -> tuple[dict, ...]:
+    try:
+        rows = json.loads(str(recent_log_json or "[]"))
+    except Exception:
+        rows = []
+    if not isinstance(rows, list):
+        rows = []
+
+    history: list[dict] = []
+    for row in rows[-64:]:
+        if not isinstance(row, dict):
+            continue
+        role = str(row.get("role") or "")
+        if role not in {"user", "assistant"}:
+            continue
+        text = str(row.get("text") or "").strip()
+        if not text:
+            continue
+        history.append(
+            {
+                "role": role,
+                "content": text[:20000],
+                "text": text[:20000],
+                "channel": str(row.get("channel") or "chat")[:40],
+            }
+        )
+
+    # The durable log normally already contains the just-submitted user turn.
+    # run_turn will append that turn itself, so avoid duplicating it.
+    clean_query = str(query or "").strip()
+    if history and history[-1].get("role") == "user":
+        tail = str(history[-1].get("text") or "").strip()
+        if tail == clean_query:
+            history.pop()
+
+    return tuple(history[-48:])
+
+
+def run_agent(query: str, recent_log_json: str = "[]", source_channel: str = "agent") -> str:
+    if _runtime is None:
+        raise RuntimeError("FAP 1.x runtime is not initialized")
+
+    sid = "android-agent"
+    restored = list(_restore_agent_history(recent_log_json, query))
+    try:
+        _runtime._histories[sid] = restored
+    except Exception:
+        pass
+
+    result = _runtime.run_turn(
+        str(query),
+        session_id=sid,
+        channel="chat",
+        metadata={
+            "source_channel": str(source_channel or "agent")[:40],
+            "durable_chat_log": True,
+        },
+    )
+    payload = dict(result.payload or {})
+    answer = ""
+    for key in ("text", "reply", "message"):
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            answer = str(value)
+            break
+
+    confidence = payload.get("confidence", 0.5)
+    try:
+        confidence = max(0.0, min(1.0, float(confidence)))
+    except Exception:
+        confidence = 0.5
+
+    return json.dumps(
+        {
+            "answer": answer,
+            "skill": str(result.endpoint_id or "unhandled"),
+            "confidence": confidence,
+            "state": str(result.state),
+            "needs_teacher": bool(payload.get("needs_teacher", False)),
+            "status": _status_payload()["status"],
+        },
+        ensure_ascii=False,
+    )
 
 
 def run(query: str) -> str:
-    if _runtime is None:
-        raise RuntimeError("FAP runtime is not initialized")
-    state = _runtime.think(str(query))
-    payload = {
-        "answer": _answer(state),
-        "skill": f"python:{_runtime_name}",
-        "confidence": _confidence(state),
-        "state_version": str(state.get("version", "")) if isinstance(state, dict) else "",
-        "status": _status_payload()["status"],
-    }
-    return json.dumps(payload, ensure_ascii=False)
-
-
-def _learn_verified(answer: str) -> None:
-    if _runtime is None or not callable(getattr(_runtime, "learn", None)):
-        return
-    text = str(answer).strip()
-    if not text:
-        return
-    attempts = (
-        lambda: _runtime.learn(text, 0.85, "verified_android"),
-        lambda: _runtime.learn(text, weight=0.85, source="verified_android"),
-        lambda: _runtime.learn(text),
-    )
-    for attempt in attempts:
-        try:
-            attempt()
-            return
-        except TypeError:
-            continue
-        except Exception:
-            return
-
+    return run_agent(query, "[]", "legacy")
 
 def verify(query: str, answer: str, success: bool) -> str:
     global _verified_count
     if _storage_dir is None:
-        raise RuntimeError("FAP runtime is not initialized")
+        raise RuntimeError("FAP 1.x runtime is not initialized")
+
     record = {
         "query": str(query),
         "answer": str(answer),
         "success": bool(success),
-        "runtime": _runtime_name,
+        "runtime": "FAP1xStandardRuntime",
         "release": _release_version,
         "main_sha": _main_sha,
+        "runtime_source": _runtime_source,
+        "runtime_commit": _runtime_commit,
     }
     with (_storage_dir / "verification.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
     _verified_count += 1
-    if success:
-        _learn_verified(answer)
     return json.dumps(_status_payload(), ensure_ascii=False)
 
 
 def clear() -> str:
     global _verified_count
     if _storage_dir is not None:
-        for name in ("fap_memory.json", "verification.jsonl"):
-            try:
-                (_storage_dir / name).unlink(missing_ok=True)
-            except Exception:
-                pass
+        try:
+            (_storage_dir / "verification.jsonl").unlink(missing_ok=True)
+        except Exception:
+            pass
+        memory = _storage_dir / "semantic_memory"
+        if memory.exists():
+            for path in sorted(memory.rglob("*"), reverse=True):
+                try:
+                    if path.is_file():
+                        path.unlink()
+                    elif path.is_dir():
+                        path.rmdir()
+                except Exception:
+                    pass
+
     _verified_count = 0
     if _runtime is not None:
-        if hasattr(_runtime, "memory"):
-            try:
-                _runtime.memory = []
-            except Exception:
-                pass
-        if hasattr(_runtime, "recent"):
-            try:
-                _runtime.recent = []
-            except Exception:
-                pass
+        try:
+            _runtime._histories.clear()
+        except Exception:
+            pass
     return json.dumps(_status_payload(), ensure_ascii=False)
 
 
 def _status_payload() -> dict:
-    sidecar = f"V{_release_version}" if str(_release_version).isdigit() else str(_release_version)
-    status_text = (
-        f"READY · {_runtime_name} · release={sidecar} · "
-        f"sidecar={'ON' if _autonomy_loaded else 'OFF'} · verified={_verified_count}"
-    )
+    endpoint_count = 0
+    memory_on = False
+    governor_contract = ""
+    max_reasoning_passes = 0
+    try:
+        endpoint_count = len(_runtime.fabric.endpoint_ids) if _runtime is not None else 0
+        memory_on = bool(_runtime is not None and _runtime.memory is not None)
+        runtime_status = _runtime.status() if _runtime is not None else {}
+        intelligence = runtime_status.get("response_intelligence") or {}
+        governor_contract = str(intelligence.get("governor_contract") or "")
+        max_reasoning_passes = int(intelligence.get("max_escalation_passes") or 0) + 1
+    except Exception:
+        pass
+
+    short_commit = _runtime_commit[:10] if _runtime_commit else "unknown"
     return {
-        "status": status_text,
-        "runtime": _runtime_name,
+        "status": (
+            f"READY · FAP 1.0.01 Pixel · endpoints={endpoint_count} · "
+            f"memory={'ON' if memory_on else 'OFF'} · verified={_verified_count} · "
+            f"source={_runtime_source}@{short_commit}"
+        ),
+        "runtime": "FAP1xStandardRuntime",
         "release": _release_version,
-        "core_source": _core_source,
         "main_sha": _main_sha,
-        "autonomy_loaded": _autonomy_loaded,
+        "runtime_source": _runtime_source,
+        "runtime_commit": _runtime_commit,
+        "runtime_root": str(_runtime_root),
         "verified": _verified_count,
+        "reasoning_governor": governor_contract,
+        "max_reasoning_passes": max_reasoning_passes,
+        "pixel_browser": True,
+        "git_ota": True,
     }
 
 

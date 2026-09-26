@@ -171,6 +171,35 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
         self.assertTrue(out["response_series_execution"]["selection_changed_primary"])
         self.assertIn("linear_equation", out["response_series_execution"]["consensus_sources"])
 
+    def test_exact_linear_specialist_wins_zero_solution(self) -> None:
+        text = "方程式 6x - 1 = -1 を解いて"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.9,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "-1 = -1",
+                "confidence": 0.99,
+                "verified": True,
+                "grounded": True,
+            },
+            plan,
+        )
+        self.assertIn("x = 0", out["reply"])
+        self.assertIn(
+            "linear_equation",
+            out["response_series_execution"]["consensus_sources"],
+        )
+
     def test_verified_physics_numeric_can_replace_weak_primary(self) -> None:
         text = "質量=2 kg、加速度=3 m/s^2 のとき力を求めて"
         plan = self.planner.plan(

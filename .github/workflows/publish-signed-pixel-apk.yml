@@ -10,7 +10,7 @@ on:
       source_ref:
         description: "Branch/tag/commit containing the Pixel APK source"
         required: true
-        default: "side/1.0.01-pixel-screen-teach-20260926"
+        default: "main"
       version_code:
         description: "Android versionCode (must increase)"
         required: true
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      FAP_SOURCE_REF: ${{ inputs.source_ref || 'side/1.0.01-pixel-screen-teach-20260926' }}
+      FAP_SOURCE_REF: ${{ inputs.source_ref || 'main' }}
       FAP_VERSION_CODE: ${{ inputs.version_code || '10002' }}
       FAP_VERSION_NAME: ${{ inputs.version_name || '1.0.02-pixel' }}
       FAP_RELEASE_TAG: ${{ inputs.tag || 'pixel-v1.0.02' }}
@@ -100,6 +100,21 @@ jobs:
           test -s "$KEYSTORE"
           chmod 600 "$KEYSTORE"
           echo "FAP_SIGNING_STORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Build minimal Pixel runtime payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST="android/app/src/main/python"
+          python android_packaging/sync_pixel_runtime.py \
+            --repo-root . \
+            --dest "$DEST" \
+            --report android/pixel-runtime-manifest.json
+          cat > "$DEST/build_meta.py" <<PY
+          RELEASE_VERSION = "$FAP_VERSION_NAME"
+          MAIN_SHA = "$FAP_SOURCE_SHA"
+          PY
+          python -m compileall -q "$DEST"
 
       - name: Build signed release APK
         working-directory: android

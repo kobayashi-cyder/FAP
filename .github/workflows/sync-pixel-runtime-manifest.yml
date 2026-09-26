@@ -1,0 +1,68 @@
+name: Sync Pixel runtime manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "fap_*.py"
+      - "knowledge/**"
+      - "bootstrap/FAP_PIXEL_MIN.txt"
+      - "android_packaging/generate_pixel_update_manifest.py"
+      - ".github/workflows/sync-pixel-runtime-manifest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-pixel-runtime-manifest-main
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate manifest from current main runtime
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python android_packaging/generate_pixel_update_manifest.py             --repo-root .             --source-commit "$SOURCE_SHA"             --output pixel_update/latest.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path("pixel_update/latest.json").read_text(encoding="utf-8"))
+          assert data["schema"] == "fap.pixel.runtime.manifest.v1"
+          assert data["entrypoint"] == "fap_1x_standard_runtime.py"
+          assert data["file_count"] == len(data["files"])
+          assert sum(x["bytes"] for x in data["files"]) == data["total_bytes"]
+          paths = {x["path"] for x in data["files"]}
+          assert "fap_1x_standard_runtime.py" in paths
+          assert "fap_adaptive_reasoning.py" in paths
+          assert "fap_knowledge_narrator.py" in paths
+          print(data["source_commit"], data["file_count"], data["total_bytes"])
+          PY
+
+      - name: Commit updated main manifest
+        run: |
+          if git diff --quiet -- pixel_update/latest.json; then
+            echo "Pixel runtime manifest is already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pixel_update/latest.json
+          git commit -m "ci: sync Pixel runtime manifest [skip ci]"
+          git push origin HEAD:main

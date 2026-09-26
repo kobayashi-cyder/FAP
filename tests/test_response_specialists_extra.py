@@ -17,6 +17,12 @@ class ResponseExtraSpecialistTests(unittest.TestCase):
         self.assertTrue(out.get("verified"))
         self.assertIn("x = 4", out.get("reply", ""))
 
+    def test_zero_solution_linear_equation(self) -> None:
+        out = LinearEquationSpecialist().run("方程式 6x - 1 = -1 を解いて")
+        self.assertIsNotNone(out)
+        self.assertTrue(out.get("verified"))
+        self.assertIn("x = 0", out.get("reply", ""))
+
     def test_physics_force_solver(self) -> None:
         out = PhysicsNumericSpecialist().run(
             "質量=2 kg、加速度=3 m/s^2 のとき力を求めて"

@@ -242,6 +242,14 @@ class ResponseSeriesExecutor:
         score = 0.55 * candidate.confidence
         if candidate.verified:
             score += 0.22
+        if candidate.payload.get("linear_equation_verified"):
+            score += 0.16
+        if candidate.payload.get("physics_numeric_verified"):
+            score += 0.14
+        if candidate.payload.get("python_static_analysis"):
+            score += 0.10
+        if candidate.payload.get("numeric_contradiction_verified"):
+            score += 0.12
         if candidate.grounded:
             score += 0.08
         if candidate.primary:
@@ -488,9 +496,36 @@ class ResponseSeriesExecutor:
         committee_winner = next(c for c in candidates if c.candidate_id == committee_winner_id)
 
         proposed = all_winner if all_winner.candidate_id == committee_winner.candidate_id else committee_winner
+
+        exact_verified = [
+            candidate
+            for candidate in candidates
+            if candidate.verified
+            and candidate.confidence >= 0.95
+            and (
+                candidate.payload.get("linear_equation_verified")
+                or candidate.payload.get("physics_numeric_verified")
+                or candidate.payload.get("python_static_analysis")
+            )
+        ]
+        if exact_verified:
+            exact_verified.sort(
+                key=lambda candidate: (
+                    -candidate_scores.get(candidate.candidate_id, 0.0),
+                    -candidate.confidence,
+                    candidate.candidate_id,
+                )
+            )
+            proposed = exact_verified[0]
+
         selected = primary
 
         if proposed.candidate_id != "primary":
+            exact_task_verified = bool(
+                proposed.payload.get("linear_equation_verified")
+                or proposed.payload.get("physics_numeric_verified")
+                or proposed.payload.get("python_static_analysis")
+            )
             weak_primary = (
                 primary.needs_teacher
                 or primary.confidence < 0.60
@@ -504,7 +539,11 @@ class ResponseSeriesExecutor:
             vote_advantage = weighted_votes[proposed.candidate_id] >= (
                 weighted_votes["primary"] * (0.95 if proposed.verified and not primary.verified else 1.08)
             )
-            if (weak_primary and proposed.confidence >= 0.65) or (
+            if (
+                exact_task_verified
+                and proposed.verified
+                and proposed.confidence >= 0.95
+            ) or (weak_primary and proposed.confidence >= 0.65) or (
                 quorum_met and strong_verified_challenger and vote_advantage
             ):
                 selected = proposed
