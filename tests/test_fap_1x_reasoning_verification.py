@@ -4,6 +4,8 @@ from pathlib import Path
 import unittest
 
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
+from fap_1x_confidence_calibrator import ConfidenceCalibrator
+from fap_1x_grounded_retrieval import GroundedRetrievalReasoner
 from fap_1x_problem_decomposer import ProblemDecomposer
 from fap_1x_search_controller import AdaptiveSearchController
 from fap_1x_reasoning_core import FAP1xGeneralReasoningCore
@@ -76,6 +78,56 @@ class AdaptiveSearchControllerTests(unittest.TestCase):
         self.assertTrue(policy.require_verified)
         self.assertTrue(policy.repeat_independent_verification)
         self.assertFalse(policy.allow_supported)
+
+
+class ConfidenceCalibratorTests(unittest.TestCase):
+    def test_supported_and_provisional_are_capped_below_verified(self):
+        calibrator = ConfidenceCalibrator()
+        verified = calibrator.calibrate(
+            verification="verified",
+            generator_confidence=0.99,
+            verifier_score=1.0,
+            evidence_count=4,
+            repeated_verification=True,
+        )
+        supported = calibrator.calibrate(
+            verification="supported",
+            generator_confidence=0.99,
+            verifier_score=0.8,
+            evidence_count=4,
+        )
+        provisional = calibrator.calibrate(
+            verification="provisional",
+            generator_confidence=0.99,
+            verifier_score=0.0,
+            evidence_count=4,
+        )
+        self.assertGreater(verified.confidence, supported.confidence)
+        self.assertGreater(supported.confidence, provisional.confidence)
+        self.assertLessEqual(supported.confidence, 0.78)
+        self.assertLessEqual(provisional.confidence, 0.48)
+
+
+class GroundedRetrievalReasonerTests(unittest.TestCase):
+    def test_extracts_existing_knowledge_with_evidence(self):
+        reasoner = GroundedRetrievalReasoner(ROOT)
+        out = reasoner.run("コリオリ効果とは？", [])
+        self.assertIsNotNone(out)
+        self.assertTrue(out["ok"])
+        self.assertTrue(out["grounded"])
+        self.assertIn("coriolis", out["evidence_ids"])
+        self.assertIn("北半球", out["reply"])
+
+    def test_core_uses_retrieval_as_supported_not_verified(self):
+        core = FAP1xGeneralReasoningCore(ROOT)
+        out = core.solve("コリオリ効果とは？")
+        self.assertIsNotNone(out)
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["reasoning_source"], "grounded_retrieval")
+        self.assertEqual(out["verification_state"], "supported")
+        report = out["selected_payload"]["independent_verification"]
+        self.assertEqual(report["status"], "passed")
+        self.assertEqual(report["verifier"], "fresh_grounded_retrieval_replay")
 
 
 class IndependentCandidateVerifierTests(unittest.TestCase):
