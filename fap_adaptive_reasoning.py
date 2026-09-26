@@ -24,9 +24,8 @@ _FRESH = re.compile(
     r"latest|today|current|news|price|weather|release)",
     re.I,
 )
-_NUMERIC = re.compile(r"[-+]?d+(?:.d+)?|[=+*/×÷^]")
-_SEPARATOR = re.compile(r"[
-。！？!?;；]+")
+_NUMERIC = re.compile(r"[-+]?\\d+(?:\\.\\d+)?|[=+*/×÷^]")
+_SEPARATOR = re.compile(r"[\\n。！？!?;；]+")
 _REQUIREMENT = re.compile(
     r"(必須|条件|制約|以内|以上|以下|未満|だけ|のみ|して|してください|"
     r"must|required|constraint|only|within|at least|at most)",
