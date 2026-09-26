@@ -116,17 +116,17 @@ class ResponseRedundancyPlanner:
             re.I,
         ))
         constraint_cue = bool(re.search(
-            r"(必ず|のみ|だけ|以内|以下|以上|禁止|必須|must\\b|only\\b|never\\b|at most\\b|at least\\b)",
+            r"(必ず|のみ|だけ|以内|以下|以上|禁止|必須|must\b|only\b|never\b|at most\b|at least\b)",
             value,
             re.I,
         ))
         procedure_cue = bool(re.search(
-            r"(手順|まず|次に|その後|最後に|段階|step|procedure|workflow|then\\b|finally\\b)",
+            r"(手順|まず|次に|その後|最後に|段階|step|procedure|workflow|then\b|finally\b)",
             value,
             re.I,
         ))
         causal_cue = bool(re.search(
-            r"(なぜ|原因|因果|仕組|機構|why\\b|cause|causal|mechanism)",
+            r"(なぜ|原因|因果|仕組|機構|why\b|cause|causal|mechanism)",
             value,
             re.I,
         ))
