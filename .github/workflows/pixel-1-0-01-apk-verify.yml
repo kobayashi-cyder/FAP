@@ -136,6 +136,10 @@ jobs:
           grep -q 'GitRuntimeUpdater' pixel-apk/dex-strings.txt
           grep -q 'AndroidVoiceController' pixel-apk/dex-strings.txt
           grep -q 'ChatLogStore' pixel-apk/dex-strings.txt
+          grep -q 'AgentOrchestrator' pixel-apk/dex-strings.txt
+          grep -q 'agentHeartbeat' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
+          grep -q 'run_agent' android/app/src/main/python/android_bridge.py
+          grep -q 'durable_chat_log' android/app/src/main/python/android_bridge.py
           grep -q 'validate_runtime' android/app/src/main/python/android_bridge.py
           test -s android/app/src/main/python/fap_speech.py
           grep -q 'android.permission.RECORD_AUDIO' android/app/src/main/AndroidManifest.xml
