@@ -1,10 +1,14 @@
 # Changelog
 
-## 1.0.0 — 2026-09-25
+## 1.0.01
 
-- Reset the public FAP mainline to a clean versioning baseline.
-- Public version numbering now starts at 1.0.0.
-- Historical V87/V88-era work is no longer the active public release line.
-- Public FAP remains intentionally minimal; private development continues separately.
+- Rebuilt the active public tree around the 1.x line.
+- Removed legacy V2+ versioned paths and legacy workflow fan-out from the active tree.
+- Added dynamic-sparse routing core without the old V87 gateway inheritance chain.
+- Added version-neutral local speech I/O and fluent conversation support.
+- Added bounded browser-driven self-improvement tooling.
+- Added native C/C++ core and a renamed Android 1.x adapter.
+- Consolidated verification into a canonical 1.x workflow.
+- Added a path-contamination gate to prevent legacy version names from re-entering the active tree.
 
-Historical commits remain available in Git history.
+Performance claims remain benchmark-gated.

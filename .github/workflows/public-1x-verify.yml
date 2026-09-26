@@ -1,0 +1,61 @@
+name: Public 1.x canonical verify
+
+on:
+  push:
+    branches: [main, side/1.0.01-clean-integration-20260926]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reject legacy versioned paths
+        run: python tools/check_1x_tree.py
+      - name: Compile 1.x components
+        run: |
+          python -m py_compile fap_revision_r001.py fap_dynamic_sparse_routing.py fap_interaction_fabric.py fap_v1_0_01_sparse_benchmark.py
+          python -m py_compile fap_1x_runtime.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
+      - name: Focused 1.x tests
+        run: |
+          python -m unittest -v tests.test_fap_dynamic_sparse_routing tests.test_fap_interaction_fabric tests.test_fap_1x_runtime
+          python -m unittest -v tests.test_fap_audio_device tests.test_fap_speech tests.test_fap_speech_fluent
+          python -m unittest -v tests.test_fap_browser_operator tests.test_fap_browser_runtime tests.test_fap_self_improvement_controller
+      - name: Sparse routing mechanism benchmark
+        run: python fap_v1_0_01_sparse_benchmark.py
+
+  native-cpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure and test native core
+        run: |
+          cmake -S native_cpp -B native_cpp/build
+          cmake --build native_cpp/build --parallel 2
+          ctest --test-dir native_cpp/build --output-on-failure
+
+  android-compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.4.1'
+      - name: Build Android 1.x adapter
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
