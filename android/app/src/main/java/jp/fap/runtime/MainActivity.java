@@ -20,6 +20,8 @@ public class MainActivity extends Activity {
     private TextView status;
     private Button run;
     private Button voiceButton;
+    private Button gitUpdateButton;
+    private Button gitRollbackButton;
     private PythonFapEngine.Result last;
     private boolean voiceLoop = false;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -87,6 +89,35 @@ public class MainActivity extends Activity {
         browserRow.addView(browserResult, new LinearLayout.LayoutParams(0, -2, 1f));
         root.addView(browserRow);
 
+        LinearLayout gitRow = new LinearLayout(this);
+        Button gitPage = new Button(this);
+        gitPage.setText("GitHub更新を見る");
+        gitPage.setOnClickListener(v ->
+                PixelBrowserController.openUrl(this, GitRuntimeUpdater.GITHUB_UPDATE_PAGE));
+        gitRow.addView(gitPage, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        gitUpdateButton = new Button(this);
+        gitUpdateButton.setText("Git完全更新");
+        gitUpdateButton.setOnClickListener(v -> startGitRuntimeUpdate());
+        gitRow.addView(gitUpdateButton, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        gitRollbackButton = new Button(this);
+        gitRollbackButton.setText("前版へ戻す");
+        gitRollbackButton.setOnClickListener(v -> startGitRollback());
+        gitRow.addView(gitRollbackButton, new LinearLayout.LayoutParams(0, -2, 1f));
+        root.addView(gitRow);
+
+        Button gitState = new Button(this);
+        gitState.setText("Git更新状態");
+        gitState.setOnClickListener(v -> {
+            String stateText = GitRuntimeUpdater.currentState(this);
+            output.setText(
+                    "Git OTA: " + stateText
+                            + "\n\n" + engine.status());
+            status.setText("GIT OTA · " + stateText);
+        });
+        root.addView(gitState);
+
         voiceButton = new Button(this);
         voiceButton.setText("音声会話開始");
         voiceButton.setOnClickListener(v -> toggleVoiceLoop());
@@ -114,7 +145,7 @@ public class MainActivity extends Activity {
         root.addView(feedback);
 
         TextView note = new TextView(this);
-        note.setText("PixelではFAP本体がChromeを開き、ユーザー補助経由でChatGPT Webを操作します。音声会話は端末能力を検出し、オンデバイスSTTを優先します。");
+        note.setText("PixelではChrome/ChatGPT操作に加えて、GitHub mainの完全ランタイムmanifestから全ファイルをSHA-256検証してA/B更新できます。失敗時は旧スロットへ戻せます。");
         root.addView(note);
 
         setContentView(root);
@@ -145,7 +176,76 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        status.setText(engine.status() + " · " + voice.capabilitySummary());
+        status.setText(
+                engine.status()
+                        + " · " + voice.capabilitySummary()
+                        + " · OTA=" + GitRuntimeUpdater.currentState(this));
+    }
+
+    private void startGitRuntimeUpdate() {
+        if (gitUpdateButton == null || !gitUpdateButton.isEnabled()) return;
+        gitUpdateButton.setEnabled(false);
+        gitRollbackButton.setEnabled(false);
+        status.setText("GIT OTA · 完全更新を開始…");
+
+        GitRuntimeUpdater.updateAsync(this, engine, new GitRuntimeUpdater.Listener() {
+            @Override public void onStatus(String message) {
+                status.setText("GIT OTA · " + message);
+            }
+
+            @Override public void onComplete(boolean success, String message) {
+                gitUpdateButton.setEnabled(true);
+                gitRollbackButton.setEnabled(true);
+                status.setText(
+                        (success ? "GIT OTA · OK · " : "GIT OTA · ERROR · ")
+                                + message
+                                + " · "
+                                + engine.status());
+                output.setText(
+                        message
+                                + "\n\n[ota] "
+                                + GitRuntimeUpdater.currentState(MainActivity.this)
+                                + "\n[core] "
+                                + engine.status());
+                Toast.makeText(
+                        MainActivity.this,
+                        message,
+                        success ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void startGitRollback() {
+        if (gitRollbackButton == null || !gitRollbackButton.isEnabled()) return;
+        gitUpdateButton.setEnabled(false);
+        gitRollbackButton.setEnabled(false);
+        status.setText("GIT OTA · ロールバックを開始…");
+
+        GitRuntimeUpdater.rollbackAsync(this, engine, new GitRuntimeUpdater.Listener() {
+            @Override public void onStatus(String message) {
+                status.setText("GIT OTA · " + message);
+            }
+
+            @Override public void onComplete(boolean success, String message) {
+                gitUpdateButton.setEnabled(true);
+                gitRollbackButton.setEnabled(true);
+                status.setText(
+                        (success ? "GIT OTA · OK · " : "GIT OTA · ERROR · ")
+                                + message
+                                + " · "
+                                + engine.status());
+                output.setText(
+                        message
+                                + "\n\n[ota] "
+                                + GitRuntimeUpdater.currentState(MainActivity.this)
+                                + "\n[core] "
+                                + engine.status());
+                Toast.makeText(
+                        MainActivity.this,
+                        message,
+                        success ? Toast.LENGTH_SHORT : Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void runFap() {
