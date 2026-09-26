@@ -69,6 +69,7 @@ public class MainActivity extends Activity {
     private TextView timelineTab;
     private TextView frontTab;
     private TextView backTab;
+    private TextView worldTab;
 
     private PythonFapEngine.Result last;
     private String logViewMode = "timeline";
@@ -216,10 +217,12 @@ public class MainActivity extends Activity {
 
         timelineTab = tab("タイムライン", "timeline");
         frontTab = tab("会話", "front");
+        worldTab = tab("世界観", "world");
         backTab = tab("裏側", "back");
 
         tabs.addView(timelineTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
         tabs.addView(frontTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        tabs.addView(worldTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
         tabs.addView(backTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
         refreshTabs();
         return tabs;
@@ -252,6 +255,11 @@ public class MainActivity extends Activity {
         imageGeneration.setContentDescription("入力内容をFMG画像生成へ送る");
         imageGeneration.setOnClickListener(v -> startImageGeneration());
         tools.addView(imageGeneration);
+
+        Button videoGeneration = chip("動画生成");
+        videoGeneration.setContentDescription("入力内容をFMG動画生成へ送る");
+        videoGeneration.setOnClickListener(v -> startVideoGeneration());
+        tools.addView(videoGeneration);
 
         agentModeButton = chip("Agent");
         agentModeButton.setOnClickListener(v -> {
@@ -505,6 +513,28 @@ public class MainActivity extends Activity {
         }
         input.setText(normalized);
         setStatus("FMG画像生成へ送信…");
+        runFap();
+    }
+
+    private void startVideoGeneration() {
+        if (input == null || sendButton == null) return;
+        String q = input.getText().toString().trim();
+        if (q.isEmpty()) {
+            Toast.makeText(this, "生成したい動画を入力してください", Toast.LENGTH_SHORT).show();
+            input.setHint("例: 浮遊都市をカメラが進む10秒の動画");
+            input.requestFocus();
+            return;
+        }
+        String normalized = q;
+        if (!q.contains("動画生成")
+                && !q.contains("動画を生成")
+                && !q.contains("動画を作")
+                && !q.contains("映像を生成")
+                && !q.contains("映像を作")) {
+            normalized = "動画生成: " + q;
+        }
+        input.setText(normalized);
+        setStatus("FMG動画生成へ送信…");
         runFap();
     }
 
@@ -1162,6 +1192,7 @@ public class MainActivity extends Activity {
     private void refreshTabs() {
         setTabState(timelineTab, "timeline".equals(logViewMode));
         setTabState(frontTab, "front".equals(logViewMode));
+        setTabState(worldTab, "world".equals(logViewMode));
         setTabState(backTab, "back".equals(logViewMode));
     }
 
