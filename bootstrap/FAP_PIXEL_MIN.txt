@@ -15,6 +15,7 @@
 /fap_knowledge_narrator.py
 /fap_knowledge_retrieval.py
 /fap_reflective_conversation.py
+/fap_reasoning_episode.py
 /fap_response_explorers.py
 /fap_response_redundancy.py
 /fap_response_series_executor.py
