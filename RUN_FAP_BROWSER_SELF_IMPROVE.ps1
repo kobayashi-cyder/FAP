@@ -3,6 +3,8 @@ param(
 
     [string]$Branch = "",
 
+    [string]$TargetRepo = "",
+
     [string[]]$PreferredPath = @(),
 
     [ValidateRange(1024, 65535)]
@@ -28,6 +30,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-Location -LiteralPath $PSScriptRoot
+
+if (-not $TargetRepo) {
+    $TargetRepo = $PSScriptRoot
+}
+$TargetRepo = [System.IO.Path]::GetFullPath($TargetRepo)
 
 function Find-Chrome {
     $candidates = @(
@@ -105,21 +112,23 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "Git was not found in PATH."
 }
-if (-not (Test-Path -LiteralPath ".git")) {
-    throw "Run this launcher from the FAP Git repository."
-}
 if (-not $LoginOnly -and -not $Goal.Trim()) {
     throw "-Goal is required unless -LoginOnly is used."
 }
 
-if (-not $Branch) {
-    $Branch = (& git branch --show-current).Trim()
-}
-if (-not $Branch) {
-    throw "Could not determine the current Git branch. Pass -Branch explicitly."
-}
-if (-not $LoginOnly -and $Branch -in @("main", "master")) {
-    throw "FAP browser self-improvement must run on a side branch, not $Branch."
+if (-not $LoginOnly) {
+    if (-not (Test-Path -LiteralPath (Join-Path $TargetRepo ".git"))) {
+        throw "Target repository is not a Git checkout: $TargetRepo"
+    }
+    if (-not $Branch) {
+        $Branch = (& git -C $TargetRepo branch --show-current).Trim()
+    }
+    if (-not $Branch) {
+        throw "Could not determine the target Git branch. Pass -Branch explicitly."
+    }
+    if ($Branch -in @("main", "master")) {
+        throw "FAP browser self-improvement must run on a side branch, not $Branch."
+    }
 }
 
 & python -c "import playwright" 2>$null
@@ -147,7 +156,10 @@ $waitSeconds = [int]($WaitForLoginMinutes * 60)
 Write-Host "FAP browser backend: $endpoint"
 Write-Host "Browser profile: $Profile"
 Write-Host "Runtime state: $RuntimeDir"
-Write-Host "Branch: $Branch"
+if (-not $LoginOnly) {
+    Write-Host "Target repository: $TargetRepo"
+    Write-Host "Branch: $Branch"
+}
 Write-Host "Auto-recovery attempts: $AutoRecoverCount"
 Write-Host ""
 Write-Host "Checking ChatGPT Web readiness..."
@@ -177,6 +189,7 @@ $argsList = @(
     "--search-engine", $SearchEngine,
     "--runtime-dir", $RuntimeDir,
     "--wait-for-login-sec", "15",
+    "--repo", $TargetRepo,
     "--goal", $Goal,
     "--branch", $Branch
 )
