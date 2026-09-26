@@ -24,11 +24,11 @@ jobs:
       - name: Compile 1.x components
         run: |
           python -m py_compile fap_revision_r001.py fap_dynamic_sparse_routing.py fap_interaction_fabric.py fap_v1_0_01_sparse_benchmark.py
-          python -m py_compile fap_1x_runtime.py fap_1x_standard_runtime.py fap_adaptive_reasoning.py fap_reasoning_target_gate.py fap_1x_e2e_benchmark.py fap_semantic_memory.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
+          python -m py_compile fap_1x_runtime.py fap_1x_standard_runtime.py fap_adaptive_reasoning.py fap_knowledge_narrator.py fap_knowledge_retrieval.py fap_reasoning_target_gate.py fap_1x_e2e_benchmark.py fap_semantic_memory.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
           python -m py_compile fap_response_redundancy.py fap_response_series_executor.py fap_response_specialists.py fap_response_specialists_extra.py fap_response_explorers.py
       - name: Focused 1.x tests
         run: |
-          python -m unittest -v tests.test_fap_dynamic_sparse_routing tests.test_fap_interaction_fabric tests.test_fap_1x_runtime tests.test_fap_1x_standard_runtime tests.test_adaptive_reasoning_governor tests.test_fap_semantic_memory
+          python -m unittest -v tests.test_fap_dynamic_sparse_routing tests.test_fap_interaction_fabric tests.test_fap_1x_runtime tests.test_fap_1x_standard_runtime tests.test_adaptive_reasoning_governor tests.test_knowledge_narrator tests.test_fap_semantic_memory
           python -m unittest -v tests.test_response_redundancy tests.test_response_specialists tests.test_response_specialists_extra tests.test_response_explorers tests.test_response_series_executor
           python -m unittest -v tests.test_fap_audio_device tests.test_fap_speech tests.test_fap_speech_fluent
           python -m unittest -v tests.test_fap_browser_operator tests.test_fap_browser_runtime tests.test_fap_self_improvement_controller
