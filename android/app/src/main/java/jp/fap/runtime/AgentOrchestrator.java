@@ -666,17 +666,27 @@ public final class AgentOrchestrator {
                             height);
 
                     if (encoded.ok) {
+                        java.io.File coverFile =
+                                GeneratedMediaStore.keepCover(app, frames.get(0));
+                        String coverPath = coverFile == null
+                                ? ""
+                                : coverFile.getAbsolutePath();
+
                         JSONObject media = new JSONObject();
                         media.put("type", "video");
                         media.put("path", encoded.path);
-                        media.put("cover", frames.get(0));
+                        media.put("cover", coverPath);
                         media.put("duration_seconds", encoded.durationSeconds);
                         media.put("fps", encoded.fps);
                         media.put("width", encoded.width);
                         media.put("height", encoded.height);
                         media.put("pipeline", "FMG keyframes + Android MediaCodec H.264");
                         chatLog.appendFront("assistant", "media:video", media.toString());
+
+                        GeneratedMediaStore.deleteTransientFrames(frames, "");
+                        GeneratedMediaStore.prune(app, encoded.path, coverPath);
                     } else {
+                        GeneratedMediaStore.deleteTransientFrames(frames, "");
                         chatLog.appendBack(
                                 "system",
                                 "media-video",
