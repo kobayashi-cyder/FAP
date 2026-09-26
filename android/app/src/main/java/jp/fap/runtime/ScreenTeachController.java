@@ -160,6 +160,29 @@ public final class ScreenTeachController {
         appendTrace(context, eventJson("action", detail));
     }
 
+    public static void recordTextAction(
+            Context context,
+            String type,
+            int chars,
+            boolean accepted) {
+        if (context == null) return;
+        SharedPreferences p = prefs(context);
+        long seq = p.getLong(KEY_ACTION_SEQ, 0L) + 1L;
+        p.edit().putLong(KEY_ACTION_SEQ, seq).apply();
+
+        JSONObject detail = new JSONObject();
+        try {
+            detail.put("seq", seq);
+            detail.put("type", type == null ? "text" : type);
+            detail.put("chars", Math.max(0, chars));
+            detail.put("accepted", accepted);
+            File latest = latestFrame(context);
+            if (latest != null) detail.put("frame", latest.getAbsolutePath());
+        } catch (Throwable ignored) {
+        }
+        appendTrace(context, eventJson("action", detail));
+    }
+
     public static String summary(Context context) {
         SharedPreferences p = prefs(context);
         File frame = latestFrame(context);
@@ -171,7 +194,7 @@ public final class ScreenTeachController {
     }
 
     public static String commandHelp() {
-        return "/tap x y  または  /drag x1 y1 x2 y2 [durationMs]";
+        return "/tap x y · /drag x1 y1 x2 y2 [durationMs] · /type 文字列 · /append 文字列 · /enter";
     }
 
     private static JSONObject eventJson(String event, JSONObject detail) {
