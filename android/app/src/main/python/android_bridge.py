@@ -282,33 +282,6 @@ def run_agent(query: str, recent_log_json: str = "[]", source_channel: str = "ag
 def run(query: str) -> str:
     return run_agent(query, "[]", "legacy")
 
-
-    payload = dict(result.payload or {})
-    answer = ""
-    for key in ("text", "reply", "message"):
-        value = payload.get(key)
-        if value is not None and str(value).strip():
-            answer = str(value)
-            break
-
-    confidence = payload.get("confidence", 0.5)
-    try:
-        confidence = max(0.0, min(1.0, float(confidence)))
-    except Exception:
-        confidence = 0.5
-
-    return json.dumps(
-        {
-            "answer": answer,
-            "skill": str(result.endpoint_id or "unhandled"),
-            "confidence": confidence,
-            "state": str(result.state),
-            "status": _status_payload()["status"],
-        },
-        ensure_ascii=False,
-    )
-
-
 def verify(query: str, answer: str, success: bool) -> str:
     global _verified_count
     if _storage_dir is None:
