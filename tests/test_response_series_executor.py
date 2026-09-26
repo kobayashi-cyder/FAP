@@ -95,8 +95,8 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
         execution = out["response_series_execution"]
         self.assertEqual(plan.active_lanes, 128)
         self.assertEqual(execution["executed_lane_votes"], plan.active_lanes)
-        self.assertLessEqual(execution["candidate_count"], 5)
-        self.assertGreaterEqual(execution["safe_specialist_calls"], 11)
+        self.assertLessEqual(execution["candidate_count"], 10)
+        self.assertGreaterEqual(execution["safe_specialist_calls"], 16)
 
 
     def test_verified_arithmetic_specialist_can_replace_weak_primary(self) -> None:
@@ -196,6 +196,65 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
         self.assertIn("6", out["reply"])
         self.assertTrue(out["response_series_execution"]["selection_changed_primary"])
         self.assertIn("physics_numeric", out["response_series_execution"]["consensus_sources"])
+
+
+    def test_multi_step_math_explorer_participates_in_128_lane_vote(self) -> None:
+        text = "計算: 2+3 と 4*5 をそれぞれ求めて"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.95,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "複数の計算を確定できません。",
+                "confidence": 0.2,
+                "needs_teacher": True,
+            },
+            plan,
+        )
+        execution = out["response_series_execution"]
+        diagnostics = {row["source"]: row["state"] for row in execution["specialist_diagnostics"]}
+        self.assertEqual(plan.active_lanes, 128)
+        self.assertEqual(diagnostics.get("multi_step_math"), "candidate")
+        self.assertEqual(execution["executed_lane_votes"], 128)
+
+    def test_longform_contradiction_explorer_participates(self) -> None:
+        text = "mode=disabled"
+        history = [{"role": "user", "text": "mode=enabled"}]
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.9,
+            confidence=0.25,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+        )
+        out = self.executor.run(
+            text,
+            history,
+            {
+                "ok": True,
+                "reply": "設定はそのままです。",
+                "confidence": 0.3,
+                "needs_teacher": True,
+            },
+            plan,
+        )
+        diagnostics = {
+            row["source"]: row["state"]
+            for row in out["response_series_execution"]["specialist_diagnostics"]
+        }
+        self.assertEqual(diagnostics.get("longform_contradiction"), "candidate")
+        self.assertIn("mode", out["reply"])
 
 if __name__ == "__main__":
     unittest.main()
