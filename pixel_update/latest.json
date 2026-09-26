@@ -1,38 +1,165 @@
 {
   "schema": "fap.pixel.runtime.manifest.v1",
   "runtime_version": "1.0.01",
-  "source_commit": "fd15344844c607cf873f6a3509610647125bb7ee",
+  "source_commit": "ed75168374a225487839e139b52f8d0138467c61",
   "entrypoint": "fap_1x_standard_runtime.py",
-  "file_count": 28,
-  "total_bytes": 301591,
+  "file_count": 31,
+  "total_bytes": 338838,
   "files": [
-    {"path":"fap_1x_runtime.py","sha256":"47d7240f75a14e254d5550e2ea26e63196d3ad9d37a1835b54159ed59b6a267a","bytes":13499},
-    {"path":"fap_1x_standard_runtime.py","sha256":"6d2541866e7e94f4ab82a194cd81e0baeda6f2d9e3f76c90fb5bfb377452dabf","bytes":9978},
-    {"path":"fap_discourse_context.py","sha256":"fb57177fb34db21e202271db447295a9c052200df3f2892c4d34cd5981c11eca","bytes":2471},
-    {"path":"fap_dynamic_sparse_routing.py","sha256":"0f5b96e1341ad3d2fcf73a4d6f80f171be36f71387c9beb7b3948dff21222cfa","bytes":53110},
-    {"path":"fap_exponential_linear.py","sha256":"634e388fbf74198f55c311b700743937e55d449fd4187d6678f2a49713c58213","bytes":5091},
-    {"path":"fap_factual_qa.py","sha256":"8dcdce5574c4662ad64aa871cc1137820321c6c771c44cfce611b0485264039b","bytes":4684},
-    {"path":"fap_generic_derivation.py","sha256":"bd4db7377e361013fb77a1236765ab3afa51c8d2a3a9a14814a524299df60f25","bytes":20042},
-    {"path":"fap_generic_rule_reasoner.py","sha256":"3385d21edbf0bc542eaebcacee29ba6015a99df24582b6b208d73a2858ac7048","bytes":13704},
-    {"path":"fap_interaction_fabric.py","sha256":"2612b167e6b9807d1296f477d52c14c2cc35f88eeac688fcbaa9e3636f189594","bytes":21644},
-    {"path":"fap_reflective_conversation.py","sha256":"c5de43f2d9da22a61d0042b9b4a10ee0887744620dbea0221707656e3e8f1d42","bytes":21550},
-    {"path":"fap_response_explorers.py","sha256":"df9b89be8714e806f3dbb51c2b9bfcb09f2d984ffe4ab9d0914597933e205b18","bytes":9787},
-    {"path":"fap_response_redundancy.py","sha256":"ad8b044113dab537c2e94974d51f8ef35c0943560d6d84d2c2a4abda7f517ced","bytes":6042},
-    {"path":"fap_response_series_executor.py","sha256":"0d39e4723678145ee7c3415718bd830ee4df33a3dd649c0de7d2c50df18a1dd1","bytes":22880},
-    {"path":"fap_response_specialists.py","sha256":"4c5145ff224915d6ce39660f5acb26d47b40d750fc8b28c10a0363a7fb2b061b","bytes":8998},
-    {"path":"fap_response_specialists_extra.py","sha256":"b3c9763c865b7ec0c29ae0c53677df48ffb5cd4f426ef84c503c106116497820","bytes":11254},
-    {"path":"fap_semantic_conversation.py","sha256":"46b5c1d58f0caed442cb24e0f008cea7917a884465412894171fcaf461d058e8","bytes":9727},
-    {"path":"fap_semantic_memory.py","sha256":"d02148c19a3cc955eb1e2dad41e2f8cf2f3939d1465a699edb246df185d390b5","bytes":19771},
-    {"path":"fap_speech.py","sha256":"56afddcc7ce0fab8e1d67c588f6ee5ffdf53b82362edd27934e066e949a9ab92","bytes":15041},
-    {"path":"knowledge/conversation_discourse_ja.jsonl","sha256":"b984c44164a92664306d48f537ec1ae5ea3b87001b79b62b9f017b79ca2d3b10","bytes":271},
-    {"path":"knowledge/conversation_intents_ja.jsonl","sha256":"4b0683d3208d627410256cc967d5e89542edad93196fdb528786bfa462803fcd","bytes":1709},
-    {"path":"knowledge/core_rule_graph_ja.jsonl","sha256":"d53f5cc65a63c98eb402d8094f38d83f43360cdc4f755c0f556d23e112ef79c9","bytes":2086},
-    {"path":"knowledge/core_science_ja.jsonl","sha256":"17dbd8add77c4ff62487828f5d61a4aba82e63153d765f2421f6dcc182973dcb","bytes":6506},
-    {"path":"knowledge/latest_science_2026.jsonl","sha256":"319fe553f9d48aad344107224776438d8b44ef822c99971a96368b94fab9c8e4","bytes":5769},
-    {"path":"knowledge/math_derivations_ja.jsonl","sha256":"9ee9a3304af246808475b2ea8ee17dd42435a7c62ab6c2e98a45242009459298","bytes":2317},
-    {"path":"knowledge/recommendation_framework_ja.jsonl","sha256":"d3f996e5a13c6886a4f4814b1fdc2db957c4070a1ba4542b6fd957e47d90a9b2","bytes":4089},
-    {"path":"knowledge/scientific_models_ja.jsonl","sha256":"af86af63bcd6a41b06efb874ca77b115abb8a51ac1d6d5bfbf0cf4c60713dc2c","bytes":2829},
-    {"path":"knowledge/semantic_actions_ja.jsonl","sha256":"5c84efc478fa60f6abf00922b0d07594006cfb2a6ed61d07db3d0883292ae3ea","bytes":2015},
-    {"path":"knowledge/visual_concepts_ja.jsonl","sha256":"33f507f5c2ec34f5a26acd823dfcd5ec8b3ecff6996bd2cb03eea4cce38b83c1","bytes":4727}
+    {
+      "path": "fap_1x_runtime.py",
+      "sha256": "47d7240f75a14e254d5550e2ea26e63196d3ad9d37a1835b54159ed59b6a267a",
+      "bytes": 13499
+    },
+    {
+      "path": "fap_1x_standard_runtime.py",
+      "sha256": "dd3e08830097f58030dea20cf54425d65ad67a4b62a571b391bd2c2446d0db06",
+      "bytes": 14919
+    },
+    {
+      "path": "fap_adaptive_reasoning.py",
+      "sha256": "07847a035155687b102065c8612c3cefb5b173ce2b34bf858c4f3e86cdcb570b",
+      "bytes": 12904
+    },
+    {
+      "path": "fap_discourse_context.py",
+      "sha256": "fb57177fb34db21e202271db447295a9c052200df3f2892c4d34cd5981c11eca",
+      "bytes": 2471
+    },
+    {
+      "path": "fap_dynamic_sparse_routing.py",
+      "sha256": "0f5b96e1341ad3d2fcf73a4d6f80f171be36f71387c9beb7b3948dff21222cfa",
+      "bytes": 53110
+    },
+    {
+      "path": "fap_exponential_linear.py",
+      "sha256": "634e388fbf74198f55c311b700743937e55d449fd4187d6678f2a49713c58213",
+      "bytes": 5091
+    },
+    {
+      "path": "fap_factual_qa.py",
+      "sha256": "8dcdce5574c4662ad64aa871cc1137820321c6c771c44cfce611b0485264039b",
+      "bytes": 4684
+    },
+    {
+      "path": "fap_generic_derivation.py",
+      "sha256": "bd4db7377e361013fb77a1236765ab3afa51c8d2a3a9a14814a524299df60f25",
+      "bytes": 20042
+    },
+    {
+      "path": "fap_generic_rule_reasoner.py",
+      "sha256": "3385d21edbf0bc542eaebcacee29ba6015a99df24582b6b208d73a2858ac7048",
+      "bytes": 13704
+    },
+    {
+      "path": "fap_interaction_fabric.py",
+      "sha256": "2612b167e6b9807d1296f477d52c14c2cc35f88eeac688fcbaa9e3636f189594",
+      "bytes": 21644
+    },
+    {
+      "path": "fap_knowledge_narrator.py",
+      "sha256": "975c9bfe78fe41b33c9fdc8bab68206f917e97ca62939498169cc4ddc2ff43f3",
+      "bytes": 10096
+    },
+    {
+      "path": "fap_knowledge_retrieval.py",
+      "sha256": "77c345c0ab208f0de503f9afcbdb0fb51f2b5af07ab910703ee559381fa09573",
+      "bytes": 7810
+    },
+    {
+      "path": "fap_reflective_conversation.py",
+      "sha256": "c5de43f2d9da22a61d0042b9b4a10ee0887744620dbea0221707656e3e8f1d42",
+      "bytes": 21550
+    },
+    {
+      "path": "fap_response_explorers.py",
+      "sha256": "df9b89be8714e806f3dbb51c2b9bfcb09f2d984ffe4ab9d0914597933e205b18",
+      "bytes": 9787
+    },
+    {
+      "path": "fap_response_redundancy.py",
+      "sha256": "ad8b044113dab537c2e94974d51f8ef35c0943560d6d84d2c2a4abda7f517ced",
+      "bytes": 6042
+    },
+    {
+      "path": "fap_response_series_executor.py",
+      "sha256": "5660ac5b6ed53f9c6ad303d4da173c2669495461184eb6c9770b82ca76f2056e",
+      "bytes": 24376
+    },
+    {
+      "path": "fap_response_specialists.py",
+      "sha256": "4c5145ff224915d6ce39660f5acb26d47b40d750fc8b28c10a0363a7fb2b061b",
+      "bytes": 8998
+    },
+    {
+      "path": "fap_response_specialists_extra.py",
+      "sha256": "b3c9763c865b7ec0c29ae0c53677df48ffb5cd4f426ef84c503c106116497820",
+      "bytes": 11254
+    },
+    {
+      "path": "fap_semantic_conversation.py",
+      "sha256": "46b5c1d58f0caed442cb24e0f008cea7917a884465412894171fcaf461d058e8",
+      "bytes": 9727
+    },
+    {
+      "path": "fap_semantic_memory.py",
+      "sha256": "d02148c19a3cc955eb1e2dad41e2f8cf2f3939d1465a699edb246df185d390b5",
+      "bytes": 19771
+    },
+    {
+      "path": "fap_speech.py",
+      "sha256": "56afddcc7ce0fab8e1d67c588f6ee5ffdf53b82362edd27934e066e949a9ab92",
+      "bytes": 15041
+    },
+    {
+      "path": "knowledge/conversation_discourse_ja.jsonl",
+      "sha256": "b984c44164a92664306d48f537ec1ae5ea3b87001b79b62b9f017b79ca2d3b10",
+      "bytes": 271
+    },
+    {
+      "path": "knowledge/conversation_intents_ja.jsonl",
+      "sha256": "4b0683d3208d627410256cc967d5e89542edad93196fdb528786bfa462803fcd",
+      "bytes": 1709
+    },
+    {
+      "path": "knowledge/core_rule_graph_ja.jsonl",
+      "sha256": "d53f5cc65a63c98eb402d8094f38d83f43360cdc4f755c0f556d23e112ef79c9",
+      "bytes": 2086
+    },
+    {
+      "path": "knowledge/core_science_ja.jsonl",
+      "sha256": "17dbd8add77c4ff62487828f5d61a4aba82e63153d765f2421f6dcc182973dcb",
+      "bytes": 6506
+    },
+    {
+      "path": "knowledge/latest_science_2026.jsonl",
+      "sha256": "319fe553f9d48aad344107224776438d8b44ef822c99971a96368b94fab9c8e4",
+      "bytes": 5769
+    },
+    {
+      "path": "knowledge/math_derivations_ja.jsonl",
+      "sha256": "9ee9a3304af246808475b2ea8ee17dd42435a7c62ab6c2e98a45242009459298",
+      "bytes": 2317
+    },
+    {
+      "path": "knowledge/recommendation_framework_ja.jsonl",
+      "sha256": "d3f996e5a13c6886a4f4814b1fdc2db957c4070a1ba4542b6fd957e47d90a9b2",
+      "bytes": 4089
+    },
+    {
+      "path": "knowledge/scientific_models_ja.jsonl",
+      "sha256": "af86af63bcd6a41b06efb874ca77b115abb8a51ac1d6d5bfbf0cf4c60713dc2c",
+      "bytes": 2829
+    },
+    {
+      "path": "knowledge/semantic_actions_ja.jsonl",
+      "sha256": "5c84efc478fa60f6abf00922b0d07594006cfb2a6ed61d07db3d0883292ae3ea",
+      "bytes": 2015
+    },
+    {
+      "path": "knowledge/visual_concepts_ja.jsonl",
+      "sha256": "33f507f5c2ec34f5a26acd823dfcd5ec8b3ecff6996bd2cb03eea4cce38b83c1",
+      "bytes": 4727
+    }
   ]
 }
