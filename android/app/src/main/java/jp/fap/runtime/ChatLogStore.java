@@ -291,6 +291,10 @@ public final class ChatLogStore {
             Entry entry = entries.get(i);
             if ("front".equals(selectedMode) && !SURFACE_FRONT.equals(entry.surface)) continue;
             if ("back".equals(selectedMode) && !SURFACE_BACK.equals(entry.surface)) continue;
+            if ("world".equals(selectedMode)
+                    && (entry.channel == null || !entry.channel.startsWith("media:"))) {
+                continue;
+            }
             selected.add(0, entry);
         }
         return new ArrayList<>(selected);
