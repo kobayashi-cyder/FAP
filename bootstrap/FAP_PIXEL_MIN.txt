@@ -12,6 +12,8 @@
 /fap_generic_derivation.py
 /fap_generic_rule_reasoner.py
 /fap_interaction_fabric.py
+/fap_knowledge_narrator.py
+/fap_knowledge_retrieval.py
 /fap_reflective_conversation.py
 /fap_response_explorers.py
 /fap_response_redundancy.py
