@@ -99,6 +99,35 @@ def run_gate() -> dict:
                 "reply": reply[:240],
             })
 
+    # Known local topics must be explainable from grounded repository knowledge.
+    known_topics = [
+        ("大気の運動", "気圧"),
+        ("エントロピー", "エントロピー"),
+        ("自然選択", "自然選択"),
+        ("計算量", "Big-O"),
+    ]
+    rng.shuffle(known_topics)
+    for topic, expected_term in known_topics[:3]:
+        query = f"{topic}について知っていることを説明して"
+        result = runtime.run_turn(query, session_id=f"knowledge-{checks}")
+        checks += 1
+        payload = dict(result.payload or {})
+        reply = str(payload.get("reply") or "")
+        if (
+            result.state != "handled"
+            or not payload.get("knowledge_narrator")
+            or not payload.get("grounded")
+            or not payload.get("evidence_ids")
+            or expected_term not in reply
+        ):
+            failures.append({
+                "kind": "knowledge_narration",
+                "query": query,
+                "state": result.state,
+                "reply": reply[:320],
+                "endpoint": result.endpoint_id,
+            })
+
     # Strong local fact should not waste escalation passes.
     strong = runtime.run_turn("真空中の光速は？", session_id="strong-local")
     checks += 1
