@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable
+
+
+@dataclass(frozen=True)
+class Signal:
+    kind: str
+    weight: float = 0.5
+    count: int = 1
+
+
+@dataclass(frozen=True)
+class Budget:
+    routes: int
+    steps: int
+    verify: int
+    retries: int
+
+
+def _clip(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def adaptive_budget(
+    signals: Iterable[Signal] = (),
+    *,
+    uncertainty: float = 0.0,
+    disagreement: bool = False,
+) -> Budget:
+    """Public, answer-independent adaptive budget for FAP 1.0.0-r001."""
+    difficulty = 0.0
+    for signal in signals:
+        difficulty += _clip(signal.weight) * min(max(int(signal.count), 1), 8) / 8.0
+    pressure = _clip(0.55 * _clip(difficulty) + 0.35 * _clip(uncertainty) + 0.10 * int(bool(disagreement)))
+
+    return Budget(
+        routes=min(8, 1 + int(pressure >= 0.20) + int(pressure >= 0.50) + int(pressure >= 0.80)),
+        steps=min(96, 8 + round(72 * pressure)),
+        verify=min(6, 1 + int(pressure >= 0.25) + int(pressure >= 0.55) + int(pressure >= 0.80)),
+        retries=min(4, int(pressure >= 0.40) + int(pressure >= 0.75)),
+    )
+
+
+def needs_extra_path(*, confidence: float, disagreement: bool = False, counterexample: bool = False) -> bool:
+    return _clip(confidence) < 0.70 or bool(disagreement) or bool(counterexample)

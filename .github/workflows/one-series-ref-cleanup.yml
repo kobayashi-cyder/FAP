@@ -1,0 +1,67 @@
+name: one-series-ref-cleanup
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete non-1.x branches and historical tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          enc_ref() {
+            jq -rn --arg v "$1" '$v|@uri'
+          }
+
+          gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name' |
+          while IFS= read -r b; do
+            case "$b" in
+              main|side/*1.0.01*)
+                echo "KEEP branch $b"
+                ;;
+              *)
+                echo "DELETE branch $b"
+                ref="$(enc_ref "heads/$b")"
+                gh api --method DELETE "repos/$REPO/git/refs/$ref" || true
+                ;;
+            esac
+          done
+
+          patch_branch() {
+            local b="$1"
+            local sha="$2"
+            local ref
+            ref="$(enc_ref "heads/$b")"
+            gh api --method PATCH "repos/$REPO/git/refs/$ref" -f sha="$sha" -F force=true
+          }
+
+          patch_branch "side/public-1.0.01-android-voice-port-20260926" "07f8fbbba2a5bff676c5391fbd7606a1c1941c01"
+          patch_branch "side/public-1.0.01-integration-20260926" "69b1ce9470686c896532173d62b422668694be62"
+          patch_branch "side/public-1.0.01-r002-port-20260926" "de26d2253ba3e69171cea77dc34a020b936a36b5"
+          patch_branch "side/public-1.0.01-speech-port-20260926" "705766073798d3f26207091850ac60d4c574d1cb"
+          patch_branch "side/1.0.01-dynamic-sparse-routing" "85649c4ae8707b4dde8428fe5628ee4f26bc4a3e"
+          patch_branch "side/1.0.01-dynamic-sparse-routing-sync" "2df72bd4640b8975cf37415e06d4bd1eae29e3b9"
+
+          gh api --paginate "repos/$REPO/tags?per_page=100" --jq '.[].name' |
+          while IFS= read -r t; do
+            case "$t" in
+              1.*|v1.*)
+                echo "KEEP tag $t"
+                ;;
+              *)
+                echo "DELETE tag $t"
+                ref="$(enc_ref "tags/$t")"
+                gh api --method DELETE "repos/$REPO/git/refs/$ref" || true
+                ;;
+            esac
+          done

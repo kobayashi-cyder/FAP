@@ -1,0 +1,61 @@
+name: V87 Autonomous Improvement Verify
+
+on:
+  push:
+    branches: ["feature/v87-autonomous-improvement"]
+  pull_request:
+    paths:
+      - "releases/v87/**"
+      - "releases/v86/**"
+      - "releases/v85/**"
+      - "releases/v84/**"
+      - "releases/v83/**"
+      - "releases/v82/**"
+      - "releases/v81/**"
+      - "releases/v79/creativity_engine/**"
+      - "releases/v78/**"
+      - "FAP_LATEST.md"
+      - "releases/README.md"
+      - ".github/workflows/v87-autonomous-improvement-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V78-V87
+        run: >-
+          python -m compileall -q
+          releases/v87/autonomous_improvement
+          releases/v86/generic_skill_factory
+          releases/v85/vision_host
+          releases/v84/self_curriculum
+          releases/v83/visual_cognition
+          releases/v82/adaptive_circuits
+          releases/v81/local_adaptation
+          releases/v79/creativity_engine
+          releases/v78/learning_integration
+      - name: V87 autonomous improvement tests
+        run: python -m unittest discover -s releases/v87/autonomous_improvement/tests -p "test_*.py" -v
+      - name: V86 generic Skill Factory regressions
+        run: python -m unittest discover -s releases/v86/generic_skill_factory/tests -p "test_*.py" -v
+      - name: V85 production Vision host regressions
+        run: python -m unittest discover -s releases/v85/vision_host/tests -p "test_*.py" -v
+      - name: V84 self-curriculum regressions
+        run: python -m unittest discover -s releases/v84/self_curriculum/tests -p "test_*.py" -v
+      - name: V83 visual cognition regressions
+        run: python -m unittest discover -s releases/v83/visual_cognition/tests -p "test_*.py" -v
+      - name: V82 adaptive circuit regressions
+        run: python -m unittest discover -s releases/v82/adaptive_circuits/tests -p "test_*.py" -v
+      - name: V81 local adaptation regressions
+        run: python -m unittest discover -s releases/v81/local_adaptation/tests -p "test_*.py" -v
+      - name: V79 creativity/primitive regressions
+        run: python -m unittest discover -s releases/v79/creativity_engine/tests -p "test_*.py" -v
+      - name: V78 learning regressions
+        run: python -m unittest discover -s releases/v78/learning_integration/tests -p "test_*.py" -v

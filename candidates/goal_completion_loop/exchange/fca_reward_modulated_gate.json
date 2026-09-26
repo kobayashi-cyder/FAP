@@ -1,0 +1,20 @@
+{
+  "schema": "fca-fap.exchange.v1",
+  "source_project": "FCA",
+  "source_commit": "5e4c7436161fc48fe05aa8d9a62f0016f5e950e5",
+  "capability": "reward_modulated_capability_preference",
+  "mechanism": {
+    "pattern": "bounded_local_value_update",
+    "update": "preference += learning_rate * (reward - decayed_preference)",
+    "use": "bias expected_value before sparse capability selection"
+  },
+  "evidence": {
+    "status": "derived_from_FCA_MBON_local_learning",
+    "scope": "capability_selection_only"
+  },
+  "constraints": [
+    "Do not treat learned preference as factual correctness.",
+    "Preference magnitude remains bounded.",
+    "Planner and critic verification remain authoritative for completion."
+  ]
+}

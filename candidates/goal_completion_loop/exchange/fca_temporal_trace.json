@@ -1,0 +1,25 @@
+{
+  "schema": "fca-fap.exchange.v1",
+  "source_project": "FCA",
+  "source_commit": "66176aced4751832288c75b97c774708be250876",
+  "capability": "temporal_capability_trace",
+  "mechanism": {
+    "pattern": "decaying_recent_activation_bias",
+    "purpose": "reduce capability thrashing across adjacent planning steps",
+    "bounds": [
+      "trace_decay",
+      "trace_gain",
+      "activation_budget",
+      "max_active"
+    ]
+  },
+  "evidence": {
+    "status": "derived_from_FCA_TemporalTrace",
+    "scope": "planner_capability_routing"
+  },
+  "constraints": [
+    "Temporal persistence must remain a small bias, not a hard lock.",
+    "Critic and completion evidence remain authoritative.",
+    "Trace state is bounded and serializable."
+  ]
+}

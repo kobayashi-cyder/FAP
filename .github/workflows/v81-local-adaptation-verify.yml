@@ -1,0 +1,41 @@
+name: V81 Local Adaptation Verify
+
+on:
+  push:
+    branches: ["feature/v81-local-adaptive-core"]
+  pull_request:
+    paths:
+      - "releases/v81/**"
+      - "releases/v79/**"
+      - "releases/v78/**"
+      - "FAP_LATEST.md"
+      - "releases/README.md"
+      - ".github/workflows/v81-local-adaptation-verify.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile V78-V81
+        run: >-
+          python -m compileall -q
+          releases/v81/local_adaptation
+          releases/v79/creativity_engine
+          releases/v78/learning_integration
+      - name: V81 local adaptation tests
+        run: python -m unittest discover -s releases/v81/local_adaptation/tests -p "test_*.py" -v
+      - name: V79 creativity regressions
+        run: python -m unittest discover -s releases/v79/creativity_engine/tests -p "test_*.py" -v
+      - name: V78 learning regressions
+        run: python -m unittest discover -s releases/v78/learning_integration/tests -p "test_*.py" -v
+      - name: V75 and V71 regressions
+        run: |
+          python -m unittest discover -s releases/v75/managed_chat/tests -p "test_*.py" -v
+          python -m unittest discover -s releases/v71/runtime/tests -p "test_*.py" -v
