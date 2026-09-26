@@ -55,7 +55,11 @@ class FAP1xGeneralReasoningCoreTests(unittest.TestCase):
             ("alpha", "beta", "gamma", "delta"),
         )
         result = self.core.solve(prompt)
-        self.assertIsNone(result)
+        self.assertIsNotNone(result)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["reasoning_source"], "fail_closed")
+        self.assertEqual(result["verification_state"], "unresolved")
+        self.assertNotIn("Answer:", result["reply"])
 
     def test_rule_reasoning_is_selected_as_verified(self):
         result = self.core.solve("四角形の内角の和は？")
@@ -87,7 +91,10 @@ class FAP1xGeneralReasoningCoreTests(unittest.TestCase):
             ("alpha", "beta", "gamma", "delta"),
         )
         result = runtime.run_turn(prompt)
-        self.assertEqual(result.state, "unhandled")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "general_reasoning_core")
+        self.assertEqual(result.payload["verification_state"], "unresolved")
+        self.assertNotIn("Answer:", result.payload["reply"])
 
 
 if __name__ == "__main__":
