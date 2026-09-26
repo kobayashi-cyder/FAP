@@ -7,6 +7,8 @@ from pathlib import Path
 
 from fap_media_policy import (
     ArtifactBudget,
+    enhance_prompt,
+    image_dimensions,
     image_profile,
     quality_mode,
     strip_control_directives,
@@ -21,6 +23,18 @@ class MediaPolicyTests(unittest.TestCase):
         self.assertEqual(quality_mode("[FAP_MEDIA quality=high] 画像生成: 猫"), "high")
         self.assertEqual(image_profile("[FAP_MEDIA quality=high] x").width, 1024)
         self.assertEqual(video_profile("[FAP_MEDIA quality=high] x").keyframes, 6)
+
+    def test_aspect_ratio_and_prompt_enrichment(self):
+        profile = image_profile("[FAP_MEDIA quality=high] 16:9 浮遊都市")
+        width, height = image_dimensions("16:9 浮遊都市", profile)
+        self.assertEqual(width, 1024)
+        self.assertLess(height, width)
+        prompt = enhance_prompt(
+            "[FAP_MEDIA quality=high] 浮遊都市",
+            profile,
+        )
+        self.assertNotIn("FAP_MEDIA", prompt)
+        self.assertIn("coherent composition", prompt)
 
     def test_control_directive_does_not_leak_to_prompt(self):
         cleaned = strip_control_directives(
