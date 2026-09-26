@@ -86,6 +86,13 @@ public class MainActivity extends Activity {
         chatLog = agent.chatLog();
         attachmentStore = new AttachmentStore(this);
         conversationArchive = new ConversationArchiveStore(this);
+        String mediaEndpoint = GenerationPreferences.endpoint(this);
+        if (!mediaEndpoint.isEmpty()) {
+            try {
+                engine.configureMediaEndpoint(mediaEndpoint);
+            } catch (Throwable ignored) {
+            }
+        }
         agent.reconcileAsync();
 
         LinearLayout root = new LinearLayout(this);
@@ -262,6 +269,10 @@ public class MainActivity extends Activity {
             GenerationPreferences.cycle(this);
             quality.setText("品質 " + GenerationPreferences.label(this));
             setStatus("生成品質 · " + GenerationPreferences.label(this));
+        });
+        quality.setOnLongClickListener(v -> {
+            showGenerationSettings();
+            return true;
         });
         tools.addView(quality);
 
@@ -501,6 +512,65 @@ public class MainActivity extends Activity {
         wrapper.addView(composer);
         refreshAttachmentStatus();
         return wrapper;
+    }
+
+    private void showGenerationSettings() {
+        EditText endpoint = new EditText(this);
+        endpoint.setSingleLine(true);
+        endpoint.setHint("https://... または http://LAN:7860");
+        endpoint.setText(GenerationPreferences.endpoint(this));
+        endpoint.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        endpoint.setPadding(dp(18), dp(8), dp(18), dp(8));
+
+        new AlertDialog.Builder(this)
+                .setTitle("生成バックエンド")
+                .setMessage(
+                        "空欄: 端末内の軽量生成のみ\n"
+                                + "URL指定: FMGからA1111/Forge互換の高品質生成を使用\n"
+                                + "品質ボタンは短押しで 軽量 → 標準 → 高品質 を切替")
+                .setView(endpoint)
+                .setNegativeButton("キャンセル", null)
+                .setNeutralButton("接続解除", (dialog, which) -> {
+                    GenerationPreferences.setEndpoint(this, "");
+                    try {
+                        engine.configureMediaEndpoint("");
+                        setStatus("外部生成バックエンドを解除しました");
+                    } catch (Throwable t) {
+                        setStatus("生成設定の反映に失敗しました");
+                    }
+                })
+                .setPositiveButton("保存", (dialog, which) -> {
+                    String value = endpoint.getText().toString().trim();
+                    if (!value.isEmpty()) {
+                        Uri uri = Uri.parse(value);
+                        String scheme = uri.getScheme();
+                        if ((!"http".equalsIgnoreCase(scheme)
+                                && !"https".equalsIgnoreCase(scheme))
+                                || uri.getHost() == null
+                                || uri.getHost().trim().isEmpty()) {
+                            Toast.makeText(
+                                    this,
+                                    "http:// または https:// のURLを指定してください",
+                                    Toast.LENGTH_LONG)
+                                    .show();
+                            return;
+                        }
+                    }
+                    GenerationPreferences.setEndpoint(this, value);
+                    try {
+                        JSONObject result = engine.configureMediaEndpoint(value);
+                        JSONObject image = result.optJSONObject("fmg_image");
+                        boolean configured = image != null
+                                && image.optJSONObject("a1111") != null
+                                && image.optJSONObject("a1111").optBoolean("configured", false);
+                        setStatus(configured
+                                ? "FMG高品質生成バックエンドを設定しました"
+                                : "生成バックエンドを解除しました");
+                    } catch (Throwable t) {
+                        setStatus("生成設定の反映に失敗 · " + t.getClass().getSimpleName());
+                    }
+                })
+                .show();
     }
 
     private void startImageGeneration() {
