@@ -11,6 +11,7 @@ from fap_generic_derivation import GenericDerivationEngine
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_response_redundancy import ResponseLane, ResponseSeriesPlan
+from fap_subproblem_reasoner import SubproblemReasoner
 from fap_response_specialists import (
     CausalFrameSpecialist,
     CodePlanningSpecialist,
@@ -133,6 +134,7 @@ class ResponseSeriesExecutor:
         "counterexample_search",
         "longform_contradiction",
         "derivation",
+        "subproblem",
     )
 
     def __init__(self, root: Path):
@@ -153,6 +155,7 @@ class ResponseSeriesExecutor:
         self.causal_graph = CausalGraphExplorer()
         self.counterexample_search = CounterexampleConditionExplorer()
         self.longform_contradiction = LongFormContradictionExplorer()
+        self.subproblem = SubproblemReasoner(self.root)
         self.auditor = ResponseAuditor()
 
     @staticmethod
@@ -221,6 +224,10 @@ class ResponseSeriesExecutor:
             calls.append(("longform_contradiction", lambda: self.longform_contradiction.run(text, history)))
         if plan.active_lanes >= 18:
             calls.append(("derivation", lambda: self.derivation.run(text, history)))
+        # Splitting is cheap. Only run the heavier per-segment solver fan-out
+        # when the request is actually separable into multiple explicit intents.
+        if self.subproblem.split(text):
+            calls.append(("subproblem", lambda: self.subproblem.run(text, history)))
 
         out: list[tuple[str, Mapping[str, Any]]] = []
         diagnostics: list[dict[str, str]] = []
@@ -250,6 +257,9 @@ class ResponseSeriesExecutor:
             score += 0.10
         if candidate.payload.get("numeric_contradiction_verified"):
             score += 0.12
+        if candidate.payload.get("subproblem_reasoning"):
+            coverage = _clip(candidate.payload.get("subproblem_coverage", 0.0))
+            score += 0.08 + 0.12 * coverage
         if candidate.grounded:
             score += 0.08
         if candidate.primary:
@@ -496,12 +506,16 @@ class ResponseSeriesExecutor:
         committee_winner = next(c for c in candidates if c.candidate_id == committee_winner_id)
 
         proposed = all_winner if all_winner.candidate_id == committee_winner.candidate_id else committee_winner
+        compound_request = bool(self.subproblem.split(text))
 
         exact_verified = [
             candidate
             for candidate in candidates
-            if candidate.verified
+            if not compound_request
+            and candidate.verified
             and candidate.confidence >= 0.95
+            and candidate.segment_coverage >= 0.78
+            and candidate.requirement_coverage >= 0.72
             and (
                 candidate.payload.get("linear_equation_verified")
                 or candidate.payload.get("physics_numeric_verified")
@@ -518,6 +532,27 @@ class ResponseSeriesExecutor:
             )
             proposed = exact_verified[0]
 
+        broad_candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.payload.get("subproblem_reasoning")
+            and _clip(candidate.payload.get("subproblem_coverage", 0.0)) >= 0.999
+            and not candidate.needs_teacher
+            and candidate.confidence >= 0.62
+        ]
+        if compound_request and broad_candidates:
+            broad_candidates.sort(
+                key=lambda candidate: (
+                    -_clip(candidate.payload.get("subproblem_coverage", 0.0)),
+                    -candidate.segment_coverage,
+                    -candidate.requirement_coverage,
+                    -candidate_scores.get(candidate.candidate_id, 0.0),
+                    -candidate.confidence,
+                    candidate.candidate_id,
+                )
+            )
+            proposed = broad_candidates[0]
+
         selected = primary
 
         if proposed.candidate_id != "primary":
@@ -525,6 +560,11 @@ class ResponseSeriesExecutor:
                 proposed.payload.get("linear_equation_verified")
                 or proposed.payload.get("physics_numeric_verified")
                 or proposed.payload.get("python_static_analysis")
+            )
+            compound_partial_challenger = bool(
+                compound_request
+                and proposed.candidate_id
+                    not in {"subproblem", "synthesis", "primary"}
             )
             weak_primary = (
                 primary.needs_teacher
@@ -534,17 +574,45 @@ class ResponseSeriesExecutor:
             strong_verified_challenger = (
                 proposed.verified
                 and not proposed.needs_teacher
+                and not compound_partial_challenger
                 and proposed.confidence >= max(0.82, primary.confidence - 0.03)
             )
             vote_advantage = weighted_votes[proposed.candidate_id] >= (
                 weighted_votes["primary"] * (0.95 if proposed.verified and not primary.verified else 1.08)
             )
-            if (
+            complete_subproblem = bool(
+                compound_request
+                and proposed.payload.get("subproblem_reasoning")
+                and _clip(
+                    proposed.payload.get("subproblem_coverage", 0.0)
+                ) >= 0.999
+                and not proposed.needs_teacher
+                and proposed.confidence >= 0.62
+            )
+            coverage_challenger = bool(
+                proposed.payload.get("subproblem_reasoning")
+                and proposed.segment_coverage
+                    > primary.segment_coverage + 0.10
+                and proposed.requirement_coverage
+                    >= primary.requirement_coverage
+                and proposed.confidence >= 0.62
+            )
+            if complete_subproblem or (
                 exact_task_verified
+                and not compound_request
                 and proposed.verified
                 and proposed.confidence >= 0.95
-            ) or (weak_primary and proposed.confidence >= 0.65) or (
-                quorum_met and strong_verified_challenger and vote_advantage
+                and proposed.segment_coverage >= 0.78
+                and proposed.requirement_coverage >= 0.72
+            ) or coverage_challenger or (
+                weak_primary
+                and not compound_partial_challenger
+                and proposed.confidence >= 0.65
+            ) or (
+                quorum_met
+                and not compound_partial_challenger
+                and strong_verified_challenger
+                and vote_advantage
             ):
                 selected = proposed
 

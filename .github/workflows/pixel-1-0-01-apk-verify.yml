@@ -63,8 +63,8 @@ jobs:
         env:
           PYTHONPATH: .
         run: |
-          python -m py_compile fap_1x_standard_runtime.py fap_adaptive_reasoning.py fap_knowledge_narrator.py fap_knowledge_retrieval.py
-          python -m unittest -v tests.test_adaptive_reasoning_governor tests.test_knowledge_narrator
+          python -m py_compile fap_1x_standard_runtime.py fap_adaptive_reasoning.py fap_knowledge_narrator.py fap_knowledge_retrieval.py fap_subproblem_reasoner.py
+          python -m unittest -v tests.test_adaptive_reasoning_governor tests.test_knowledge_narrator tests.test_subproblem_reasoner
           python - <<'PY'
           from fap_1x_standard_runtime import FAP1xStandardRuntime
           runtime = FAP1xStandardRuntime(root=".")
@@ -73,7 +73,9 @@ jobs:
           assert "factual-qa" in status["capabilities"]
           assert "adaptive-reasoning-governor" in status["capabilities"]
           assert "grounded-knowledge-narration" in status["capabilities"]
+          assert "multi-intent-subproblem-reasoning" in status["capabilities"]
           assert status["response_intelligence"]["governor_contract"] == "fap.reasoning.governor.v1"
+          assert status["response_intelligence"]["subproblem_contract"] == "fap.subproblem.reasoner.v1"
           assert status["knowledge_narrator"]["inventory"]["chunks"] > 0
           print(status)
           PY
@@ -102,6 +104,7 @@ jobs:
           assert "fap_adaptive_reasoning.py" in paths
           assert "fap_knowledge_narrator.py" in paths
           assert "fap_knowledge_retrieval.py" in paths
+          assert "fap_subproblem_reasoner.py" in paths
 
           published = json.loads(Path("pixel_update/latest.json").read_text(encoding="utf-8"))
           assert published["schema"] == "fap.pixel.runtime.manifest.v1"
@@ -250,6 +253,9 @@ jobs:
           test -s android/app/src/main/python/fap_adaptive_reasoning.py
           test -s android/app/src/main/python/fap_knowledge_narrator.py
           test -s android/app/src/main/python/fap_knowledge_retrieval.py
+          test -s android/app/src/main/python/fap_subproblem_reasoner.py
+          grep -q 'SubproblemReasoner' android/app/src/main/python/fap_response_series_executor.py
+          grep -q 'fap.subproblem.reasoner.v1' android/app/src/main/python/fap_subproblem_reasoner.py
           grep -q 'KnowledgeNarrator' android/app/src/main/python/fap_1x_standard_runtime.py
           grep -q 'fap.knowledge.narrator.v1' android/app/src/main/python/fap_knowledge_narrator.py
           grep -q 'AdaptiveReasoningGovernor' android/app/src/main/python/fap_1x_standard_runtime.py

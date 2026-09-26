@@ -200,6 +200,62 @@ class ResponseSeriesExecutorTests(unittest.TestCase):
             out["response_series_execution"]["consensus_sources"],
         )
 
+    def test_multi_intent_composition_beats_partial_exact_answer(self) -> None:
+        text = "方程式 2x + 3 = 11 を解いて。エントロピーについて説明して。"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.95,
+            confidence=0.2,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+            intent_count=2,
+        )
+        out = self.executor.run(
+            text,
+            [],
+            {
+                "ok": True,
+                "reply": "x = 4 です。",
+                "confidence": 0.99,
+                "verified": True,
+                "grounded": True,
+            },
+            plan,
+        )
+        self.assertIn("x = 4", out["reply"])
+        self.assertIn("エントロピー", out["reply"])
+        execution = out["response_series_execution"]
+        self.assertEqual(execution["selected"], "subproblem")
+        self.assertIn("subproblem", execution["consensus_sources"])
+
+    def test_partial_exact_solver_does_not_take_over_multi_intent_request(self) -> None:
+        text = "方程式 2x + 3 = 11 を解いて。ZXQV-UNKNOWN-93について説明して。"
+        plan = self.planner.plan(
+            text,
+            uncertainty=0.95,
+            confidence=0.4,
+            disagreement=True,
+            route_candidates=8,
+            verification_depth=6,
+            retries=4,
+            intent_count=2,
+        )
+        primary = {
+            "ok": True,
+            "reply": "後半はローカル知識では確認できません。",
+            "confidence": 0.66,
+            "grounded": True,
+            "needs_teacher": True,
+        }
+        out = self.executor.run(text, [], primary, plan)
+        self.assertNotEqual(
+            out["response_series_execution"]["selected"],
+            "linear_equation",
+        )
+        self.assertIn("後半", out["reply"])
+
     def test_verified_physics_numeric_can_replace_weak_primary(self) -> None:
         text = "質量=2 kg、加速度=3 m/s^2 のとき力を求めて"
         plan = self.planner.plan(
