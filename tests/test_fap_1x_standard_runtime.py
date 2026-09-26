@@ -55,5 +55,48 @@ class FAP1xStandardRuntimeTests(unittest.TestCase):
         self.assertGreater(status["generic_rule_reasoner"]["rules"], 0)
 
 
+    def test_response_intelligence_solves_verified_arithmetic_fallback(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        result = runtime.run_turn("計算してください: (37+5)*3")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "response_series")
+        self.assertIn("126", result.payload.get("reply", ""))
+        execution = result.payload.get("response_series_execution") or {}
+        self.assertTrue(execution.get("selection_changed_primary"))
+        self.assertIn("arithmetic", execution.get("consensus_sources", []))
+
+    def test_response_intelligence_solves_linear_equation_fallback(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        result = runtime.run_turn("方程式 2x + 3 = 11 を解いて")
+        self.assertEqual(result.state, "handled")
+        self.assertIn("x = 4", result.payload.get("reply", ""))
+        self.assertIn(
+            "linear_equation",
+            (result.payload.get("response_series_execution") or {}).get(
+                "consensus_sources",
+                [],
+            ),
+        )
+
+    def test_response_intelligence_status_is_version_clean(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        status = runtime.status()
+        intelligence = status.get("response_intelligence") or {}
+        self.assertTrue(intelligence.get("enabled"))
+        self.assertEqual(intelligence.get("max_lanes"), 128)
+        self.assertEqual(intelligence.get("max_synthesis_width"), 16)
+        self.assertEqual(len(intelligence.get("safe_specialists", [])), 16)
+        self.assertEqual(
+            intelligence.get("native_revision"),
+            "1.0.01-cpp-native-r008",
+        )
+
+    def test_known_primary_fact_remains_primary_when_already_strong(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        result = runtime.run_turn("真空中の光速は？")
+        self.assertEqual(result.endpoint_id, "factual_qa")
+        execution = result.payload.get("response_series_execution") or {}
+        self.assertEqual(execution.get("selected"), "primary")
+
 if __name__ == "__main__":
     unittest.main()
