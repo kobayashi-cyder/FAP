@@ -24,8 +24,13 @@ public final class FapTimelineView extends ScrollView {
         void onReplyRequested(ChatLogStore.Entry entry);
     }
 
+    public interface ThreadListener {
+        void onThreadRequested(ChatLogStore.Entry entry);
+    }
+
     private final LinearLayout feed;
     private ReplyListener replyListener;
+    private ThreadListener threadListener;
 
     public FapTimelineView(Context context) {
         super(context);
@@ -43,6 +48,10 @@ public final class FapTimelineView extends ScrollView {
 
     public void setReplyListener(ReplyListener listener) {
         replyListener = listener;
+    }
+
+    public void setThreadListener(ThreadListener listener) {
+        threadListener = listener;
     }
 
     public void render(List<ChatLogStore.Entry> entries) {
@@ -137,6 +146,18 @@ public final class FapTimelineView extends ScrollView {
 
         body.addView(meta);
 
+        if (entry.replyToId > 0L) {
+            TextView replyContext = new TextView(getContext());
+            replyContext.setText("↪ #" + entry.replyToId + " への返信"
+                    + (entry.threadRootId > 0L
+                        ? " · thread #" + entry.threadRootId
+                        : ""));
+            replyContext.setTextSize(12f);
+            replyContext.setTextColor(Color.rgb(83, 100, 113));
+            replyContext.setPadding(0, dp(4), 0, 0);
+            body.addView(replyContext);
+        }
+
         TextView text = new TextView(getContext());
         text.setText(entry.text);
         text.setTextSize(16f);
@@ -179,6 +200,21 @@ public final class FapTimelineView extends ScrollView {
                 if (listener != null) listener.onReplyRequested(entry);
             });
             actions.addView(reply, new LinearLayout.LayoutParams(
+                    LayoutParams.WRAP_CONTENT,
+                    dp(30)));
+
+            TextView thread = new TextView(getContext());
+            thread.setText("🧵 スレッド");
+            thread.setTextSize(12f);
+            thread.setTextColor(Color.rgb(83, 100, 113));
+            thread.setGravity(Gravity.CENTER);
+            thread.setPadding(dp(10), dp(5), dp(10), dp(5));
+            thread.setContentDescription("投稿 #" + entry.id + " のスレッドを開く");
+            thread.setOnClickListener(v -> {
+                ThreadListener listener = threadListener;
+                if (listener != null) listener.onThreadRequested(entry);
+            });
+            actions.addView(thread, new LinearLayout.LayoutParams(
                     LayoutParams.WRAP_CONTENT,
                     dp(30)));
         }
