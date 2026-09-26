@@ -127,6 +127,17 @@ class RepositoryKnowledgeIndex:
                                         label + ": " + " / ".join(cleaned)
                                     )
                         body = "\n".join(parts)
+                keywords: list[str] = []
+                for key in ("aliases", "topics"):
+                    values = row.get(key)
+                    if isinstance(values, list):
+                        keywords.extend(
+                            str(x).strip()
+                            for x in values
+                            if str(x).strip()
+                        )
+                if keywords:
+                    body += "\n関連語: " + " / ".join(dict.fromkeys(keywords))
                 if len(body) < 16:
                     continue
                 rid = str(row.get("id") or f"{path.stem}:{line_no}")
