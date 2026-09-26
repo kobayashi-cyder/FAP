@@ -60,7 +60,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "repository-coding-adapter",
             "adaptive-response-redundancy:128-lanes",
             "response-synthesis-committee:16-max",
-            "response-specialists:16-readonly",
+            f"response-specialists:{len(self.response_series.SAFE_SPECIALISTS)}-readonly",
             "verified-specialist-answer-takeover",
             "deterministic-complementary-synthesis",
             "adaptive-reasoning-governor",
