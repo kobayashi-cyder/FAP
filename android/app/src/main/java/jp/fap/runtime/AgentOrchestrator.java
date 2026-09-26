@@ -636,6 +636,19 @@ public final class AgentOrchestrator {
                     media.put("type", "image");
                     media.put("path", path);
                     media.put("name", artifact.optString("name", "generated-image"));
+                    JSONObject imageProfile = payload.optJSONObject("image_profile");
+                    if (imageProfile == null) {
+                        imageProfile = payload.optJSONObject("requested_fmg_profile");
+                    }
+                    if (imageProfile != null) {
+                        media.put("width", imageProfile.optInt("width", 0));
+                        media.put("height", imageProfile.optInt("height", 0));
+                        media.put("quality", imageProfile.optString(
+                                "quality",
+                                payload.optString("quality_mode", "")));
+                    } else {
+                        media.put("quality", payload.optString("quality_mode", ""));
+                    }
                     chatLog.appendFront("assistant", "media:image", media.toString());
                     continue;
                 }
@@ -681,6 +694,8 @@ public final class AgentOrchestrator {
                         media.put("width", encoded.width);
                         media.put("height", encoded.height);
                         media.put("pipeline", "FMG keyframes + Android MediaCodec H.264");
+                        media.put("quality", artifact.optString("quality", ""));
+                        media.put("keyframes", artifact.optInt("keyframes", frames.size()));
                         chatLog.appendFront("assistant", "media:video", media.toString());
 
                         GeneratedMediaStore.deleteTransientFrames(frames, "");
