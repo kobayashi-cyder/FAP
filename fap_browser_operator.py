@@ -62,6 +62,21 @@ class BrowserReasonerResult:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class ChatGPTReadiness:
+    state: str
+    url: str
+    waited_sec: float
+    detail: str = ""
+
+    @property
+    def ready(self) -> bool:
+        return self.state == "ready"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 class PlaywrightBrowser:
     """Visible, user-authorized browser automation for FAP.
 
@@ -165,8 +180,30 @@ class PlaywrightBrowser:
     def goto(self, url: str) -> BrowserEvidence:
         safe = _normalize_http_url(url)
         self.start()
-        self.page.goto(safe, wait_until="domcontentloaded")
+        try:
+            self.page.goto(safe, wait_until="domcontentloaded")
+        except Exception:
+            if not self.config.cdp_url:
+                raise
+            self.reconnect()
+            self.page.goto(safe, wait_until="domcontentloaded")
         return self.snapshot()
+
+    def is_healthy(self) -> bool:
+        try:
+            if self._page is None or self._page.is_closed():
+                return False
+            _ = self._page.url
+            return True
+        except Exception:
+            return False
+
+    def reconnect(self) -> "PlaywrightBrowser":
+        if not self.config.cdp_url:
+            raise RuntimeError("reconnect is available only for CDP sessions")
+        self.close()
+        self._closed = False if hasattr(self, "_closed") else False
+        return self.start()
 
     def snapshot(self) -> BrowserEvidence:
         self.start()
@@ -287,6 +324,42 @@ class ChatGPTWebUI:
     def open(self) -> BrowserEvidence:
         return self.browser.goto(self.chatgpt_url)
 
+    def wait_until_ready(
+        self,
+        timeout_sec: float = 600.0,
+        *,
+        poll_sec: float = 1.0,
+    ) -> ChatGPTReadiness:
+        timeout_sec = float(timeout_sec)
+        poll_sec = float(poll_sec)
+        if not 0 <= timeout_sec <= 3600:
+            raise ValueError("timeout_sec must be in [0, 3600]")
+        if not 0.2 <= poll_sec <= 10:
+            raise ValueError("poll_sec must be in [0.2, 10]")
+
+        started = time.monotonic()
+        evidence = self.open()
+        while True:
+            locator = self._find_prompt()
+            if locator is not None:
+                return ChatGPTReadiness(
+                    state="ready",
+                    url=str(self.browser.page.url or evidence.url),
+                    waited_sec=max(0.0, time.monotonic() - started),
+                )
+            elapsed = max(0.0, time.monotonic() - started)
+            if elapsed >= timeout_sec:
+                return ChatGPTReadiness(
+                    state="login_timeout",
+                    url=str(self.browser.page.url or evidence.url),
+                    waited_sec=elapsed,
+                    detail=(
+                        "ChatGPT composer is not available yet. "
+                        "Complete login in the visible FAP browser window."
+                    ),
+                )
+            time.sleep(poll_sec)
+
     def ask(self, prompt: str) -> str:
         prompt = str(prompt or "").strip()
         if not prompt:
@@ -295,8 +368,8 @@ class ChatGPTWebUI:
         locator = self._find_prompt()
         if locator is None:
             raise RuntimeError(
-                "ChatGPT prompt was not found. Log in manually once in the "
-                "FAP browser profile, then run the command again."
+                "ChatGPT prompt was not found. Complete login in the visible "
+                "FAP browser profile before reasoning begins."
             )
 
         before = self._assistant_count()
@@ -393,6 +466,14 @@ class BrowserChatReasoner:
             return
         self._closed = True
         self.browser.close()
+
+    def prepare(self, wait_for_login_sec: float = 600.0) -> ChatGPTReadiness:
+        self._closed = False
+        self.browser.start()
+        return self.chat.wait_until_ready(wait_for_login_sec)
+
+    def health(self) -> bool:
+        return self.browser.is_healthy()
 
     def respond(
         self,
