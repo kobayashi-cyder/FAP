@@ -159,6 +159,12 @@ class FMGImportedImageModule:
             "version": IMPORT_VERSION,
             "source": "kobayashi-cyder/FMG",
             "source_commit": FMG_SOURCE_COMMIT,
+            "profile": {
+                "width": FMG_IMAGE_WIDTH,
+                "height": FMG_IMAGE_HEIGHT,
+                "steps": FMG_STEPS,
+                "guidance": FMG_GUIDANCE,
+            },
             "profiles": {
                 "draft": {"width": 512, "height": 512, "steps": 22, "guidance": 7.0},
                 "standard": {"width": 768, "height": 768, "steps": 38, "guidance": 7.5},
