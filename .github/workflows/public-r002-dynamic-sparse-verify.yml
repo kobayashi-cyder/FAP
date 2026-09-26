@@ -18,7 +18,7 @@ on:
       - 'tests/test_v87_76_session_gateway.py'
       - '.github/workflows/public-r002-dynamic-sparse-verify.yml'
   pull_request:
-    branches: [main]
+    branches: [integration/public-1.0.01-ready-20260926]
     paths:
       - 'fap_revision_r001.py'
       - 'fap_revision_r002.py'
