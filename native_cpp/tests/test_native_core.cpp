@@ -1,3 +1,4 @@
+#include "fap/native_api.h"
 #include "fap/native_core.hpp"
 
 #include <filesystem>
@@ -116,6 +117,35 @@ void test_orchestrator() {
             "orchestrator semantic route failed");
 }
 
+void test_c_api_ui_bridge() {
+    require(std::string(fap_native_version()) == kVersion, "C API version mismatch");
+
+    fap_native_engine engine = fap_native_engine_create(nullptr);
+    require(engine != nullptr, "C API engine creation failed");
+
+    char* json = fap_native_engine_analyze_json(
+        engine,
+        "今日の天気と今何時か",
+        0.7,
+        1,
+        0,
+        0.65);
+    require(json != nullptr, "C API analyze returned null");
+
+    const std::string payload(json);
+    fap_native_string_free(json);
+    fap_native_engine_destroy(engine);
+
+    require(payload.find("\"version\":\"1.0.01-cpp-native-r002\"") != std::string::npos,
+            "C API JSON version missing");
+    require(payload.find("\"budget\"") != std::string::npos,
+            "C API JSON budget missing");
+    require(payload.find("\"extra_path\":true") != std::string::npos,
+            "C API JSON extra path missing");
+    require(payload.find("\"multi_intents\"") != std::string::npos,
+            "C API JSON multi intent count missing");
+}
+
 }  // namespace
 
 int main() {
@@ -128,6 +158,7 @@ int main() {
         test_memory();
         test_goal_state();
         test_orchestrator();
+        test_c_api_ui_bridge();
         std::cout << "fap_native_tests: PASS\n";
         return 0;
     } catch (const std::exception& e) {
