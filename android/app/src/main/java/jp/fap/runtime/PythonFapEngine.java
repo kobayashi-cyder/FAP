@@ -170,6 +170,19 @@ public final class PythonFapEngine {
         return result;
     }
 
+    public synchronized JSONObject configureMediaEndpoint(String endpoint) throws Exception {
+        if (bridge == null) {
+            throw new IllegalStateException("Python bridge is unavailable");
+        }
+        JSONObject result = new JSONObject(
+                bridge.callAttr(
+                        "configure_media",
+                        endpoint == null ? "" : endpoint.trim())
+                        .toString());
+        statusText = result.optString("status", statusText);
+        return result;
+    }
+
     public synchronized String status() {
         if (bridge != null) {
             try {
