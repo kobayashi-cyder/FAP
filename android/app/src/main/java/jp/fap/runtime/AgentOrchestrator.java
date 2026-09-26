@@ -9,11 +9,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class AgentOrchestrator {
     public interface Listener {
         void onStatus(String message);
         void onReply(PythonFapEngine.Result result, String channel);
+        default void onStream(String partial) {}
     }
 
     private static final String PREFS = "fap_agent_state";
@@ -25,6 +27,7 @@ public final class AgentOrchestrator {
     private static final String KEY_PENDING_CHANNEL = "pending_browser_channel";
     private static final String KEY_INFLIGHT_USER_ID = "inflight_user_id";
     private static final String KEY_INFLIGHT_STARTED_AT = "inflight_started_at";
+    private static final String KEY_PENDING_GENERATION = "pending_browser_generation";
 
     private static final int MAX_CONTEXT_LOGS = 48;
     private static final int MAX_RECOVERY_SCAN = 96;
@@ -50,6 +53,8 @@ public final class AgentOrchestrator {
     });
 
     private volatile Listener pendingBrowserListener;
+    private final AtomicLong turnGeneration = new AtomicLong(0L);
+    private volatile boolean processing = false;
 
     private AgentOrchestrator(Context context) {
         app = context;
@@ -81,9 +86,36 @@ public final class AgentOrchestrator {
     public String stateSummary() {
         long pending = prefs.getLong(KEY_PENDING_USER_ID, 0L);
         return "agent=" + (isAgentModeEnabled() ? "ON" : "OFF")
+                + " · processing=" + (processing ? "ON" : "OFF")
                 + " · cursor=" + prefs.getLong(KEY_LAST_USER_ID, 0L)
                 + " · browserCursor=" + prefs.getLong(KEY_LAST_BROWSER_ID, 0L)
                 + (pending > 0L ? " · pendingBrowser=#" + pending : "");
+    }
+
+    public boolean isProcessing() {
+        return processing;
+    }
+
+    public void stopCurrentTurn() {
+        turnGeneration.incrementAndGet();
+        processing = false;
+        clearPendingBrowser();
+        pendingBrowserListener = null;
+        prefs.edit()
+                .remove(KEY_INFLIGHT_USER_ID)
+                .remove(KEY_INFLIGHT_STARTED_AT)
+                .apply();
+        chatLog.appendBack("system", "agent", "現在の回答処理を停止");
+    }
+
+    public void markCurrentLogAsSeen() {
+        long last = chatLog.lastId();
+        prefs.edit()
+                .putLong(KEY_LAST_USER_ID, last)
+                .putLong(KEY_LAST_BROWSER_ID, last)
+                .remove(KEY_INFLIGHT_USER_ID)
+                .remove(KEY_INFLIGHT_STARTED_AT)
+                .apply();
     }
 
     public void submitUserTurn(
@@ -147,7 +179,9 @@ public final class AgentOrchestrator {
                 .putLong(KEY_INFLIGHT_USER_ID, entry.id)
                 .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
                 .apply();
-        processUserEntryAsync(entry, listener, true, forceBrowser);
+        long generation = turnGeneration.incrementAndGet();
+        processing = true;
+        processUserEntryAsync(entry, listener, true, forceBrowser, generation);
     }
 
     public void regenerateLastUser(Listener listener) {
@@ -166,6 +200,8 @@ public final class AgentOrchestrator {
         }
 
         final ChatLogStore.Entry source = lastUser;
+        final long generation = turnGeneration.incrementAndGet();
+        processing = true;
         executor.execute(() -> {
             status(listener, "直前の依頼を再生成中…");
             String prompt = "次のユーザー依頼へ、前回回答の単なる言い換えではなく、"
@@ -175,12 +211,71 @@ public final class AgentOrchestrator {
                     prompt,
                     chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
                     "regenerate");
-            appendAgentReply(result, "regenerate");
+            if (!isGenerationActive(generation)) return;
             chatLog.appendBack(
                     "system",
                     "agent",
                     "直前のユーザー依頼を再生成 · source=#" + source.id);
-            reply(listener, result, "regenerate");
+            deliverResult(result, "regenerate", listener, generation);
+        });
+    }
+
+    public void submitDeepReasoning(String text, Listener listener) {
+        String clean = text == null ? "" : text.trim();
+        if (clean.isEmpty()) return;
+
+        ChatLogStore.Entry entry = chatLog.appendFront("user", "deep", clean);
+        if (entry == null) return;
+
+        prefs.edit()
+                .putLong(KEY_LAST_USER_ID, Math.max(
+                        prefs.getLong(KEY_LAST_USER_ID, 0L),
+                        entry.id))
+                .putLong(KEY_INFLIGHT_USER_ID, entry.id)
+                .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
+                .apply();
+
+        final long generation = turnGeneration.incrementAndGet();
+        processing = true;
+        executor.execute(() -> {
+            status(listener, "深考 1/3 · 初期解を生成中…");
+            PythonFapEngine.Result first = engine.processAgent(
+                    clean,
+                    chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
+                    "deep-primary");
+            if (!isGenerationActive(generation)) return;
+
+            status(listener, "深考 2/3 · 反例と弱点を検査中…");
+            String critiquePrompt = "元の依頼:\n" + clean
+                    + "\n\n初期回答:\n" + first.answer
+                    + "\n\nこの回答の事実誤認、論理飛躍、抜け、反例、より良い解法を検査してください。"
+                    + "単なる言い換えは禁止です。";
+            PythonFapEngine.Result critique = engine.processAgent(
+                    critiquePrompt,
+                    chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
+                    "deep-critic");
+            if (!isGenerationActive(generation)) return;
+
+            status(listener, "深考 3/3 · 統合回答を生成中…");
+            String synthesis = "元の依頼:\n" + clean
+                    + "\n\n初期回答:\n" + first.answer
+                    + "\n\n批判・反例検査:\n" + critique.answer
+                    + "\n\n上記を統合し、元の依頼へ直接答える最終回答を作ってください。"
+                    + "批判で指摘された欠陥を残さないでください。";
+            PythonFapEngine.Result result = engine.processAgent(
+                    synthesis,
+                    chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
+                    "deep-synthesis");
+            if (!isGenerationActive(generation)) return;
+
+            chatLog.appendBack(
+                    "system",
+                    "agent-result",
+                    "deep_reasoning=3pass"
+                            + " · first=" + first.skill
+                            + " · critic=" + critique.skill
+                            + " · final=" + result.skill);
+            deliverResult(result, "deep", listener, generation);
         });
     }
 
@@ -213,12 +308,15 @@ public final class AgentOrchestrator {
             }
 
             long pendingUserId = prefs.getLong(KEY_PENDING_USER_ID, 0L);
+            long pendingGeneration = prefs.getLong(KEY_PENDING_GENERATION, 0L);
             String pendingPrompt = prefs.getString(KEY_PENDING_PROMPT, "");
             String pendingChannel = prefs.getString(KEY_PENDING_CHANNEL, "agent");
             Listener listener = pendingBrowserListener;
             pendingBrowserListener = null;
 
-            if (pendingUserId <= 0L) {
+            if (pendingUserId <= 0L
+                    || pendingGeneration <= 0L
+                    || pendingGeneration != turnGeneration.get()) {
                 prefs.edit()
                         .putLong(KEY_LAST_BROWSER_ID, chatLog.lastId())
                         .apply();
@@ -244,7 +342,7 @@ public final class AgentOrchestrator {
                     chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
                     "browser-synthesis");
 
-            appendAgentReply(result, "agent:web");
+            if (!isGenerationActive(pendingGeneration)) return;
             clearPendingBrowser();
             prefs.edit()
                     .putLong(KEY_LAST_BROWSER_ID, chatLog.lastId())
@@ -254,7 +352,7 @@ public final class AgentOrchestrator {
                     .remove(KEY_INFLIGHT_USER_ID)
                     .remove(KEY_INFLIGHT_STARTED_AT)
                     .apply();
-            reply(listener, result, pendingChannel);
+            deliverResult(result, "agent:web", listener, pendingGeneration);
         });
     }
 
@@ -262,22 +360,25 @@ public final class AgentOrchestrator {
             ChatLogStore.Entry entry,
             Listener listener,
             boolean allowBrowser,
-            boolean forceBrowser) {
+            boolean forceBrowser,
+            long generation) {
         executor.execute(() -> processUserEntryBlocking(
-                entry, listener, allowBrowser, forceBrowser));
+                entry, listener, allowBrowser, forceBrowser, generation));
     }
 
     private void processUserEntryBlocking(
             ChatLogStore.Entry entry,
             Listener listener,
             boolean allowBrowser,
-            boolean forceBrowser) {
+            boolean forceBrowser,
+            long generation) {
         status(listener, "Chatログ #" + entry.id + " をFAPが処理中…");
 
         PythonFapEngine.Result result = engine.processAgent(
                 entry.text,
                 chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
                 entry.channel);
+        if (!isGenerationActive(generation)) return;
 
         boolean freshResearch = requiresFreshResearch(entry.text);
         if (allowBrowser
@@ -288,6 +389,7 @@ public final class AgentOrchestrator {
                     .putLong(KEY_PENDING_USER_ID, entry.id)
                     .putString(KEY_PENDING_PROMPT, entry.text)
                     .putString(KEY_PENDING_CHANNEL, entry.channel)
+                    .putLong(KEY_PENDING_GENERATION, generation)
                     .putLong(KEY_LAST_USER_ID, Math.max(
                             prefs.getLong(KEY_LAST_USER_ID, 0L),
                             entry.id))
@@ -318,7 +420,6 @@ public final class AgentOrchestrator {
             pendingBrowserListener = null;
         }
 
-        appendAgentReply(result, entry.channel);
         prefs.edit()
                 .putLong(KEY_LAST_USER_ID, Math.max(
                         prefs.getLong(KEY_LAST_USER_ID, 0L),
@@ -326,7 +427,7 @@ public final class AgentOrchestrator {
                 .remove(KEY_INFLIGHT_USER_ID)
                 .remove(KEY_INFLIGHT_STARTED_AT)
                 .apply();
-        reply(listener, result, entry.channel);
+        deliverResult(result, entry.channel, listener, generation);
     }
 
     private void reconcileBlocking() {
@@ -341,7 +442,12 @@ public final class AgentOrchestrator {
                         .remove(KEY_INFLIGHT_STARTED_AT)
                         .apply();
             } else if (prefs.getLong(KEY_PENDING_USER_ID, 0L) <= 0L) {
-                processUserEntryBlocking(inflight, null, true, false);
+                processUserEntryBlocking(
+                        inflight,
+                        null,
+                        true,
+                        false,
+                        turnGeneration.incrementAndGet());
             }
         }
 
@@ -360,7 +466,12 @@ public final class AgentOrchestrator {
                     .putLong(KEY_INFLIGHT_USER_ID, entry.id)
                     .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
                     .apply();
-            processUserEntryBlocking(entry, null, true, false);
+            processUserEntryBlocking(
+                    entry,
+                    null,
+                    true,
+                    false,
+                    turnGeneration.incrementAndGet());
 
             // A browser delegation is now pending. Wait for AccessibilityService
             // rather than consuming later user events out of order.
@@ -403,15 +514,99 @@ public final class AgentOrchestrator {
                 .apply();
     }
 
-    private void appendAgentReply(PythonFapEngine.Result result, String sourceChannel) {
+    private void deliverResult(
+            PythonFapEngine.Result result,
+            String sourceChannel,
+            Listener listener,
+            long generation) {
+        if (!isGenerationActive(generation)) return;
+
         String answer = result.answer == null ? "" : result.answer.trim();
         if (answer.isEmpty()) {
             answer = "このターンでは確定回答を生成できませんでした。";
         }
-        chatLog.appendFront(
+
+        if (listener == null) {
+            chatLog.appendFront(
+                    "assistant",
+                    "agent:" + normalizeChannel(sourceChannel),
+                    answer);
+            appendResultMeta(result, sourceChannel);
+            processing = false;
+            return;
+        }
+
+        ChatLogStore.Entry streamEntry = chatLog.appendFront(
                 "assistant",
                 "agent:" + normalizeChannel(sourceChannel),
-                answer);
+                "…");
+        if (streamEntry == null) {
+            appendResultMeta(result, sourceChannel);
+            processing = false;
+            reply(listener, result, sourceChannel);
+            return;
+        }
+
+        final String finalAnswer = answer;
+        final long entryId = streamEntry.id;
+        final int chunkSize = finalAnswer.length() > 6000 ? 320 : 180;
+        streamChunk(
+                result,
+                sourceChannel,
+                listener,
+                generation,
+                entryId,
+                finalAnswer,
+                chunkSize,
+                0);
+    }
+
+    private void streamChunk(
+            PythonFapEngine.Result result,
+            String sourceChannel,
+            Listener listener,
+            long generation,
+            long entryId,
+            String answer,
+            int chunkSize,
+            int offset) {
+        if (!isGenerationActive(generation)) return;
+
+        int end = Math.min(answer.length(), offset + chunkSize);
+        String partial = answer.substring(0, end);
+        chatLog.updateText(entryId, partial);
+        if (listener != null) {
+            try {
+                listener.onStream(partial);
+            } catch (Throwable ignored) {
+            }
+        }
+
+        if (end >= answer.length()) {
+            appendResultMeta(result, sourceChannel);
+            processing = false;
+            prefs.edit()
+                    .remove(KEY_INFLIGHT_USER_ID)
+                    .remove(KEY_INFLIGHT_STARTED_AT)
+                    .apply();
+            reply(listener, result, sourceChannel);
+            return;
+        }
+
+        main.postDelayed(
+                () -> streamChunk(
+                        result,
+                        sourceChannel,
+                        listener,
+                        generation,
+                        entryId,
+                        answer,
+                        chunkSize,
+                        end),
+                28L);
+    }
+
+    private void appendResultMeta(PythonFapEngine.Result result, String sourceChannel) {
         chatLog.appendBack(
                 "system",
                 "agent-result",
@@ -422,11 +617,16 @@ public final class AgentOrchestrator {
                         + " · state=" + result.state);
     }
 
+    private boolean isGenerationActive(long generation) {
+        return generation > 0L && generation == turnGeneration.get();
+    }
+
     private void clearPendingBrowser() {
         prefs.edit()
                 .remove(KEY_PENDING_USER_ID)
                 .remove(KEY_PENDING_PROMPT)
                 .remove(KEY_PENDING_CHANNEL)
+                .remove(KEY_PENDING_GENERATION)
                 .apply();
     }
 
