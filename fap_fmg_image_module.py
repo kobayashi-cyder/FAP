@@ -129,7 +129,7 @@ class FMGImportedImageModule:
             },
         )
         with urllib.request.urlopen(req, timeout=timeout) as response:
-            payload = response.read(96 * 1024 * 1024)
+            payload = response.read(48 * 1024 * 1024)
         return json.loads(payload.decode("utf-8"))
 
     def _probe_a1111(self) -> dict[str, Any]:
@@ -219,6 +219,7 @@ class FMGImportedImageModule:
         if not images:
             raise RuntimeError("FMG high-quality refine returned no image")
         raw = base64.b64decode(str(images[0]).split(",", 1)[-1], validate=False)
+        del images, value, source_b64
         refined = self._save_external(raw, random.SystemRandom().randint(0, 2**31 - 1))
         if refined.stat().st_size <= 128:
             refined.unlink(missing_ok=True)
@@ -286,6 +287,7 @@ class FMGImportedImageModule:
             raise RuntimeError("FMG A1111 backend returned no image")
 
         raw = base64.b64decode(str(images[0]).split(",", 1)[-1], validate=False)
+        del images, value
         path = self._save_external(raw, seed)
         elapsed = max(0.0, time.perf_counter() - started)
         verified = path.stat().st_size > 128
