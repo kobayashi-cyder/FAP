@@ -23,6 +23,13 @@ from fap_response_specialists_extra import (
     PhysicsNumericSpecialist,
     PythonStaticAnalysisSpecialist,
 )
+from fap_response_explorers import (
+    CausalGraphExplorer,
+    CounterexampleConditionExplorer,
+    LongFormContradictionExplorer,
+    MultiStepMathExplorer,
+    PythonRepairExplorer,
+)
 
 
 _JA_OR_WORD = re.compile(r"[一-龥ぁ-んァ-ンー]{2,}|[A-Za-z0-9_]{2,}")
@@ -120,6 +127,11 @@ class ResponseSeriesExecutor:
         "physics_numeric",
         "python_static",
         "contradiction",
+        "multi_step_math",
+        "python_repair",
+        "causal_graph",
+        "counterexample_search",
+        "longform_contradiction",
         "derivation",
     )
 
@@ -136,6 +148,11 @@ class ResponseSeriesExecutor:
         self.physics_numeric = PhysicsNumericSpecialist()
         self.python_static = PythonStaticAnalysisSpecialist()
         self.contradiction = NumericContradictionSpecialist()
+        self.multi_step_math = MultiStepMathExplorer()
+        self.python_repair = PythonRepairExplorer()
+        self.causal_graph = CausalGraphExplorer()
+        self.counterexample_search = CounterexampleConditionExplorer()
+        self.longform_contradiction = LongFormContradictionExplorer()
         self.auditor = ResponseAuditor()
 
     @staticmethod
@@ -192,6 +209,16 @@ class ResponseSeriesExecutor:
             calls.append(("python_static", lambda: self.python_static.run(text)))
         if plan.active_lanes >= 24:
             calls.append(("contradiction", lambda: self.contradiction.run(text, history)))
+        if plan.active_lanes >= 14:
+            calls.append(("multi_step_math", lambda: self.multi_step_math.run(text)))
+        if plan.active_lanes >= 20:
+            calls.append(("python_repair", lambda: self.python_repair.run(text)))
+        if plan.active_lanes >= 24:
+            calls.append(("causal_graph", lambda: self.causal_graph.run(text)))
+        if plan.active_lanes >= 28:
+            calls.append(("counterexample_search", lambda: self.counterexample_search.run(text)))
+        if plan.active_lanes >= 32:
+            calls.append(("longform_contradiction", lambda: self.longform_contradiction.run(text, history)))
         if plan.active_lanes >= 18:
             calls.append(("derivation", lambda: self.derivation.run(text, history)))
 
