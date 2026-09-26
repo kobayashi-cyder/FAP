@@ -7,7 +7,8 @@ import re
 from typing import Any, Mapping
 
 
-_NUM_EXPR = re.compile(r"(?<![A-Za-z0-9_])([-+]?\d+(?:\.\d+)?(?:\s*(?:\*\*|[+\-*/%×÷^])\s*[-+]?\d+(?:\.\d+)?)+)(?![A-Za-z0-9_])")
+_ARITH_CHUNK = re.compile(r"[0-9eE.+\-*/%()\s]{3,}")
+_MATH_CUE = re.compile(r"(計算|式|いくら|求め|calculate|compute|evaluate|=)", re.I)
 _CAUSAL = re.compile(r"(なぜ|どうして|原因|因果|影響|理由|why\b|cause|causal|effect)", re.I)
 _CODE = re.compile(r"(python|c\+\+|\bc\b|java|kotlin|javascript|typescript|html|css|コード|実装|関数|プログラム|script)", re.I)
 _CREATE = re.compile(r"(作って|作成|生成|書いて|実装|構築|build|create|make|implement|write)", re.I)
@@ -85,24 +86,39 @@ class SafeArithmeticSpecialist:
         raise ValueError("unsupported expression")
 
     def run(self, text: str) -> dict[str, Any] | None:
-        match = _NUM_EXPR.search(str(text or "").replace("×", "*").replace("÷", "/").replace("^", "**"))
-        if not match:
+        raw_text = str(text or "")
+        normalized = raw_text.replace("×", "*").replace("÷", "/").replace("^", "**")
+        chunks = sorted(
+            (x.strip() for x in _ARITH_CHUNK.findall(normalized)),
+            key=len,
+            reverse=True,
+        )
+        only_expression = bool(normalized.strip()) and all(
+            ch in "0123456789eE.+-*/%() \\t\\r\\n" for ch in normalized.strip()
+        )
+        if not (_MATH_CUE.search(raw_text) or only_expression):
             return None
-        expr = match.group(1).strip()
-        try:
-            value = self._eval(ast.parse(expr, mode="eval"))
-        except Exception:
-            return None
-        return {
-            "ok": True,
-            "reply": f"{expr} = {value}",
-            "confidence": 0.995,
-            "verified": True,
-            "grounded": True,
-            "local": True,
-            "arithmetic_verified": True,
-            "decision_source": "verified_arithmetic",
-        }
+
+        for expr in chunks:
+            if not re.search(r"\\d", expr):
+                continue
+            if not re.search(r"(?:\\*\\*|[+\\-*/%])", expr):
+                continue
+            try:
+                value = self._eval(ast.parse(expr, mode="eval"))
+            except Exception:
+                continue
+            return {
+                "ok": True,
+                "reply": f"{expr} = {value}",
+                "confidence": 0.995,
+                "verified": True,
+                "grounded": True,
+                "local": True,
+                "arithmetic_verified": True,
+                "decision_source": "verified_arithmetic",
+            }
+        return None
 
 
 class CausalFrameSpecialist:
