@@ -170,10 +170,10 @@ jobs:
           grep -q 'submitWebResearch' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
           grep -q 'requiresFreshResearch' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
           grep -q 'regenerateLastUser' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
-          grep -q 'chip("Web")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
-          grep -q 'chip("再生成")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("外部調査")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("再考")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'chip("コピー")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
-          grep -q 'chip("新規")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("新章")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'Text-only sending is explicitly supported' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'setReplyListener' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'setThreadListener' android/app/src/main/java/jp/fap/runtime/MainActivity.java
@@ -203,11 +203,14 @@ jobs:
           grep -q 'submitDeepReasoning' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
           grep -q 'stopCurrentTurn' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
           grep -q 'streamChunk' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
-          grep -q 'chip("深考")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("FAP思考")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'chip("停止")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
-          grep -q 'chip("履歴")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
-          grep -q 'chip("分岐")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
-          grep -q 'chip("ツール")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("記録庫")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("横枝")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("能力")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'FAP · connectome runtime' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("本流")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("横枝")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'ConversationArchiveStore' android/app/src/main/java/jp/fap/runtime/MainActivity.java
           grep -q 'com.google.mlkit:text-recognition-japanese:16.0.1' android/app/build.gradle.kts
           grep -q 'com.google.mlkit:image-labeling:17.0.9' android/app/build.gradle.kts
