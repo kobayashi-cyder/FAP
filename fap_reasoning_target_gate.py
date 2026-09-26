@@ -79,6 +79,47 @@ def run_gate() -> dict:
                 "reply": reply[:240],
             })
 
+    # Generated compound requests must preserve both answers. A verified
+    # single-subproblem solver is not allowed to hide the remaining intent.
+    compound_topics = [
+        ("エントロピー", "エントロピー"),
+        ("自然選択", "自然選択"),
+        ("計算量", "Big-O"),
+    ]
+    rng.shuffle(compound_topics)
+    for topic, expected_term in compound_topics[:2]:
+        a = rng.randint(2, 8)
+        x = rng.randint(-5, 9)
+        b = rng.randint(1, 9)
+        rhs = a * x + b
+        query = (
+            f"方程式 {a}x + {b} = {rhs} を解いて。"
+            f"{topic}について説明して。"
+        )
+        result = runtime.run_turn(query, session_id=f"compound-{checks}")
+        checks += 1
+        payload = dict(result.payload or {})
+        reply = str(payload.get("reply") or "")
+        execution = payload.get("response_series_execution") or {}
+        if (
+            result.state != "handled"
+            or not re.search(
+                rf"x\s*=\s*{re.escape(str(x))}(?!\d)",
+                reply.replace("−", "-"),
+            )
+            or expected_term not in reply
+            or execution.get("selected") != "subproblem"
+        ):
+            failures.append({
+                "kind": "generated_compound_request",
+                "query": query,
+                "expected_x": x,
+                "expected_term": expected_term,
+                "state": result.state,
+                "selected": execution.get("selected"),
+                "reply": reply[:480],
+            })
+
     # Generated opaque subjects must remain fail-closed. These identifiers have
     # no local evidence and change with the seed.
     for _ in range(4):
@@ -161,6 +202,8 @@ def run_gate() -> dict:
             "confidence_calibration",
             "generated_generalization_checks",
             "opaque_unknown_fail_closed",
+            "multi_intent_subproblem_composition",
+            "partial_answer_takeover_guard",
         ],
     }
 
