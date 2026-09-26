@@ -242,6 +242,14 @@ class ResponseSeriesExecutor:
         score = 0.55 * candidate.confidence
         if candidate.verified:
             score += 0.22
+        if candidate.payload.get("linear_equation_verified"):
+            score += 0.16
+        if candidate.payload.get("physics_numeric_verified"):
+            score += 0.14
+        if candidate.payload.get("python_static_analysis"):
+            score += 0.10
+        if candidate.payload.get("numeric_contradiction_verified"):
+            score += 0.12
         if candidate.grounded:
             score += 0.08
         if candidate.primary:
