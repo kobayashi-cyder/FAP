@@ -54,6 +54,23 @@ class FAP1xStandardRuntimeTests(unittest.TestCase):
         self.assertGreater(status["generic_rule_reasoner"]["relations"], 0)
         self.assertGreater(status["generic_rule_reasoner"]["rules"], 0)
 
+    def test_known_topic_can_be_narrated_from_local_knowledge(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        result = runtime.run_turn("大気の運動について知っていることを教えて")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "knowledge_narrator")
+        self.assertIn("気圧", result.payload.get("reply", ""))
+        self.assertTrue(result.payload.get("grounded"))
+        self.assertTrue(result.payload.get("knowledge_narrator"))
+
+    def test_knowledge_inventory_is_exposed(self):
+        runtime = FAP1xStandardRuntime(root=ROOT)
+        result = runtime.run_turn("FAPは何を知っている？")
+        self.assertEqual(result.state, "handled")
+        self.assertEqual(result.endpoint_id, "knowledge_narrator")
+        inventory = result.payload.get("knowledge_inventory") or {}
+        self.assertGreater(inventory.get("chunks", 0), 0)
+
 
     def test_response_intelligence_solves_verified_arithmetic_fallback(self):
         runtime = FAP1xStandardRuntime(root=ROOT)

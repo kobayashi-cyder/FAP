@@ -1,0 +1,271 @@
+name: Pixel 1.0.01 APK Verify
+
+on:
+  push:
+    branches:
+      - "side/1.0.01-pixel-*"
+    paths:
+      - "android/**"
+      - "android_packaging/sync_pixel_runtime.py"
+      - "android_packaging/generate_pixel_update_manifest.py"
+      - "android_packaging/tests/test_generate_pixel_update_manifest.py"
+      - "pixel_update/**"
+      - "fap_*.py"
+      - "knowledge/**"
+      - ".github/workflows/pixel-1-0-01-apk-verify.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "android/**"
+      - "android_packaging/sync_pixel_runtime.py"
+      - "android_packaging/generate_pixel_update_manifest.py"
+      - "android_packaging/tests/test_generate_pixel_update_manifest.py"
+      - "pixel_update/**"
+      - "fap_*.py"
+      - "knowledge/**"
+      - ".github/workflows/pixel-1-0-01-apk-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pixel-1-0-01-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-pixel-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Gradle 9.4.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.4.1"
+
+      - name: Verify current local 1.x runtime
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m py_compile fap_1x_standard_runtime.py fap_adaptive_reasoning.py fap_knowledge_narrator.py fap_knowledge_retrieval.py
+          python -m unittest -v tests.test_adaptive_reasoning_governor tests.test_knowledge_narrator
+          python - <<'PY'
+          from fap_1x_standard_runtime import FAP1xStandardRuntime
+          runtime = FAP1xStandardRuntime(root=".")
+          status = runtime.status()
+          assert status["version"] == "1.0.01"
+          assert "factual-qa" in status["capabilities"]
+          assert "adaptive-reasoning-governor" in status["capabilities"]
+          assert "grounded-knowledge-narration" in status["capabilities"]
+          assert status["response_intelligence"]["governor_contract"] == "fap.reasoning.governor.v1"
+          assert status["knowledge_narrator"]["inventory"]["chunks"] > 0
+          print(status)
+          PY
+
+      - name: Verify Git OTA manifest generator
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest -v android_packaging.tests.test_generate_pixel_update_manifest
+          python android_packaging/generate_pixel_update_manifest.py \
+            --repo-root . \
+            --source-commit "$GITHUB_SHA" \
+            --output /tmp/pixel-latest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          generated = json.loads(Path("/tmp/pixel-latest.json").read_text(encoding="utf-8"))
+          assert generated["schema"] == "fap.pixel.runtime.manifest.v1"
+          assert generated["entrypoint"] == "fap_1x_standard_runtime.py"
+          assert generated["file_count"] == len(generated["files"])
+          assert sum(x["bytes"] for x in generated["files"]) == generated["total_bytes"]
+          paths = {x["path"] for x in generated["files"]}
+          assert "fap_speech.py" in paths
+          assert "fap_1x_standard_runtime.py" in paths
+          assert "fap_adaptive_reasoning.py" in paths
+          assert "fap_knowledge_narrator.py" in paths
+          assert "fap_knowledge_retrieval.py" in paths
+
+          published = json.loads(Path("pixel_update/latest.json").read_text(encoding="utf-8"))
+          assert published["schema"] == "fap.pixel.runtime.manifest.v1"
+          assert published["entrypoint"] == "fap_1x_standard_runtime.py"
+          assert published["file_count"] == len(published["files"])
+          assert sum(x["bytes"] for x in published["files"]) == published["total_bytes"]
+
+          print(
+              "candidate manifest:",
+              generated["source_commit"],
+              generated["file_count"],
+              generated["total_bytes"],
+          )
+          print(
+              "published main manifest:",
+              published["source_commit"],
+              published["file_count"],
+              published["total_bytes"],
+          )
+          PY
+
+      - name: Build minimal Pixel Python payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST="android/app/src/main/python"
+          REPORT="android/pixel-runtime-manifest.json"
+          python android_packaging/sync_pixel_runtime.py             --repo-root .             --dest "$DEST"             --report "$REPORT"
+
+          cat > "$DEST/build_meta.py" <<PY
+          RELEASE_VERSION = "1.0.01"
+          MAIN_SHA = "${GITHUB_SHA}"
+          PY
+
+          python -m compileall -q "$DEST"
+          cat "$REPORT"
+
+      - name: Build Pixel debug APK
+        working-directory: android
+        env:
+          FAP_VERSION_CODE: "10001"
+          FAP_VERSION_NAME: "1.0.01-pixel"
+        run: gradle --no-daemon clean :app:assembleDebug
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          mkdir -p pixel-apk
+          cp "$APK" pixel-apk/FAP-Pixel-1.0.01-debug.apk
+          cp android/pixel-runtime-manifest.json pixel-apk/pixel-runtime-manifest.json
+          cp pixel_update/latest.json pixel-apk/git-ota-latest.json
+          sha256sum pixel-apk/FAP-Pixel-1.0.01-debug.apk | tee pixel-apk/SHA256.txt
+          unzip -l "$APK" > pixel-apk/apk-list.txt
+          grep -q 'classes.dex' pixel-apk/apk-list.txt
+          test -s android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
+          test -s android/app/src/main/java/jp/fap/runtime/PixelBrowserController.java
+          test -s android/app/src/main/java/jp/fap/runtime/GitRuntimeUpdater.java
+          test -s android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
+          test -s android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          test -s android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          test -s android/app/src/main/java/jp/fap/runtime/GitContextProvider.java
+          test -s android/app/src/main/java/jp/fap/runtime/AttachmentStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'analyzeOfficeZip' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'analyzePdf' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'getTextContents' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'analyzeMedia' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          test -s android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
+          test -s android/app/src/main/java/jp/fap/runtime/ApkInstallResultReceiver.java
+          grep -q 'ACTION_OPEN_DOCUMENT' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'EXTRA_ALLOW_MULTIPLE' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'setType("\*/\*")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'PackageInstaller' android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
+          grep -q 'signerDigest' android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
+          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' android/app/src/main/AndroidManifest.xml
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          apk = json.loads(Path("pixel_update/apk/latest.json").read_text(encoding="utf-8"))
+          assert apk["schema"] == "fap.pixel.apk.manifest.v1"
+          assert apk["package_name"] == "jp.fap.runtime"
+          assert isinstance(apk["available"], bool)
+          print("apk update manifest:", apk)
+          PY
+          grep -q 'startContinuous' android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
+          grep -q 'barge-in ready' android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
+          grep -q 'public void render' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q 'agentHeartbeat' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
+          grep -q 'submitWebResearch' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'requiresFreshResearch' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'regenerateLastUser' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'chip("外部調査")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("再考")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("コピー")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("新章")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'Text-only sending is explicitly supported' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'setReplyListener' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'setThreadListener' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'selectReplyTarget' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'openThreadForEntry' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'threadSnapshot' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'appendFrontThreaded' android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          grep -q 'reply_to_id' android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          grep -q 'thread_root_id' android/app/src/main/java/jp/fap/runtime/ChatLogStore.java
+          grep -q 'ThreadListener' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q '↩ 返信' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q '🧵 スレッド' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q 'Linkify.WEB_URLS' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
+          grep -q 'TextRecognition.getClient' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'ImageLabeling.getClient' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'renderPdfPageForOcr' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'analyzeBitmapFrame' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'AudioFileTranscriber.transcribe' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          test -s android/app/src/main/java/jp/fap/runtime/AudioFileTranscriber.java
+          grep -q 'EXTRA_AUDIO_SOURCE' android/app/src/main/java/jp/fap/runtime/AudioFileTranscriber.java
+          grep -q 'profileDelimitedTable' android/app/src/main/java/jp/fap/runtime/AttachmentStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/ConversationArchiveStore.java
+          grep -q 'search(String query)' android/app/src/main/java/jp/fap/runtime/ConversationArchiveStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/ExternalToolAdapter.java
+          test -s android/app/src/main/java/jp/fap/runtime/FapToolRegistry.java
+          grep -q 'registerExternal' android/app/src/main/java/jp/fap/runtime/FapToolRegistry.java
+          grep -q 'submitDeepReasoning' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'stopCurrentTurn' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'streamChunk' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'chip("FAP思考")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("停止")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("記録庫")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("横枝")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("能力")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'FAP · connectome runtime' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("本流")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("横枝")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'ConversationArchiveStore' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'com.google.mlkit:text-recognition-japanese:16.0.1' android/app/build.gradle.kts
+          grep -q 'com.google.mlkit:image-labeling:17.0.9' android/app/build.gradle.kts
+          grep -q 'dispatchText' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
+          grep -q 'dispatchImeEnter' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
+          grep -q '"/type "' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
+          grep -q '"/append "' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
+          grep -q '"/enter"' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java
+          ! grep -q 'android:packageNames=' android/app/src/main/res/xml/fap_pixel_accessibility_service.xml
+          test -s android/app/src/main/python/fap_adaptive_reasoning.py
+          test -s android/app/src/main/python/fap_knowledge_narrator.py
+          test -s android/app/src/main/python/fap_knowledge_retrieval.py
+          grep -q 'KnowledgeNarrator' android/app/src/main/python/fap_1x_standard_runtime.py
+          grep -q 'fap.knowledge.narrator.v1' android/app/src/main/python/fap_knowledge_narrator.py
+          grep -q 'AdaptiveReasoningGovernor' android/app/src/main/python/fap_1x_standard_runtime.py
+          grep -q 'fap.reasoning.governor.v1' android/app/src/main/python/fap_adaptive_reasoning.py
+          grep -q 'run_agent' android/app/src/main/python/android_bridge.py
+          grep -q 'durable_chat_log' android/app/src/main/python/android_bridge.py
+          grep -q 'validate_runtime' android/app/src/main/python/android_bridge.py
+          test -s android/app/src/main/python/fap_speech.py
+          grep -q 'android.permission.RECORD_AUDIO' android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+          grep -q 'PixelBrowserAccessibilityService' android/app/src/main/AndroidManifest.xml
+
+      - name: Upload Pixel APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FAP-Pixel-1.0.01-${{ github.sha }}
+          path: pixel-apk/
+          if-no-files-found: error
+          retention-days: 30

@@ -90,6 +90,54 @@ class RepositoryKnowledgeIndex:
                 if not isinstance(row, dict):
                     continue
                 body = str(row.get("text", "")).strip()
+                if not body:
+                    claim = str(row.get("claim", "")).strip()
+                    if claim:
+                        as_of = str(row.get("as_of", "")).strip()
+                        source_title = str(row.get("source_title", "")).strip()
+                        source_url = str(row.get("source_url", "")).strip()
+                        body = claim
+                        if as_of:
+                            body += f"\n時点: {as_of}"
+                        if source_title:
+                            body += f"\n出典: {source_title}"
+                        if source_url:
+                            body += f"\nURL: {source_url}"
+                    else:
+                        parts: list[str] = []
+                        for key, label in (
+                            ("variables", "変数"),
+                            ("drivers", "駆動要因"),
+                            ("equations", "式"),
+                            ("mechanism", "仕組み"),
+                            ("scales", "スケール"),
+                            ("assumptions", "前提"),
+                            ("observables", "観測量"),
+                            ("limits", "限界"),
+                        ):
+                            values = row.get(key)
+                            if isinstance(values, list):
+                                cleaned = [
+                                    str(x).strip()
+                                    for x in values
+                                    if str(x).strip()
+                                ]
+                                if cleaned:
+                                    parts.append(
+                                        label + ": " + " / ".join(cleaned)
+                                    )
+                        body = "\n".join(parts)
+                keywords: list[str] = []
+                for key in ("aliases", "topics"):
+                    values = row.get(key)
+                    if isinstance(values, list):
+                        keywords.extend(
+                            str(x).strip()
+                            for x in values
+                            if str(x).strip()
+                        )
+                if keywords:
+                    body += "\n関連語: " + " / ".join(dict.fromkeys(keywords))
                 if len(body) < 16:
                     continue
                 rid = str(row.get("id") or f"{path.stem}:{line_no}")
@@ -99,7 +147,11 @@ class RepositoryKnowledgeIndex:
                     text=body,
                     source=str(path.relative_to(self.root)),
                     domain=str(row.get("domain") or "general"),
-                    live_required=bool(row.get("live_required", False)),
+                    live_required=bool(
+                        row.get("live_required", False)
+                        or row.get("as_of")
+                        or row.get("source_url")
+                    ),
                 ))
         return out
 
