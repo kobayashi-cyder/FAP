@@ -7,11 +7,12 @@ FAP is the public 1.x mainline. Legacy V2+ versioned implementations are intenti
 - Version: **1.0.01**
 - Adaptive budget: `fap_revision_r001.py`
 - Unified runtime: `fap_1x_runtime.py` — bounded sessions, semantic memory, verified tools and repository coding
-- Ready-to-use local runtime: `fap_1x_standard_runtime.py` — factual QA, rule derivation, contextual reasoning and reflective conversation
+- Ready-to-use local runtime: `fap_1x_standard_runtime.py` — factual QA, rule derivation, contextual reasoning, reflective conversation, and adaptive response intelligence
 - Dynamic sparse routing: `fap_dynamic_sparse_routing.py` + `fap_interaction_fabric.py`
+- Adaptive response intelligence: up to **128 response lanes**, **16 read-only specialist/exploration paths**, and a **16-lane synthesis committee**
 - Local speech: `fap_speech.py` / `fap_speech_fluent.py`
 - Browser self-improvement: `fap_self_improvement_controller.py`
-- Native deterministic core: `native_cpp/`
+- Native deterministic core: `native_cpp/` — r008 response planning/C ABI/UI trace
 - Android adapter: `android/`
 
 ## Integration rule
