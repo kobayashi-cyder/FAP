@@ -1,0 +1,47 @@
+name: FAP native C++ benchmark
+
+on:
+  push:
+    branches:
+      - "side/1.0.01-cpp-native-*"
+    paths:
+      - "native_cpp/bench/**"
+      - "native_cpp/CMakeLists.txt"
+      - ".github/workflows/native-cpp-benchmark.yml"
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure benchmark
+        run: cmake -S native_cpp -B build/native_cpp-bench -DCMAKE_BUILD_TYPE=Release -DFAP_NATIVE_BUILD_BENCHMARKS=ON
+
+      - name: Build benchmark
+        run: cmake --build build/native_cpp-bench --parallel 2 --target fap_native_benchmark
+
+      - name: Run C++ benchmark
+        run: ./build/native_cpp-bench/fap_native_benchmark 1000000 . | tee cpp-benchmark.json
+
+      - name: Run Python benchmark
+        run: python native_cpp/bench/benchmark_python.py --iterations 1000000 --root . | tee python-benchmark.json
+
+      - name: Compare
+        run: |
+          python native_cpp/bench/compare_benchmarks.py \
+            cpp-benchmark.json \
+            python-benchmark.json \
+            benchmark-report.md
+          cat benchmark-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark result
+        uses: actions/upload-artifact@v4
+        with:
+          name: fap-native-cpp-python-benchmark
+          path: |
+            cpp-benchmark.json
+            python-benchmark.json
+            benchmark-report.md
