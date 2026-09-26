@@ -38,7 +38,7 @@ public final class PythonFapEngine {
         }
     }
 
-    public Result process(String query) {
+    public synchronized Result process(String query) {
         if (bridge == null) {
             FapEngine.Result r = fallback.process(query);
             return new Result(r.query, r.answer, "java_fallback:" + r.skill, r.confidence);
@@ -59,7 +59,7 @@ public final class PythonFapEngine {
         }
     }
 
-    public void verify(Result result, boolean success) {
+    public synchronized void verify(Result result, boolean success) {
         if (bridge != null) {
             try {
                 statusText = new JSONObject(
@@ -73,7 +73,7 @@ public final class PythonFapEngine {
         fallback.verify(new FapEngine.Result(result.query, result.answer, result.skill, result.confidence), success);
     }
 
-    public void clear() {
+    public synchronized void clear() {
         if (bridge != null) {
             try {
                 statusText = new JSONObject(bridge.callAttr("clear").toString()).optString("status", "READY");
@@ -101,7 +101,7 @@ public final class PythonFapEngine {
         return result;
     }
 
-    public String status() {
+    public synchronized String status() {
         if (bridge != null) {
             try {
                 statusText = new JSONObject(bridge.callAttr("status").toString()).optString("status", statusText);
