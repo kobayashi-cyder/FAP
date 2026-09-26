@@ -52,7 +52,7 @@ class ProblemDecomposer:
     _COMPARE = re.compile(r"(比較|違い|差|どちら|compare|difference|versus|\bvs\b)", re.I)
     _PLAN = re.compile(r"(計画|手順|設計|方法|どうすれば|plan|design|steps|approach)", re.I)
     _CODE = re.compile(r"(コード|実装|バグ|修正|関数|class|repository|code|implement|bug|function)", re.I)
-    _HYP = re.compile(r"(仮説|可能性|反証|検証案|hypothes|possible cause|falsif)", re.I)
+    _HYP = re.compile(r"(仮説|可能性|反証|検証案|原因として|なぜそうなる|どう考える|何があり得る|hypothes|possible cause|falsif)", re.I)
     _CONSTRAINT = re.compile(
         r"(?:[^。.!?！？]{0,60}"
         r"(?:以内|以上|以下|未満|必須|禁止|のみ|だけ|せず|してはいけない|"
