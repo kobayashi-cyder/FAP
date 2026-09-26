@@ -301,7 +301,7 @@ class FAP1xRuntime:
         reply = self._payload_text(result.payload)
         self._append_history(
             sid,
-            {"role": "user", "content": str(text), "channel": channel},
+            {"role": "user", "content": str(text), "text": str(text), "channel": channel},
         )
         if reply:
             self._append_history(
@@ -309,6 +309,7 @@ class FAP1xRuntime:
                 {
                     "role": "assistant",
                     "content": reply,
+                    "text": reply,
                     "channel": channel,
                     "endpoint_id": result.endpoint_id,
                 },
