@@ -159,11 +159,10 @@ class FMGImportedImageModule:
             "version": IMPORT_VERSION,
             "source": "kobayashi-cyder/FMG",
             "source_commit": FMG_SOURCE_COMMIT,
-            "profile": {
-                "width": FMG_IMAGE_WIDTH,
-                "height": FMG_IMAGE_HEIGHT,
-                "steps": profile.steps,
-                "guidance": profile.guidance,
+            "profiles": {
+                "draft": {"width": 512, "height": 512, "steps": 22, "guidance": 7.0},
+                "standard": {"width": 768, "height": 768, "steps": 38, "guidance": 7.5},
+                "high": {"width": 1024, "height": 1024, "steps": 56, "guidance": 8.0},
             },
             "connectome": self.connectome.status(),
             "a1111": {
@@ -198,8 +197,8 @@ class FMGImportedImageModule:
         decision = self.connectome.route(
             {
                 "prompt": prompt,
-                "steps": FMG_STEPS,
-                "guidance": FMG_GUIDANCE,
+                "steps": profile.steps,
+                "guidance": profile.guidance,
             },
             availability,
         )
@@ -320,10 +319,11 @@ class FMGImportedImageModule:
             local["fmg_source_commit"] = FMG_SOURCE_COMMIT
             local["fmg_external_error"] = external_error
             local["requested_fmg_profile"] = {
-                "width": FMG_IMAGE_WIDTH,
-                "height": FMG_IMAGE_HEIGHT,
-                "steps": FMG_STEPS,
-                "guidance": FMG_GUIDANCE,
+                "width": profile.width,
+                "height": profile.height,
+                "steps": profile.steps,
+                "guidance": profile.guidance,
+                "quality": profile.name,
             }
             local["reply"] = (
                 "FMG画像生成モジュールはFAPへ輸入済みです。"
