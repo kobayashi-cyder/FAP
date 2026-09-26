@@ -11,6 +11,12 @@ from fap_generic_derivation import GenericDerivationEngine
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_response_redundancy import ResponseLane, ResponseSeriesPlan
+from fap_response_specialists import (
+    CausalFrameSpecialist,
+    CodePlanningSpecialist,
+    ResponseAuditor,
+    SafeArithmeticSpecialist,
+)
 
 
 _JA_OR_WORD = re.compile(r"[一-龥ぁ-んァ-ンー]{2,}|[A-Za-z0-9_]{2,}")
@@ -80,6 +86,8 @@ class ResponseCandidate:
     grounded: bool = False
     needs_teacher: bool = False
     primary: bool = False
+    requirement_coverage: float = 1.0
+    segment_coverage: float = 1.0
 
     @property
     def reply(self) -> str:
@@ -95,7 +103,15 @@ class ResponseSeriesExecutor:
     """
 
     CONTRACT = "fap.response.series.execution.v1"
-    SAFE_SPECIALISTS = ("factual", "reflective", "rule", "derivation")
+    SAFE_SPECIALISTS = (
+        "factual",
+        "arithmetic",
+        "reflective",
+        "causal",
+        "rule",
+        "code_plan",
+        "derivation",
+    )
 
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -103,6 +119,10 @@ class ResponseSeriesExecutor:
         self.reflective = ReflectiveConversationOrgan()
         self.rule = GenericRuleReasoner(self.root)
         self.derivation = GenericDerivationEngine(self.root)
+        self.arithmetic = SafeArithmeticSpecialist()
+        self.causal = CausalFrameSpecialist()
+        self.code_plan = CodePlanningSpecialist()
+        self.auditor = ResponseAuditor()
 
     @staticmethod
     def _candidate(source: str, payload: Mapping[str, Any], *, primary: bool = False) -> ResponseCandidate | None:
@@ -142,10 +162,15 @@ class ResponseSeriesExecutor:
     ) -> tuple[list[tuple[str, Mapping[str, Any]]], list[dict[str, str]]]:
         calls: list[tuple[str, Any]] = [
             ("factual", lambda: self.factual.run(text)),
+            ("arithmetic", lambda: self.arithmetic.run(text)),
             ("reflective", lambda: self.reflective.run(text, history)),
         ]
+        if plan.active_lanes >= 10:
+            calls.append(("causal", lambda: self.causal.run(text)))
         if plan.active_lanes >= 12:
             calls.append(("rule", lambda: self.rule.run(text, history)))
+        if plan.active_lanes >= 16:
+            calls.append(("code_plan", lambda: self.code_plan.run(text)))
         if plan.active_lanes >= 18:
             calls.append(("derivation", lambda: self.derivation.run(text, history)))
 
@@ -177,6 +202,8 @@ class ResponseSeriesExecutor:
             score -= 0.20
         if len(candidate.reply) < 8:
             score -= 0.20
+        score += 0.035 * candidate.requirement_coverage
+        score += 0.045 * candidate.segment_coverage
         return score
 
     def _lane_score(
@@ -191,7 +218,7 @@ class ResponseSeriesExecutor:
         role = lane.role
 
         if role in {"direct", "user_intent"}:
-            score += 0.18 * relevance
+            score += 0.18 * relevance + 0.08 * candidate.segment_coverage
         elif role == "decomposition":
             score += min(0.12, 0.025 * len(_STRUCTURE.findall(reply)))
         elif role == "assumptions":
@@ -203,7 +230,7 @@ class ResponseSeriesExecutor:
         elif role == "counterexample":
             score += 0.08 if _BOUNDARY.search(reply) else (0.03 if candidate.verified else 0.0)
         elif role == "constraints":
-            score += 0.08 * relevance
+            score += 0.08 * relevance + 0.12 * candidate.requirement_coverage
             if re.search(r"(必須|条件|制約|must|required|constraint)", user_text, re.I):
                 score += 0.04 if re.search(r"(条件|制約|must|required|constraint)", reply, re.I) else -0.03
         elif role == "edge_cases":
@@ -230,7 +257,13 @@ class ResponseSeriesExecutor:
         elif role == "verifier":
             score += 0.22 if candidate.verified else (0.04 if candidate.grounded else -0.08)
         elif role == "synthesis_probe":
-            score += 0.10 * candidate.confidence + 0.08 * float(candidate.verified) + 0.06 * relevance
+            score += (
+                0.10 * candidate.confidence
+                + 0.08 * float(candidate.verified)
+                + 0.06 * relevance
+                + 0.06 * candidate.segment_coverage
+                + 0.04 * candidate.requirement_coverage
+            )
 
         if lane.variant:
             if lane.variant % 3 == 1:
@@ -294,6 +327,60 @@ class ResponseSeriesExecutor:
             candidates.append(candidate)
             if key:
                 by_reply[key] = candidate
+
+        # Under broad/high-pressure requests, make the synthesis budget concrete:
+        # compose complementary, non-teacher read-only candidates rather than
+        # merely choosing one of them. The synthesis is deterministic and does
+        # not invoke a hidden model or replay side effects.
+        if plan.active_lanes >= 32 and len(candidates) >= 3:
+            ranked_for_synthesis = sorted(
+                (
+                    (
+                        0.55 * c.confidence
+                        + 0.25 * float(c.verified)
+                        + 0.20 * _overlap(text, c.reply),
+                        c,
+                    )
+                    for c in candidates
+                    if c.reply and not c.needs_teacher
+                ),
+                key=lambda row: (-row[0], row[1].candidate_id),
+            )
+            components: list[ResponseCandidate] = []
+            component_limit = max(2, min(4, plan.synthesis_width // 4))
+            for _, candidate in ranked_for_synthesis:
+                if any(_overlap(candidate.reply, prior.reply) >= 0.72 for prior in components):
+                    continue
+                components.append(candidate)
+                if len(components) >= component_limit:
+                    break
+            if len(components) >= 2:
+                payload = {
+                    "ok": True,
+                    "reply": "\n\n".join(c.reply for c in components),
+                    "confidence": min(
+                        0.97,
+                        sum(c.confidence for c in components) / len(components) + 0.02,
+                    ),
+                    "verified": all(c.verified for c in components),
+                    "grounded": all(c.grounded for c in components),
+                    "local": True,
+                    "response_synthesis": True,
+                }
+                synthesis = self._candidate("synthesis", payload)
+                if synthesis is not None:
+                    synthesis.sources = [
+                        source
+                        for c in components
+                        for source in c.sources
+                        if source not in {"synthesis"}
+                    ]
+                    candidates.append(synthesis)
+
+        for candidate in candidates:
+            audit = self.auditor.audit(text, candidate.reply)
+            candidate.requirement_coverage = audit.requirement_coverage
+            candidate.segment_coverage = audit.segment_coverage
 
         weighted_votes = {c.candidate_id: 0.0 for c in candidates}
         lane_winners: list[dict[str, Any]] = []
@@ -409,6 +496,8 @@ class ResponseSeriesExecutor:
                     "verified": c.verified,
                     "grounded": c.grounded,
                     "needs_teacher": c.needs_teacher,
+                    "requirement_coverage": round(c.requirement_coverage, 4),
+                    "segment_coverage": round(c.segment_coverage, 4),
                     "weighted_votes": round(weighted_votes[c.candidate_id], 4),
                     "aggregate_score": round(candidate_scores[c.candidate_id], 5),
                 }
