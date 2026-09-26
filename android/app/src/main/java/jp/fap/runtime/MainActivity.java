@@ -71,7 +71,7 @@ public class MainActivity extends Activity {
     private TextView backTab;
 
     private PythonFapEngine.Result last;
-    private String logViewMode = "timeline";
+    private String logViewMode = "front";
     private boolean voiceLoop = false;
     private boolean resumeVoiceAfterGit = false;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -157,12 +157,7 @@ public class MainActivity extends Activity {
         refreshVoiceButton();
         refreshScreenTeachButtons();
         refreshProcessingButton();
-        setStatus(
-                voice.capabilitySummary()
-                        + " · "
-                        + agent.stateSummary()
-                        + " · "
-                        + GitRuntimeUpdater.currentState(this));
+        setStatus("準備完了");
     }
 
     private View buildHeader() {
@@ -182,15 +177,10 @@ public class MainActivity extends Activity {
         title.setTypeface(Typeface.DEFAULT_BOLD);
         top.addView(title, new LinearLayout.LayoutParams(0, dp(42), 1f));
 
-        TextView gitRefresh = iconButton("↻");
-        gitRefresh.setContentDescription("Git補足を更新");
-        gitRefresh.setOnClickListener(v -> {
-            agent.refreshGitContextAsync(true);
-            chatLog.appendBack("system", "git-context", "Git補足の手動更新を要求");
-            setStatus("Git補足を更新中…");
-            mainHandler.postDelayed(this::renderTimeline, 900);
-        });
-        top.addView(gitRefresh, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        TextView newChat = iconButton("＋");
+        newChat.setContentDescription("新しいチャット");
+        newChat.setOnClickListener(v -> startNewChat());
+        top.addView(newChat, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
         header.addView(top);
 
@@ -214,11 +204,10 @@ public class MainActivity extends Activity {
         tabs.setOrientation(LinearLayout.HORIZONTAL);
         tabs.setBackgroundColor(Color.WHITE);
 
-        timelineTab = tab("タイムライン", "timeline");
+        timelineTab = null;
         frontTab = tab("会話", "front");
-        backTab = tab("裏側", "back");
+        backTab = tab("実行ログ", "back");
 
-        tabs.addView(timelineTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
         tabs.addView(frontTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
         tabs.addView(backTab, new LinearLayout.LayoutParams(0, dp(48), 1f));
         refreshTabs();
@@ -248,15 +237,6 @@ public class MainActivity extends Activity {
         tools.setGravity(Gravity.CENTER_VERTICAL);
         tools.setPadding(dp(12), dp(5), dp(12), dp(5));
 
-        agentModeButton = chip("Agent");
-        agentModeButton.setOnClickListener(v -> {
-            agent.setAgentModeEnabled(!agent.isAgentModeEnabled());
-            refreshAgentModeButton();
-            renderTimeline();
-            setStatus(agent.stateSummary());
-        });
-        tools.addView(agentModeButton);
-
         voiceButton = chip("音声");
         voiceButton.setOnClickListener(v -> toggleVoiceLoop());
         tools.addView(voiceButton);
@@ -266,127 +246,196 @@ public class MainActivity extends Activity {
         webResearch.setOnClickListener(v -> startWebResearch());
         tools.addView(webResearch);
 
-        Button deep = chip("深考");
-        deep.setContentDescription("3段階の自己批判付き推論を実行");
+        Button deep = chip("深く考える");
+        deep.setContentDescription("自己批判付きの深い推論を実行");
         deep.setOnClickListener(v -> startDeepReasoning());
         tools.addView(deep);
+
+        screenShareButton = chip("画面共有");
+        screenShareButton.setOnClickListener(v -> toggleScreenShare());
+        tools.addView(screenShareButton);
 
         stopButton = chip("停止");
         stopButton.setContentDescription("現在の回答処理を停止");
         stopButton.setOnClickListener(v -> stopCurrentTurn());
         tools.addView(stopButton);
 
-        Button history = chip("履歴");
-        history.setContentDescription("保存したチャットを検索して開く");
-        history.setOnClickListener(v -> showConversationHistory());
-        tools.addView(history);
-
-        Button toolsButton = chip("ツール");
-        toolsButton.setContentDescription("FAPが現在使えるツールを表示");
-        toolsButton.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("FAP ツール")
-                .setMessage(FapToolRegistry.describe(this))
-                .setPositiveButton("閉じる", null)
-                .show());
-        tools.addView(toolsButton);
-
-        Button branchChat = chip("分岐");
-        branchChat.setContentDescription("現在の会話を分岐点として保存");
-        branchChat.setOnClickListener(v -> branchCurrentChat());
-        tools.addView(branchChat);
-
-        Button regenerate = chip("再生成");
-        regenerate.setContentDescription("直前のユーザー依頼へ別回答を生成");
-        regenerate.setOnClickListener(v -> regenerateLast());
-        tools.addView(regenerate);
-
-        Button copyAnswer = chip("コピー");
-        copyAnswer.setContentDescription("直前のFAP回答をコピー");
-        copyAnswer.setOnClickListener(v -> copyLastAnswer());
-        tools.addView(copyAnswer);
-
-        Button newChat = chip("新規");
-        newChat.setContentDescription("メモリを残して新しいチャットを開始");
-        newChat.setOnClickListener(v -> startNewChat());
-        tools.addView(newChat);
-
-        screenShareButton = chip("画面共有");
-        screenShareButton.setOnClickListener(v -> toggleScreenShare());
-        tools.addView(screenShareButton);
-
-        controlButton = chip("操作 OFF");
-        controlButton.setOnClickListener(v -> toggleDeviceControl());
-        tools.addView(controlButton);
-
-        Button browser = chip("Browser");
-        browser.setOnClickListener(v -> {
-            if (!PixelBrowserController.isAccessibilityEnabled(this)) {
-                PixelBrowserController.openAccessibilitySettings(this);
-                return;
-            }
-            String q = input.getText().toString().trim();
-            if (q.isEmpty()) {
-                Toast.makeText(this, "下の入力欄へ指示を入れてください", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (PixelBrowserController.askChatGpt(this, q)) {
-                chatLog.appendFront("user", "browser", q);
-                input.setText("");
-                renderTimeline();
-                setStatus("Browserへ送信しました");
-            }
-        });
-        tools.addView(browser);
-
-        Button browserSetup = chip("Browser設定");
-        browserSetup.setOnClickListener(v ->
-                PixelBrowserController.openAccessibilitySettings(this));
-        tools.addView(browserSetup);
-
-        gitUpdateButton = chip("Git更新");
-        gitUpdateButton.setOnClickListener(v -> startGitRuntimeUpdate());
-        tools.addView(gitUpdateButton);
-
-        Button gitContext = chip("Git補足");
-        gitContext.setOnClickListener(v -> {
-            agent.refreshGitContextAsync(true);
-            setStatus("Git main / manifestを確認中…");
-            mainHandler.postDelayed(this::renderTimeline, 900);
-        });
-        tools.addView(gitContext);
-
-        Button gitApk = chip("Git APK");
-        gitApk.setOnClickListener(v -> startGitApkUpdate());
-        tools.addView(gitApk);
-
-        gitRollbackButton = chip("前版へ");
-        gitRollbackButton.setOnClickListener(v -> startGitRollback());
-        tools.addView(gitRollbackButton);
-
-        Button verifyOk = chip("✓");
-        verifyOk.setContentDescription("直前の回答を検証OKとして記録");
-        verifyOk.setOnClickListener(v -> verify(true));
-        tools.addView(verifyOk);
-
-        Button verifyNg = chip("×");
-        verifyNg.setContentDescription("直前の回答を失敗として記録");
-        verifyNg.setOnClickListener(v -> verify(false));
-        tools.addView(verifyNg);
-
-        Button clear = chip("全消去");
-        clear.setOnClickListener(v -> {
-            engine.clear();
-            chatLog.clear();
-            agent.resetDurableState();
-            renderTimeline();
-            setStatus("会話履歴とローカル学習メモリを消去しました");
-        });
-        tools.addView(clear);
+        Button more = chip("その他");
+        more.setContentDescription("履歴、再生成、端末操作、Git更新など");
+        more.setOnClickListener(v -> showMoreActions());
+        tools.addView(more);
 
         scroll.addView(tools, new HorizontalScrollView.LayoutParams(
                 HorizontalScrollView.LayoutParams.WRAP_CONTENT,
                 HorizontalScrollView.LayoutParams.MATCH_PARENT));
         return scroll;
+    }
+
+    private void showMoreActions() {
+        String agentLabel = agent.isAgentModeEnabled() ? "AgentをOFF" : "AgentをON";
+        String controlLabel = ScreenTeachController.isControlEnabled(this)
+                ? "端末操作をOFF"
+                : "端末操作をON";
+
+        String[] items = {
+                "履歴を検索",
+                "新しいチャット",
+                "会話を分岐",
+                "直前の回答を再生成",
+                "直前の回答をコピー",
+                agentLabel,
+                controlLabel,
+                "利用可能なツール",
+                "Browserへ直接送る",
+                "Browser設定",
+                "Gitランタイム更新",
+                "Git補足を更新",
+                "Git APK更新",
+                "前版へ戻す",
+                "直前の回答を検証OK",
+                "直前の回答を失敗として記録",
+                "すべてのログを表示",
+                "技術状態を表示",
+                "会話とローカル学習を全消去"
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle("その他")
+                .setItems(items, (dialog, which) -> {
+                    switch (which) {
+                        case 0:
+                            showConversationHistory();
+                            break;
+                        case 1:
+                            startNewChat();
+                            break;
+                        case 2:
+                            branchCurrentChat();
+                            break;
+                        case 3:
+                            regenerateLast();
+                            break;
+                        case 4:
+                            copyLastAnswer();
+                            break;
+                        case 5:
+                            agent.setAgentModeEnabled(!agent.isAgentModeEnabled());
+                            refreshAgentModeButton();
+                            renderTimeline();
+                            setStatus(agent.stateSummary());
+                            break;
+                        case 6:
+                            toggleDeviceControl();
+                            break;
+                        case 7:
+                            new AlertDialog.Builder(this)
+                                    .setTitle("FAP ツール")
+                                    .setMessage(FapToolRegistry.describe(this))
+                                    .setPositiveButton("閉じる", null)
+                                    .show();
+                            break;
+                        case 8:
+                            sendToBrowserDirect();
+                            break;
+                        case 9:
+                            PixelBrowserController.openAccessibilitySettings(this);
+                            break;
+                        case 10:
+                            startGitRuntimeUpdate();
+                            break;
+                        case 11:
+                            agent.refreshGitContextAsync(true);
+                            chatLog.appendBack(
+                                    "system",
+                                    "git-context",
+                                    "Git補足の手動更新を要求");
+                            setStatus("Git補足を更新中…");
+                            mainHandler.postDelayed(this::renderTimeline, 900);
+                            break;
+                        case 12:
+                            startGitApkUpdate();
+                            break;
+                        case 13:
+                            startGitRollback();
+                            break;
+                        case 14:
+                            verify(true);
+                            break;
+                        case 15:
+                            verify(false);
+                            break;
+                        case 16:
+                            logViewMode = "timeline";
+                            refreshTabs();
+                            renderTimeline();
+                            setStatus("会話と実行ログをまとめて表示");
+                            break;
+                        case 17:
+                            showTechnicalStatus();
+                            break;
+                        case 18:
+                            confirmClearAll();
+                            break;
+                        default:
+                            break;
+                    }
+                })
+                .setNegativeButton("閉じる", null)
+                .show();
+    }
+
+    private void sendToBrowserDirect() {
+        if (!PixelBrowserController.isAccessibilityEnabled(this)) {
+            PixelBrowserController.openAccessibilitySettings(this);
+            setStatus("先にFAP Pixel Browser Controlを有効にしてください");
+            return;
+        }
+        String q = input == null ? "" : input.getText().toString().trim();
+        if (q.isEmpty()) {
+            Toast.makeText(this, "送る内容を入力してください", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (PixelBrowserController.askChatGpt(this, q)) {
+            chatLog.appendFront("user", "browser", q);
+            input.setText("");
+            renderTimeline();
+            setStatus("Browserへ送信しました");
+        }
+    }
+
+    private void showTechnicalStatus() {
+        String message =
+                engine.status()
+                        + "\n"
+                        + agent.stateSummary()
+                        + "\n"
+                        + GitRuntimeUpdater.currentState(this)
+                        + "\n"
+                        + ScreenTeachController.summary(this)
+                        + "\n"
+                        + voice.capabilitySummary();
+        new AlertDialog.Builder(this)
+                .setTitle("技術状態")
+                .setMessage(message)
+                .setPositiveButton("閉じる", null)
+                .show();
+    }
+
+    private void confirmClearAll() {
+        new AlertDialog.Builder(this)
+                .setTitle("全消去しますか？")
+                .setMessage("会話履歴とローカル学習メモリを削除します。")
+                .setNegativeButton("キャンセル", null)
+                .setPositiveButton("全消去", (dialog, which) -> {
+                    engine.clear();
+                    chatLog.clear();
+                    agent.resetDurableState();
+                    logViewMode = "front";
+                    refreshTabs();
+                    renderTimeline();
+                    setStatus("会話履歴とローカル学習メモリを消去しました");
+                })
+                .show();
     }
 
     private View buildComposer() {
@@ -741,7 +790,8 @@ public class MainActivity extends Activity {
     private void refreshProcessingButton() {
         if (stopButton == null || agent == null) return;
         boolean active = agent.isProcessing();
-        styleChip(stopButton, active ? "停止 ●" : "停止", active);
+        stopButton.setVisibility(active ? View.VISIBLE : View.GONE);
+        styleChip(stopButton, "停止", active);
     }
 
     private void openFilePicker() {
@@ -902,10 +952,10 @@ public class MainActivity extends Activity {
     }
 
     private void startGitRuntimeUpdate() {
-        if (gitUpdateButton == null || !gitUpdateButton.isEnabled()) return;
+        if (gitUpdateButton != null && !gitUpdateButton.isEnabled()) return;
         pauseVoiceForGitOperation();
-        gitUpdateButton.setEnabled(false);
-        gitRollbackButton.setEnabled(false);
+        if (gitUpdateButton != null) gitUpdateButton.setEnabled(false);
+        if (gitRollbackButton != null) gitRollbackButton.setEnabled(false);
         chatLog.appendBack(
                 "system",
                 "git-ota",
@@ -937,10 +987,10 @@ public class MainActivity extends Activity {
     }
 
     private void startGitRollback() {
-        if (gitRollbackButton == null || !gitRollbackButton.isEnabled()) return;
+        if (gitRollbackButton != null && !gitRollbackButton.isEnabled()) return;
         pauseVoiceForGitOperation();
-        gitUpdateButton.setEnabled(false);
-        gitRollbackButton.setEnabled(false);
+        if (gitUpdateButton != null) gitUpdateButton.setEnabled(false);
+        if (gitRollbackButton != null) gitRollbackButton.setEnabled(false);
         chatLog.appendBack("system", "git-ota", "前版へのロールバックを開始");
         renderTimeline();
 
