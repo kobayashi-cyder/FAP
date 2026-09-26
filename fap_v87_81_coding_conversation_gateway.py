@@ -130,7 +130,7 @@ class FAPV8781Unified(v80.FAPV8780Unified):
             "executed-response-lane-voting",
             "verified-specialist-answer-takeover",
             "read-only-specialist-redundancy",
-            "response-specialists:11-readonly",
+            "response-specialists:16-readonly",
             "response-coverage-auditors",
             "deterministic-complementary-synthesis",
         ]:
@@ -165,13 +165,13 @@ class FAPV8781Unified(v80.FAPV8780Unified):
                     "verified_specialist_can_replace_weak_primary": True,
                     "safe_specialists": list(self.response_series.SAFE_SPECIALISTS),
                     "coverage_auditors": ["requirements", "segments"],
-                    "specialist_classes": ["factual", "arithmetic", "reflection", "causal", "rules", "code_plan", "linear_equation", "physics_numeric", "python_static", "contradiction", "derivation"],
+                    "specialist_classes": ["factual", "arithmetic", "reflection", "causal", "rules", "code_plan", "linear_equation", "physics_numeric", "python_static", "contradiction", "multi_step_math", "python_repair", "causal_graph", "counterexample_search", "longform_contradiction", "derivation"],
                     "deterministic_complementary_synthesis": True,
                     "side_effecting_specialists_redundantly_executed": False,
                     "partial_coverage_allowed": True,
                     "coverage_target_range": [0.55, 0.90],
                     "topic_specific_branches": False,
-                    "native_parity_revision": "1.0.01-cpp-native-r007",
+                    "native_parity_revision": "1.0.01-cpp-native-r008",
                 },
             }
         )
@@ -220,7 +220,7 @@ def main():
     print("FAP V87.81 CODING + CONVERSATION CONSOLIDATION")
     print(f"UI: http://{base.HOST}:{base.PORT}/")
     print("Response series expand adaptively up to 128 lanes and every planned lane votes.")
-    print("Eleven read-only specialists can vote, verify, diagnose, synthesize, and replace a weak primary answer.")
+    print("Sixteen read-only specialists can vote, explore, verify, diagnose, synthesize, and replace a weak primary answer.")
     print("Side-effecting artifact, repository-write and network endpoints are never redundantly replayed.")
     print("Synthesis committee expands up to 16 lanes; exhaustive coverage is not required.")
     print("FCA: optional, not required.")
