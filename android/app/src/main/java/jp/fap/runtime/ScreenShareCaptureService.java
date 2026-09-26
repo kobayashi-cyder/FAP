@@ -99,7 +99,11 @@ public final class ScreenShareCaptureService extends Service {
     }
 
     private void startProjection(int resultCode, Intent resultData) {
-        stopCapture();
+        // Keep the mediaProjection foreground-service type active while replacing
+        // an older projection. Calling stopForeground here would make Android
+        // 14+ reject getMediaProjection even though user consent was granted.
+        ScreenTeachController.markSharing(this, false);
+        cleanupProjectionOnly();
 
         MediaProjectionManager manager =
                 (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
