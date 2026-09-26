@@ -268,6 +268,67 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
         }
     }
 
+    public static boolean dispatchText(String value, boolean append) {
+        PixelBrowserAccessibilityService service = activeInstance;
+        if (service == null || value == null) return false;
+        try {
+            AccessibilityNodeInfo root = service.getRootInActiveWindow();
+            if (root == null) return false;
+
+            AccessibilityNodeInfo editor = findFocusedEditor(root);
+            if (editor == null) editor = findBestEditor(root);
+            if (editor == null) return false;
+
+            String next = append ? safe(editor.getText()) + value : value;
+            return setText(editor, next);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    public static boolean dispatchImeEnter() {
+        PixelBrowserAccessibilityService service = activeInstance;
+        if (service == null) return false;
+        try {
+            AccessibilityNodeInfo root = service.getRootInActiveWindow();
+            if (root == null) return false;
+
+            AccessibilityNodeInfo editor = findFocusedEditor(root);
+            if (editor == null) editor = findBestEditor(root);
+            if (editor == null) return false;
+
+            if (Build.VERSION.SDK_INT >= 30) {
+                return editor.performAction(
+                        AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.getId());
+            }
+            return false;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static AccessibilityNodeInfo findFocusedEditor(AccessibilityNodeInfo root) {
+        if (root == null) return null;
+        try {
+            AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if (focused != null
+                    && (focused.isEditable()
+                        || hasAction(focused, AccessibilityNodeInfo.ACTION_SET_TEXT))) {
+                return focused;
+            }
+        } catch (Throwable ignored) {
+        }
+
+        for (AccessibilityNodeInfo node : flatten(root, 900)) {
+            if (node == null || !node.isFocused()) continue;
+            if (node.isEditable()
+                    || hasAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                return node;
+            }
+        }
+        return null;
+    }
+
     private void fail(String message) {
         PixelBrowserController.prefs(this).edit()
                 .putString(PixelBrowserController.KEY_STATE, PixelBrowserController.STATE_ERROR)

@@ -62,6 +62,29 @@ public final class DeviceGestureController {
         return accepted;
     }
 
+    public static boolean typeText(Context context, String value, boolean append) {
+        if (!ready(context) || value == null) return false;
+        String text = value.length() > 12000 ? value.substring(0, 12000) : value;
+        boolean accepted = PixelBrowserAccessibilityService.dispatchText(text, append);
+        ScreenTeachController.recordTextAction(
+                context,
+                append ? "append_text" : "set_text",
+                text.length(),
+                accepted);
+        return accepted;
+    }
+
+    public static boolean pressEnter(Context context) {
+        if (!ready(context)) return false;
+        boolean accepted = PixelBrowserAccessibilityService.dispatchImeEnter();
+        ScreenTeachController.recordTextAction(
+                context,
+                "ime_enter",
+                0,
+                accepted);
+        return accepted;
+    }
+
     public static boolean tapNormalized(Context context, float nx, float ny) {
         DisplayMetrics m = context.getResources().getDisplayMetrics();
         return tap(
@@ -91,6 +114,35 @@ public final class DeviceGestureController {
         String text = input == null ? "" : input.trim();
         if (!text.startsWith("/")) {
             return new CommandResult(false, false, "");
+        }
+
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (lower.equals("/enter")) {
+            boolean accepted = pressEnter(context);
+            return new CommandResult(
+                    true,
+                    accepted,
+                    accepted ? "enter accepted" : failureMessage(context));
+        }
+        if (lower.startsWith("/type ")) {
+            String value = text.substring(text.indexOf(' ') + 1);
+            boolean accepted = typeText(context, value, false);
+            return new CommandResult(
+                    true,
+                    accepted,
+                    accepted
+                            ? "text accepted · chars=" + value.length()
+                            : failureMessage(context));
+        }
+        if (lower.startsWith("/append ")) {
+            String value = text.substring(text.indexOf(' ') + 1);
+            boolean accepted = typeText(context, value, true);
+            return new CommandResult(
+                    true,
+                    accepted,
+                    accepted
+                            ? "append accepted · chars=" + value.length()
+                            : failureMessage(context));
         }
 
         String[] parts = text.split("\\s+");

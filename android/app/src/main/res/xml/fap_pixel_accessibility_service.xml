@@ -6,4 +6,4 @@
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:notificationTimeout="120"
-    android:packageNames="com.android.chrome" />
+    />
