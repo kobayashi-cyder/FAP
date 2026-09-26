@@ -1,0 +1,12 @@
+{
+  "schema": "fap.pixel.apk.manifest.v1",
+  "available": false,
+  "package_name": "jp.fap.runtime",
+  "version_code": 10001,
+  "version_name": "1.0.01-pixel",
+  "apk_url": "",
+  "sha256": "",
+  "signer_sha256": "",
+  "bytes": 0,
+  "note": "Set available=true only after a signed Pixel APK is uploaded to a GitHub HTTPS URL and all integrity fields are populated."
+}
