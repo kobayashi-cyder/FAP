@@ -333,9 +333,15 @@ def clear() -> str:
 def _status_payload() -> dict:
     endpoint_count = 0
     memory_on = False
+    governor_contract = ""
+    max_reasoning_passes = 0
     try:
         endpoint_count = len(_runtime.fabric.endpoint_ids) if _runtime is not None else 0
         memory_on = bool(_runtime is not None and _runtime.memory is not None)
+        runtime_status = _runtime.status() if _runtime is not None else {}
+        intelligence = runtime_status.get("response_intelligence") or {}
+        governor_contract = str(intelligence.get("governor_contract") or "")
+        max_reasoning_passes = int(intelligence.get("max_escalation_passes") or 0) + 1
     except Exception:
         pass
 
@@ -353,6 +359,8 @@ def _status_payload() -> dict:
         "runtime_commit": _runtime_commit,
         "runtime_root": str(_runtime_root),
         "verified": _verified_count,
+        "reasoning_governor": governor_contract,
+        "max_reasoning_passes": max_reasoning_passes,
         "pixel_browser": True,
         "git_ota": True,
     }
