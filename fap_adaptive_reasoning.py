@@ -76,7 +76,7 @@ class AdaptiveReasoningGovernor:
     """
 
     CONTRACT = "fap.reasoning.governor.v1"
-    MAX_ESCALATION_PASSES = 2
+    MAX_ESCALATION_PASSES = 3
 
     @staticmethod
     def _selected_row(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -252,13 +252,14 @@ class AdaptiveReasoningGovernor:
             reasons=tuple(reasons),
         )
 
-    @staticmethod
+    @classmethod
     def escalation_plan_kwargs(
+        cls,
         assessment: ReasoningAssessment,
         pass_index: int,
     ) -> dict[str, Any]:
         level = max(1, min(2, int(assessment.escalation_level)))
-        pass_index = max(1, min(2, int(pass_index)))
+        pass_index = max(1, min(cls.MAX_ESCALATION_PASSES, int(pass_index)))
         force = level >= 2 or pass_index >= 2
         return {
             "uncertainty": max(
