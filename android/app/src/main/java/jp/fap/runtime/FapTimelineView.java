@@ -1,9 +1,12 @@
 package jp.fap.runtime;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.text.Html;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
@@ -12,14 +15,29 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 
+/**
+ * Conversation-first renderer.
+ *
+ * Normal user/assistant turns intentionally hide transport, channel, confidence,
+ * handle and other runtime metadata. Those details remain preserved in the
+ * durable log and are visible through the diagnostics views.
+ */
 public final class FapTimelineView extends ScrollView {
+    private static final int TEXT = Color.rgb(28, 28, 30);
+    private static final int MUTED = Color.rgb(99, 99, 102);
+    private static final int BORDER = Color.rgb(229, 229, 234);
+    private static final int USER_BUBBLE = Color.rgb(242, 242, 247);
+    private static final int LOG_BG = Color.rgb(248, 248, 250);
+
     private final LinearLayout feed;
 
     public FapTimelineView(Context context) {
@@ -30,6 +48,7 @@ public final class FapTimelineView extends ScrollView {
 
         feed = new LinearLayout(context);
         feed.setOrientation(LinearLayout.VERTICAL);
+        feed.setPadding(0, dp(4), 0, dp(8));
         feed.setBackgroundColor(Color.WHITE);
         addView(feed, new ScrollView.LayoutParams(
                 LayoutParams.MATCH_PARENT,
@@ -40,11 +59,11 @@ public final class FapTimelineView extends ScrollView {
         feed.removeAllViews();
         if (entries == null || entries.isEmpty()) {
             TextView empty = new TextView(getContext());
-            empty.setText("まだ投稿はありません。");
-            empty.setTextSize(16f);
-            empty.setTextColor(Color.rgb(83, 100, 113));
+            empty.setText("メッセージを送ると、ここに会話が表示されます。");
+            empty.setTextSize(15f);
+            empty.setTextColor(MUTED);
             empty.setGravity(Gravity.CENTER);
-            empty.setPadding(dp(24), dp(72), dp(24), dp(72));
+            empty.setPadding(dp(28), dp(88), dp(28), dp(88));
             feed.addView(empty, new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT,
                     LayoutParams.WRAP_CONTENT));
@@ -52,111 +71,99 @@ public final class FapTimelineView extends ScrollView {
         }
 
         for (ChatLogStore.Entry entry : entries) {
-            feed.addView(post(entry), new LinearLayout.LayoutParams(
+            View row = ChatLogStore.SURFACE_BACK.equals(entry.surface)
+                    ? technicalPost(entry)
+                    : conversationPost(entry);
+            feed.addView(row, new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT,
                     LayoutParams.WRAP_CONTENT));
         }
         post(() -> fullScroll(FOCUS_DOWN));
     }
 
-    private View post(ChatLogStore.Entry entry) {
-        LinearLayout outer = new LinearLayout(getContext());
-        outer.setOrientation(LinearLayout.HORIZONTAL);
-        outer.setPadding(dp(14), dp(12), dp(14), dp(12));
-        outer.setBackgroundColor(
-                ChatLogStore.SURFACE_BACK.equals(entry.surface)
-                        ? Color.rgb(247, 249, 249)
-                        : Color.WHITE);
+    private View conversationPost(ChatLogStore.Entry entry) {
+        boolean user = "user".equals(entry.role);
 
-        TextView avatar = new TextView(getContext());
-        avatar.setText(avatarText(entry));
-        avatar.setGravity(Gravity.CENTER);
-        avatar.setTextSize(16f);
-        avatar.setTypeface(Typeface.DEFAULT_BOLD);
-        avatar.setTextColor(avatarTextColor(entry));
-        avatar.setBackground(circle(avatarBackground(entry)));
-        LinearLayout.LayoutParams avatarParams = new LinearLayout.LayoutParams(dp(42), dp(42));
-        avatarParams.setMargins(0, 0, dp(10), 0);
-        outer.addView(avatar, avatarParams);
+        LinearLayout wrapper = new LinearLayout(getContext());
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.setPadding(dp(14), dp(9), dp(14), dp(9));
+        wrapper.setGravity(user ? Gravity.END : Gravity.START);
 
-        LinearLayout body = new LinearLayout(getContext());
-        body.setOrientation(LinearLayout.VERTICAL);
-        outer.addView(body, new LinearLayout.LayoutParams(
-                0,
-                LayoutParams.WRAP_CONTENT,
-                1f));
+        if (!user) {
+            TextView name = new TextView(getContext());
+            name.setText("FAP");
+            name.setTextSize(13f);
+            name.setTypeface(Typeface.DEFAULT_BOLD);
+            name.setTextColor(MUTED);
+            name.setPadding(dp(2), 0, 0, dp(5));
+            wrapper.addView(name);
+        }
 
-        LinearLayout meta = new LinearLayout(getContext());
-        meta.setOrientation(LinearLayout.HORIZONTAL);
-        meta.setGravity(Gravity.CENTER_VERTICAL);
+        TextView text = new TextView(getContext());
+        text.setText(renderMarkdown(entry.text));
+        text.setTextSize(16f);
+        text.setTextColor(TEXT);
+        text.setLineSpacing(0f, 1.10f);
+        text.setTextIsSelectable(true);
+        text.setLinksClickable(true);
+        text.setMovementMethod(LinkMovementMethod.getInstance());
+        Linkify.addLinks(text, Linkify.WEB_URLS);
+        text.setPadding(
+                user ? dp(14) : dp(2),
+                user ? dp(10) : dp(4),
+                user ? dp(14) : dp(2),
+                user ? dp(10) : dp(6));
+        text.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.88f));
+        if (user) {
+            text.setBackground(roundRect(USER_BUBBLE, 18, 0, 0));
+        }
+        installCopyAction(text, entry.text);
 
-        TextView name = new TextView(getContext());
-        name.setText(actorName(entry));
-        name.setTextSize(15f);
-        name.setTextColor(Color.rgb(15, 20, 25));
-        name.setTypeface(Typeface.DEFAULT_BOLD);
-        name.setSingleLine(true);
-        meta.addView(name, new LinearLayout.LayoutParams(
+        wrapper.addView(text, new LinearLayout.LayoutParams(
                 LayoutParams.WRAP_CONTENT,
                 LayoutParams.WRAP_CONTENT));
 
-        TextView handle = new TextView(getContext());
-        handle.setText("  " + actorHandle(entry) + " · " + relativeTime(entry.timestampMs));
-        handle.setTextSize(13f);
-        handle.setTextColor(Color.rgb(83, 100, 113));
-        handle.setSingleLine(true);
-        handle.setEllipsize(TextUtils.TruncateAt.END);
-        meta.addView(handle, new LinearLayout.LayoutParams(
-                0,
-                LayoutParams.WRAP_CONTENT,
-                1f));
-
-        if (ChatLogStore.SURFACE_BACK.equals(entry.surface)) {
-            TextView back = new TextView(getContext());
-            back.setText(" 裏 ");
-            back.setTextSize(11f);
-            back.setTextColor(Color.rgb(83, 100, 113));
-            back.setGravity(Gravity.CENTER);
-            GradientDrawable badge = new GradientDrawable();
-            badge.setColor(Color.rgb(239, 243, 244));
-            badge.setCornerRadius(dp(999));
-            back.setBackground(badge);
-            meta.addView(back, new LinearLayout.LayoutParams(
-                    LayoutParams.WRAP_CONTENT,
-                    dp(24)));
+        if (!user) {
+            TextView hint = new TextView(getContext());
+            hint.setText("長押しでコピー");
+            hint.setTextSize(10f);
+            hint.setTextColor(Color.rgb(142, 142, 147));
+            hint.setPadding(dp(2), 0, 0, 0);
+            wrapper.addView(hint);
         }
 
-        body.addView(meta);
+        return wrapper;
+    }
+
+    private View technicalPost(ChatLogStore.Entry entry) {
+        LinearLayout wrapper = new LinearLayout(getContext());
+        wrapper.setOrientation(LinearLayout.VERTICAL);
+        wrapper.setPadding(dp(14), dp(7), dp(14), dp(7));
+        wrapper.setBackgroundColor(LOG_BG);
+
+        TextView meta = new TextView(getContext());
+        meta.setText(actorName(entry) + " · " + relativeTime(entry.timestampMs)
+                + " · " + entry.channel + " · #" + entry.id);
+        meta.setTextSize(11f);
+        meta.setTextColor(MUTED);
+        meta.setSingleLine(true);
+        meta.setEllipsize(TextUtils.TruncateAt.END);
+        wrapper.addView(meta);
 
         TextView text = new TextView(getContext());
         text.setText(entry.text);
-        text.setTextSize(16f);
-        text.setTextColor(Color.rgb(15, 20, 25));
-        text.setLineSpacing(0f, 1.08f);
+        text.setTextSize(13f);
+        text.setTextColor(TEXT);
         text.setTextIsSelectable(true);
         text.setAutoLinkMask(Linkify.WEB_URLS);
         text.setLinksClickable(true);
         text.setMovementMethod(LinkMovementMethod.getInstance());
-        text.setPadding(0, dp(4), 0, dp(8));
-        body.addView(text, new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                LayoutParams.WRAP_CONTENT));
-
-        TextView channel = new TextView(getContext());
-        channel.setText(channelLabel(entry));
-        channel.setTextSize(11f);
-        channel.setTextColor(Color.rgb(83, 100, 113));
-        channel.setSingleLine(true);
-        body.addView(channel);
-
-        LinearLayout wrapper = new LinearLayout(getContext());
-        wrapper.setOrientation(LinearLayout.VERTICAL);
-        wrapper.addView(outer, new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                LayoutParams.WRAP_CONTENT));
+        text.setPadding(0, dp(3), 0, dp(5));
+        installCopyAction(text, entry.text);
+        wrapper.addView(text);
 
         View divider = new View(getContext());
-        divider.setBackgroundColor(Color.rgb(239, 243, 244));
+        divider.setBackgroundColor(BORDER);
         wrapper.addView(divider, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 dp(1)));
@@ -164,61 +171,47 @@ public final class FapTimelineView extends ScrollView {
         return wrapper;
     }
 
+    private CharSequence renderMarkdown(String raw) {
+        String value = raw == null ? "" : raw;
+        String html = TextUtils.htmlEncode(value);
+
+        html = Pattern.compile("(?s)```(?:[A-Za-z0-9_+.-]+)?\\n(.*?)```")
+                .matcher(html)
+                .replaceAll("<tt>$1</tt>");
+        html = html.replaceAll("(?m)^###\\s+(.+)$", "<b>$1</b>");
+        html = html.replaceAll("(?m)^##\\s+(.+)$", "<b>$1</b>");
+        html = html.replaceAll("(?m)^#\\s+(.+)$", "<b>$1</b>");
+        html = html.replaceAll("\\*\\*(.+?)\\*\\*", "<b>$1</b>");
+        html = html.replaceAll("`([^`\\n]+)`", "<tt>$1</tt>");
+        html = html.replaceAll("(?m)^\\s*[-*]\\s+", "• ");
+        html = html.replace("\n", "<br>");
+
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            return Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY);
+        }
+        //noinspection deprecation
+        return Html.fromHtml(html);
+    }
+
+    private void installCopyAction(TextView view, String raw) {
+        view.setOnLongClickListener(v -> {
+            ClipboardManager clipboard =
+                    (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard == null) return false;
+            clipboard.setPrimaryClip(
+                    ClipData.newPlainText("FAP message", raw == null ? "" : raw));
+            Toast.makeText(getContext(), "コピーしました", Toast.LENGTH_SHORT).show();
+            return true;
+        });
+    }
+
     private String actorName(ChatLogStore.Entry entry) {
         String c = entry.channel == null ? "" : entry.channel;
-        if ("user".equals(entry.role)) return "あなた";
-        if ("assistant".equals(entry.role)) return "FAP";
         if (c.startsWith("git")) return "Git";
-        if (c.startsWith("browser")) return "Browser";
+        if (c.startsWith("browser") || c.startsWith("web")) return "Web";
         if (c.startsWith("voice")) return "Voice";
-        if (c.startsWith("agent")) return "FAP Agent";
-        return "FAP System";
-    }
-
-    private String actorHandle(ChatLogStore.Entry entry) {
-        String c = entry.channel == null ? "" : entry.channel;
-        if ("user".equals(entry.role)) return "@you";
-        if ("assistant".equals(entry.role)) return "@fap";
-        if (c.startsWith("git")) return "@git";
-        if (c.startsWith("browser")) return "@browser";
-        if (c.startsWith("voice")) return "@voice";
-        if (c.startsWith("agent")) return "@agent";
-        return "@system";
-    }
-
-    private String avatarText(ChatLogStore.Entry entry) {
-        String name = actorName(entry);
-        if ("あなた".equals(name)) return "あ";
-        if ("FAP".equals(name)) return "F";
-        if ("Git".equals(name)) return "G";
-        if ("Browser".equals(name)) return "B";
-        if ("Voice".equals(name)) return "V";
-        if ("FAP Agent".equals(name)) return "A";
-        return "S";
-    }
-
-    private int avatarBackground(ChatLogStore.Entry entry) {
-        String name = actorName(entry);
-        if ("FAP".equals(name)) return Color.BLACK;
-        if ("Git".equals(name)) return Color.rgb(36, 41, 47);
-        if ("Browser".equals(name)) return Color.rgb(29, 155, 240);
-        if ("FAP Agent".equals(name)) return Color.rgb(239, 243, 244);
-        if ("Voice".equals(name)) return Color.rgb(224, 247, 250);
-        return Color.rgb(239, 243, 244);
-    }
-
-    private int avatarTextColor(ChatLogStore.Entry entry) {
-        String name = actorName(entry);
-        if ("FAP".equals(name) || "Git".equals(name) || "Browser".equals(name)) {
-            return Color.WHITE;
-        }
-        return Color.rgb(15, 20, 25);
-    }
-
-    private String channelLabel(ChatLogStore.Entry entry) {
-        String c = entry.channel == null ? "unknown" : entry.channel;
-        String surface = ChatLogStore.SURFACE_BACK.equals(entry.surface) ? "裏側" : "会話";
-        return surface + " · " + c + " · #" + entry.id;
+        if (c.startsWith("agent")) return "Agent";
+        return "System";
     }
 
     private String relativeTime(long timestampMs) {
@@ -236,10 +229,15 @@ public final class FapTimelineView extends ScrollView {
         return format.format(new Date(timestampMs));
     }
 
-    private GradientDrawable circle(int color) {
+    private GradientDrawable roundRect(
+            int fill,
+            int radiusDp,
+            int strokeColor,
+            int strokeDp) {
         GradientDrawable drawable = new GradientDrawable();
-        drawable.setShape(GradientDrawable.OVAL);
-        drawable.setColor(color);
+        drawable.setColor(fill);
+        drawable.setCornerRadius(dp(radiusDp));
+        if (strokeDp > 0) drawable.setStroke(dp(strokeDp), strokeColor);
         return drawable;
     }
 
