@@ -580,6 +580,15 @@ class ResponseSeriesExecutor:
             vote_advantage = weighted_votes[proposed.candidate_id] >= (
                 weighted_votes["primary"] * (0.95 if proposed.verified and not primary.verified else 1.08)
             )
+            complete_subproblem = bool(
+                compound_request
+                and proposed.payload.get("subproblem_reasoning")
+                and _clip(
+                    proposed.payload.get("subproblem_coverage", 0.0)
+                ) >= 0.999
+                and not proposed.needs_teacher
+                and proposed.confidence >= 0.62
+            )
             coverage_challenger = bool(
                 proposed.payload.get("subproblem_reasoning")
                 and proposed.segment_coverage
@@ -588,7 +597,7 @@ class ResponseSeriesExecutor:
                     >= primary.requirement_coverage
                 and proposed.confidence >= 0.62
             )
-            if (
+            if complete_subproblem or (
                 exact_task_verified
                 and not compound_request
                 and proposed.verified
