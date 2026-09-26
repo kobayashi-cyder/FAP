@@ -1,0 +1,23 @@
+# FAP 1.0.01 Pixel minimal source set
+/android/
+/android_packaging/sync_pixel_runtime.py
+/knowledge/
+/fap_1x_runtime.py
+/fap_1x_standard_runtime.py
+/fap_discourse_context.py
+/fap_dynamic_sparse_routing.py
+/fap_exponential_linear.py
+/fap_factual_qa.py
+/fap_generic_derivation.py
+/fap_generic_rule_reasoner.py
+/fap_interaction_fabric.py
+/fap_reflective_conversation.py
+/fap_response_explorers.py
+/fap_response_redundancy.py
+/fap_response_series_executor.py
+/fap_response_specialists.py
+/fap_response_specialists_extra.py
+/fap_semantic_conversation.py
+/fap_semantic_memory.py
+/fap_speech.py
+/.github/workflows/pixel-1-0-01-apk-verify.yml
