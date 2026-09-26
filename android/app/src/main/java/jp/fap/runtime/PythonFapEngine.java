@@ -84,6 +84,23 @@ public final class PythonFapEngine {
         statusText = fallback.status();
     }
 
+    public synchronized JSONObject validateRuntime(String rootPath) throws Exception {
+        if (bridge == null) {
+            throw new IllegalStateException("Python bridge is unavailable");
+        }
+        String raw = bridge.callAttr("validate_runtime", rootPath).toString();
+        return new JSONObject(raw);
+    }
+
+    public synchronized JSONObject reloadRuntime() throws Exception {
+        if (bridge == null) {
+            throw new IllegalStateException("Python bridge is unavailable");
+        }
+        JSONObject result = new JSONObject(bridge.callAttr("reload_runtime").toString());
+        statusText = result.optString("status", statusText);
+        return result;
+    }
+
     public String status() {
         if (bridge != null) {
             try {
