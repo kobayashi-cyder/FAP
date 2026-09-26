@@ -1,6 +1,10 @@
 name: Publish signed Pixel APK
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/fap-pixel-release-trigger.txt"
   workflow_dispatch:
     inputs:
       source_ref:
@@ -32,10 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      FAP_SOURCE_REF: ${{ inputs.source_ref }}
-      FAP_VERSION_CODE: ${{ inputs.version_code }}
-      FAP_VERSION_NAME: ${{ inputs.version_name }}
-      FAP_RELEASE_TAG: ${{ inputs.tag }}
+      FAP_SOURCE_REF: ${{ inputs.source_ref || 'side/1.0.01-pixel-screen-teach-20260926' }}
+      FAP_VERSION_CODE: ${{ inputs.version_code || '10002' }}
+      FAP_VERSION_NAME: ${{ inputs.version_name || '1.0.02-pixel' }}
+      FAP_RELEASE_TAG: ${{ inputs.tag || 'pixel-v1.0.02' }}
       FAP_KEYSTORE_B64: ${{ secrets.FAP_ANDROID_KEYSTORE_BASE64 }}
       FAP_SIGNING_STORE_PASSWORD: ${{ secrets.FAP_ANDROID_KEYSTORE_PASSWORD }}
       FAP_SIGNING_KEY_ALIAS: ${{ secrets.FAP_ANDROID_KEY_ALIAS }}
@@ -46,7 +50,7 @@ jobs:
       - name: Checkout selected Pixel source
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ env.FAP_SOURCE_REF }}
           fetch-depth: 1
 
       - name: Record selected source commit
