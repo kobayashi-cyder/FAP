@@ -221,7 +221,17 @@ class SemanticMemoryStore:
         state["entries"] = entries[: self.MAX_ENTRIES]
 
     def absorb_user(self, sid: str, text: str) -> dict[str, Any]:
-        explicit = bool(re.search(r"(覚えて|記憶して|今後.*覚え)", str(text or "")))
+        raw = str(text or "")
+        recall_question = bool(
+            re.search(
+                r"(?:覚えて(?:いる|る)|記憶して(?:いる|る)).{0,8}[?？]|"
+                r"(?:覚えて(?:いる|る)|記憶して(?:いる|る)).{0,8}(?:か|かな)$",
+                raw,
+            )
+        )
+        explicit = bool(
+            re.search(r"(覚えて|記憶して|今後.*覚え)", raw)
+        ) and not recall_question
         classified = []
         for sentence in self._sentences(text):
             category = self._classify_sentence(sentence, explicit_remember=explicit)
