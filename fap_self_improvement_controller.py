@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping, Protocol
 import urllib.error
 import urllib.request
 import webbrowser
@@ -47,6 +47,17 @@ class SelfImprovementRun:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+class ReasonerClient(Protocol):
+    def respond(
+        self,
+        prompt: str,
+        *,
+        web_search: bool = False,
+        reasoning_effort: str = "high",
+    ) -> Any:
+        ...
 
 
 class OpenAIResponsesClient:
@@ -192,7 +203,7 @@ class OpenAIRepositoryProposalProvider:
 
     def __init__(
         self,
-        client: OpenAIResponsesClient,
+        client: ReasonerClient,
         *,
         research_note: str = "",
         use_web_search: bool = True,
@@ -555,31 +566,74 @@ def _current_branch(root: Path) -> str:
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="FAP 1.0.01 bounded web-assisted self-improvement loop"
+        description="FAP 1.0.01 browser-first bounded self-improvement loop"
     )
     parser.add_argument("--repo", default=".")
     parser.add_argument("--goal", required=True)
     parser.add_argument("--branch", default="")
+    parser.add_argument(
+        "--backend",
+        choices=("browser", "api"),
+        default="browser",
+        help="browser drives real Chrome/ChatGPT UI; api is optional fallback",
+    )
     parser.add_argument("--model", default=os.getenv("FAP_OPENAI_MODEL", DEFAULT_MODEL))
     parser.add_argument("--preferred-path", action="append", default=[])
     parser.add_argument("--no-web-search", action="store_true")
     parser.add_argument("--open-chatgpt-ui", action="store_true")
+    parser.add_argument("--cdp-url", default=os.getenv("FAP_BROWSER_CDP_URL", ""))
+    parser.add_argument(
+        "--browser-profile",
+        default=os.getenv("FAP_BROWSER_PROFILE", ""),
+        help="persistent Chrome profile dedicated to FAP browser automation",
+    )
+    parser.add_argument(
+        "--browser-executable",
+        default=os.getenv("FAP_BROWSER_EXECUTABLE", ""),
+    )
+    parser.add_argument(
+        "--search-engine",
+        choices=("google", "duckduckgo"),
+        default=os.getenv("FAP_SEARCH_ENGINE", "google"),
+    )
+    parser.add_argument("--headless", action="store_true")
     return parser
+
+
+def _build_reasoner(args):
+    if args.backend == "api":
+        return OpenAIResponsesClient(model=args.model)
+
+    from fap_browser_operator import BrowserChatReasoner, BrowserSessionConfig
+
+    config = BrowserSessionConfig(
+        cdp_url=args.cdp_url.strip(),
+        user_data_dir=args.browser_profile.strip(),
+        executable_path=args.browser_executable.strip(),
+        headless=bool(args.headless),
+        search_engine=args.search_engine,
+    )
+    return BrowserChatReasoner(config=config)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     root = Path(args.repo).expanduser().resolve()
     branch = args.branch.strip() or _current_branch(root)
-    client = OpenAIResponsesClient(model=args.model)
-    controller = SelfImprovementController(root, client=client)
-    run = controller.run(
-        args.goal,
-        branch=branch,
-        preferred_paths=tuple(args.preferred_path),
-        enable_web_research=not args.no_web_search,
-        open_chatgpt_ui=args.open_chatgpt_ui,
-    )
+    client = _build_reasoner(args)
+    try:
+        controller = SelfImprovementController(root, client=client)
+        run = controller.run(
+            args.goal,
+            branch=branch,
+            preferred_paths=tuple(args.preferred_path),
+            enable_web_research=not args.no_web_search,
+            open_chatgpt_ui=(args.open_chatgpt_ui and args.backend == "api"),
+        )
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            close()
     print(json.dumps(run.to_dict(), ensure_ascii=False, indent=2))
     return 0 if run.state == "verified_candidate" else 2
 
