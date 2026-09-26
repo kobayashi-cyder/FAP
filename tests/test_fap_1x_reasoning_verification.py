@@ -36,6 +36,12 @@ class GenericLinearEquationSolverTests(unittest.TestCase):
         self.assertTrue(out["algebra_verified"])
         self.assertIn("x=5", out["reply"])
 
+    def test_find_prefix_does_not_truncate_coefficient_expression(self):
+        solver = GenericLinearEquationSolver()
+        out = solver.run("Find x: 4 * x + 3 = 23")
+        self.assertIsNotNone(out)
+        self.assertEqual(out["algebra_result"]["value"], "5")
+
     def test_solves_fractional_result(self):
         solver = GenericLinearEquationSolver()
         out = solver.run("Solve for y: 6y - 1 = 8")
