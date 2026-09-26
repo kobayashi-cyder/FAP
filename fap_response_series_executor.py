@@ -11,6 +11,7 @@ from fap_generic_derivation import GenericDerivationEngine
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_response_redundancy import ResponseLane, ResponseSeriesPlan
+from fap_subproblem_reasoner import SubproblemReasoner
 from fap_response_specialists import (
     CausalFrameSpecialist,
     CodePlanningSpecialist,
@@ -133,6 +134,7 @@ class ResponseSeriesExecutor:
         "counterexample_search",
         "longform_contradiction",
         "derivation",
+        "subproblem",
     )
 
     def __init__(self, root: Path):
@@ -153,6 +155,7 @@ class ResponseSeriesExecutor:
         self.causal_graph = CausalGraphExplorer()
         self.counterexample_search = CounterexampleConditionExplorer()
         self.longform_contradiction = LongFormContradictionExplorer()
+        self.subproblem = SubproblemReasoner(self.root)
         self.auditor = ResponseAuditor()
 
     @staticmethod
@@ -221,6 +224,8 @@ class ResponseSeriesExecutor:
             calls.append(("longform_contradiction", lambda: self.longform_contradiction.run(text, history)))
         if plan.active_lanes >= 18:
             calls.append(("derivation", lambda: self.derivation.run(text, history)))
+        if plan.active_lanes >= 16:
+            calls.append(("subproblem", lambda: self.subproblem.run(text, history)))
 
         out: list[tuple[str, Mapping[str, Any]]] = []
         diagnostics: list[dict[str, str]] = []
@@ -250,6 +255,9 @@ class ResponseSeriesExecutor:
             score += 0.10
         if candidate.payload.get("numeric_contradiction_verified"):
             score += 0.12
+        if candidate.payload.get("subproblem_reasoning"):
+            coverage = _clip(candidate.payload.get("subproblem_coverage", 0.0))
+            score += 0.08 + 0.12 * coverage
         if candidate.grounded:
             score += 0.08
         if candidate.primary:
@@ -502,6 +510,8 @@ class ResponseSeriesExecutor:
             for candidate in candidates
             if candidate.verified
             and candidate.confidence >= 0.95
+            and candidate.segment_coverage >= 0.78
+            and candidate.requirement_coverage >= 0.72
             and (
                 candidate.payload.get("linear_equation_verified")
                 or candidate.payload.get("physics_numeric_verified")
@@ -517,6 +527,35 @@ class ResponseSeriesExecutor:
                 )
             )
             proposed = exact_verified[0]
+
+        broad_candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.payload.get("subproblem_reasoning")
+            and candidate.segment_coverage >= 0.72
+            and candidate.requirement_coverage >= 0.68
+            and candidate.confidence >= 0.62
+        ]
+        if broad_candidates:
+            broad_candidates.sort(
+                key=lambda candidate: (
+                    -candidate.segment_coverage,
+                    -candidate.requirement_coverage,
+                    -candidate_scores.get(candidate.candidate_id, 0.0),
+                    -candidate.confidence,
+                    candidate.candidate_id,
+                )
+            )
+            broad = broad_candidates[0]
+            if (
+                broad.segment_coverage > proposed.segment_coverage + 0.10
+                or (
+                    broad.segment_coverage >= proposed.segment_coverage
+                    and broad.requirement_coverage
+                        > proposed.requirement_coverage + 0.10
+                )
+            ):
+                proposed = broad
 
         selected = primary
 
@@ -539,11 +578,23 @@ class ResponseSeriesExecutor:
             vote_advantage = weighted_votes[proposed.candidate_id] >= (
                 weighted_votes["primary"] * (0.95 if proposed.verified and not primary.verified else 1.08)
             )
+            coverage_challenger = bool(
+                proposed.payload.get("subproblem_reasoning")
+                and proposed.segment_coverage
+                    > primary.segment_coverage + 0.10
+                and proposed.requirement_coverage
+                    >= primary.requirement_coverage
+                and proposed.confidence >= 0.62
+            )
             if (
                 exact_task_verified
                 and proposed.verified
                 and proposed.confidence >= 0.95
-            ) or (weak_primary and proposed.confidence >= 0.65) or (
+                and proposed.segment_coverage >= 0.78
+                and proposed.requirement_coverage >= 0.72
+            ) or coverage_challenger or (
+                weak_primary and proposed.confidence >= 0.65
+            ) or (
                 quorum_met and strong_verified_challenger and vote_advantage
             ):
                 selected = proposed
