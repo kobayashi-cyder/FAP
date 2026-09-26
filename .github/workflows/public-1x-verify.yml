@@ -24,10 +24,10 @@ jobs:
       - name: Compile 1.x components
         run: |
           python -m py_compile fap_revision_r001.py fap_dynamic_sparse_routing.py fap_interaction_fabric.py fap_v1_0_01_sparse_benchmark.py
-          python -m py_compile fap_1x_runtime.py fap_1x_e2e_benchmark.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
+          python -m py_compile fap_1x_runtime.py fap_1x_e2e_benchmark.py fap_semantic_memory.py fap_audio_device.py fap_speech.py fap_speech_fluent.py fap_browser_operator.py fap_self_improvement_controller.py
       - name: Focused 1.x tests
         run: |
-          python -m unittest -v tests.test_fap_dynamic_sparse_routing tests.test_fap_interaction_fabric tests.test_fap_1x_runtime
+          python -m unittest -v tests.test_fap_dynamic_sparse_routing tests.test_fap_interaction_fabric tests.test_fap_1x_runtime tests.test_fap_semantic_memory
           python -m unittest -v tests.test_fap_audio_device tests.test_fap_speech tests.test_fap_speech_fluent
           python -m unittest -v tests.test_fap_browser_operator tests.test_fap_browser_runtime tests.test_fap_self_improvement_controller
       - name: Sparse routing mechanism benchmark
