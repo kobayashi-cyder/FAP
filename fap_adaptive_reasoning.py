@@ -176,6 +176,7 @@ class AdaptiveReasoningGovernor:
         freshness = bool(_FRESH.search(value))
         verification = bool(_VERIFY.search(value))
         numeric = bool(_NUMERIC.search(value))
+        prior_conflict = bool(data.get("prior_epistemic_conflict"))
 
         risk = 0.0
         risk += 0.28 * (1.0 - confidence)
@@ -187,6 +188,7 @@ class AdaptiveReasoningGovernor:
         risk += 0.06 * float(verification and not selected_verified)
         risk += 0.04 * float(numeric and not selected_verified)
         risk += 0.03 * float(freshness and not selected_grounded)
+        risk += 0.10 * float(prior_conflict)
         if dispatch_state != "handled":
             risk += 0.18
         risk = _clip(risk)
@@ -210,6 +212,8 @@ class AdaptiveReasoningGovernor:
             reasons.append("numeric_unverified")
         if freshness and not selected_grounded:
             reasons.append("freshness_without_grounding")
+        if prior_conflict:
+            reasons.append("prior_epistemic_conflict")
 
         if (
             selected_verified
@@ -217,10 +221,13 @@ class AdaptiveReasoningGovernor:
             and disagreement_count == 0
             and requirement_coverage >= 0.90
             and segment_coverage >= 0.90
+            and not prior_conflict
         ):
             escalation = 0
         elif risk >= 0.56 or needs_teacher or disagreement_count > 0:
             escalation = 2
+        elif prior_conflict:
+            escalation = 1
         elif (
             risk >= 0.32
             or complexity >= 0.48
