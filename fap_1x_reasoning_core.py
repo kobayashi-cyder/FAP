@@ -12,6 +12,8 @@ from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_hypothesis_engine import HYPOTHESIS_CUES, HypothesisEngine
 from fap_physics_solver_v2 import ExpandedPhysicsSolver
 from fap_scientific_reasoning import OptionConditionedScientificReasoner
+from fap_1x_candidate_verifier import IndependentCandidateVerifier
+from fap_1x_problem_decomposer import ProblemDecomposer
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,8 @@ class FAP1xGeneralReasoningCore:
         self.rules = GenericRuleReasoner(self.root)
         self.derivation = GenericDerivationEngine(self.root)
         self.hypotheses = HypothesisEngine(self.root)
+        self.decomposer = ProblemDecomposer()
+        self.verifier = IndependentCandidateVerifier(self.root)
 
     def plan(self, text: str) -> ReasoningPlan:
         query = str(text or "").strip()
@@ -290,6 +294,54 @@ class FAP1xGeneralReasoningCore:
 
         return out
 
+    def _verify_candidates(
+        self,
+        query: str,
+        history: list[Mapping[str, Any]],
+        candidates: list[ReasoningCandidate],
+    ) -> list[ReasoningCandidate]:
+        verified_rows: list[ReasoningCandidate] = []
+        for candidate in candidates:
+            report = self.verifier.verify(
+                candidate.source,
+                query,
+                history,
+                candidate.payload,
+            )
+            payload = dict(candidate.payload)
+            payload["independent_verification"] = report.to_dict()
+
+            verification = candidate.verification
+            confidence = candidate.confidence
+            if report.status == "failed":
+                verification = "rejected"
+                confidence = min(confidence, 0.10)
+            elif report.status == "passed":
+                if candidate.verification == "verified":
+                    verification = "verified"
+                    confidence = min(0.995, max(confidence, report.score))
+                elif candidate.verification == "supported":
+                    verification = "supported"
+                    confidence = min(0.95, max(confidence, report.score))
+            elif candidate.verification == "verified":
+                # A generator may claim verification, but if the independent
+                # verifier cannot reproduce it we conservatively downgrade it.
+                verification = "supported"
+                confidence = min(confidence, 0.70)
+
+            verified_rows.append(
+                ReasoningCandidate(
+                    source=candidate.source,
+                    reply=candidate.reply,
+                    confidence=confidence,
+                    verification=verification,
+                    payload=payload,
+                    answer_key=candidate.answer_key,
+                    evidence_count=candidate.evidence_count,
+                )
+            )
+        return verified_rows
+
     @staticmethod
     def _rank(candidate: ReasoningCandidate) -> tuple[int, float, int, str]:
         tier = {"verified": 3, "supported": 2, "provisional": 1}.get(
@@ -322,13 +374,16 @@ class FAP1xGeneralReasoningCore:
             return None
 
         plan = self.plan(query)
+        decomposition = self.decomposer.decompose(query)
         rows = self._history(history)
         if plan.task_form == "multiple_choice":
             candidates = self._mcq_candidates(query, rows)
         else:
             candidates = self._open_candidates(query, rows)
 
-        if not candidates:
+        candidates = self._verify_candidates(query, rows, candidates)
+
+        if not candidates or all(x.verification == "rejected" for x in candidates):
             if plan.task_form == "multiple_choice":
                 return {
                     "ok": True,
@@ -339,6 +394,8 @@ class FAP1xGeneralReasoningCore:
                     "needs_verification": True,
                     "reasoning_source": "fail_closed",
                     "reasoning_plan": plan.to_dict(),
+                    "problem_decomposition": decomposition.to_dict(),
+                    "verification_rounds": 1,
                     "candidate_count": 0,
                     "candidate_disagreement": False,
                     "alternatives": [],
@@ -350,6 +407,7 @@ class FAP1xGeneralReasoningCore:
                 }
             return None
 
+        candidates = [x for x in candidates if x.verification != "rejected"]
         candidates.sort(key=self._rank, reverse=True)
         disagreement = self._disagreement(candidates)
         verified = [x for x in candidates if x.verification == "verified"]
@@ -374,6 +432,8 @@ class FAP1xGeneralReasoningCore:
                 "confidence": 0.0,
                 "verification_state": "unresolved",
                 "reasoning_plan": plan.to_dict(),
+                "problem_decomposition": decomposition.to_dict(),
+                "verification_rounds": 1,
                 "candidate_count": len(candidates),
                 "candidate_disagreement": disagreement,
                 "candidates": [x.to_dict() for x in candidates[:8]],
@@ -393,6 +453,8 @@ class FAP1xGeneralReasoningCore:
             "verification_state": selected.verification,
             "reasoning_source": selected.source,
             "reasoning_plan": plan.to_dict(),
+            "problem_decomposition": decomposition.to_dict(),
+            "verification_rounds": 1,
             "candidate_count": len(candidates),
             "candidate_disagreement": disagreement,
             "alternatives": [
