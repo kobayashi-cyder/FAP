@@ -14,6 +14,7 @@ from fap_physics_solver_v2 import ExpandedPhysicsSolver
 from fap_scientific_reasoning import OptionConditionedScientificReasoner
 from fap_1x_candidate_verifier import IndependentCandidateVerifier
 from fap_1x_problem_decomposer import ProblemDecomposer
+from fap_1x_search_controller import AdaptiveSearchController
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,7 @@ class FAP1xGeneralReasoningCore:
         self.hypotheses = HypothesisEngine(self.root)
         self.decomposer = ProblemDecomposer()
         self.verifier = IndependentCandidateVerifier(self.root)
+        self.search_controller = AdaptiveSearchController()
 
     def plan(self, text: str) -> ReasoningPlan:
         query = str(text or "").strip()
@@ -342,6 +344,52 @@ class FAP1xGeneralReasoningCore:
             )
         return verified_rows
 
+    def _repeat_verified_checks(
+        self,
+        query: str,
+        history: list[Mapping[str, Any]],
+        candidates: list[ReasoningCandidate],
+    ) -> list[ReasoningCandidate]:
+        verifier = IndependentCandidateVerifier(self.root)
+        out: list[ReasoningCandidate] = []
+        for candidate in candidates:
+            if candidate.verification != "verified":
+                out.append(candidate)
+                continue
+            report = verifier.verify(
+                candidate.source,
+                query,
+                history,
+                candidate.payload,
+            )
+            payload = dict(candidate.payload)
+            payload["repeat_independent_verification"] = report.to_dict()
+            if report.status != "passed":
+                out.append(
+                    ReasoningCandidate(
+                        source=candidate.source,
+                        reply=candidate.reply,
+                        confidence=min(candidate.confidence, 0.20),
+                        verification="rejected",
+                        payload=payload,
+                        answer_key=candidate.answer_key,
+                        evidence_count=candidate.evidence_count,
+                    )
+                )
+                continue
+            out.append(
+                ReasoningCandidate(
+                    source=candidate.source,
+                    reply=candidate.reply,
+                    confidence=min(0.995, max(candidate.confidence, report.score)),
+                    verification="verified",
+                    payload=payload,
+                    answer_key=candidate.answer_key,
+                    evidence_count=candidate.evidence_count,
+                )
+            )
+        return out
+
     @staticmethod
     def _rank(candidate: ReasoningCandidate) -> tuple[int, float, int, str]:
         tier = {"verified": 3, "supported": 2, "provisional": 1}.get(
@@ -382,6 +430,17 @@ class FAP1xGeneralReasoningCore:
             candidates = self._open_candidates(query, rows)
 
         candidates = self._verify_candidates(query, rows, candidates)
+        active_for_policy = [x for x in candidates if x.verification != "rejected"]
+        first_disagreement = self._disagreement(active_for_policy)
+        search_policy = self.search_controller.policy(
+            decomposition,
+            disagreement=first_disagreement,
+            candidate_verifications=(x.verification for x in candidates),
+        )
+        verification_rounds = 1
+        if search_policy.repeat_independent_verification and active_for_policy:
+            candidates = self._repeat_verified_checks(query, rows, candidates)
+            verification_rounds = 2
 
         if not candidates or all(x.verification == "rejected" for x in candidates):
             if plan.task_form == "multiple_choice":
@@ -395,12 +454,19 @@ class FAP1xGeneralReasoningCore:
                     "reasoning_source": "fail_closed",
                     "reasoning_plan": plan.to_dict(),
                     "problem_decomposition": decomposition.to_dict(),
-                    "verification_rounds": 1,
+                    "verification_rounds": verification_rounds,
+                    "adaptive_search_policy": search_policy.to_dict(),
                     "candidate_count": 0,
                     "candidate_disagreement": False,
                     "alternatives": [],
                     "reasoning_trace": [
+                        "problem_decomposition",
                         "candidate_generation",
+                        "independent_verification",
+                        *(
+                            ["repeat_independent_verification"]
+                            if verification_rounds > 1 else []
+                        ),
                         "no_supported_candidate",
                         "fail_closed_without_forced_choice",
                     ],
@@ -417,11 +483,11 @@ class FAP1xGeneralReasoningCore:
         selected: ReasoningCandidate | None = None
         if verified:
             verified_answers = {x.answer_key for x in verified if x.answer_key}
-            if len(verified_answers) <= 1:
+            if len(verified_answers) <= 1 and not disagreement:
                 selected = verified[0]
-        elif supported and not disagreement:
+        elif supported and not disagreement and search_policy.allow_supported:
             selected = supported[0]
-        elif provisional and plan.task_form == "hypothesis":
+        elif provisional and search_policy.allow_provisional:
             selected = provisional[0]
 
         if selected is None:
@@ -433,12 +499,19 @@ class FAP1xGeneralReasoningCore:
                 "verification_state": "unresolved",
                 "reasoning_plan": plan.to_dict(),
                 "problem_decomposition": decomposition.to_dict(),
-                "verification_rounds": 1,
+                "verification_rounds": verification_rounds,
+                "adaptive_search_policy": search_policy.to_dict(),
                 "candidate_count": len(candidates),
                 "candidate_disagreement": disagreement,
                 "candidates": [x.to_dict() for x in candidates[:8]],
                 "reasoning_trace": [
+                    "problem_decomposition",
                     "candidate_generation",
+                    "independent_verification",
+                    *(
+                        ["repeat_independent_verification"]
+                        if verification_rounds > 1 else []
+                    ),
                     "verification_gate",
                     "disagreement_check",
                     "fail_closed",
@@ -454,7 +527,8 @@ class FAP1xGeneralReasoningCore:
             "reasoning_source": selected.source,
             "reasoning_plan": plan.to_dict(),
             "problem_decomposition": decomposition.to_dict(),
-            "verification_rounds": 1,
+            "verification_rounds": verification_rounds,
+            "adaptive_search_policy": search_policy.to_dict(),
             "candidate_count": len(candidates),
             "candidate_disagreement": disagreement,
             "alternatives": [
@@ -463,7 +537,13 @@ class FAP1xGeneralReasoningCore:
                 if x is not selected
             ][:6],
             "reasoning_trace": [
+                "problem_decomposition",
                 "candidate_generation",
+                "independent_verification",
+                *(
+                    ["repeat_independent_verification"]
+                    if verification_rounds > 1 else []
+                ),
                 "verification_gate",
                 "disagreement_check",
                 f"selected:{selected.source}",
