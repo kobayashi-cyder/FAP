@@ -144,6 +144,7 @@ jobs:
           test -s android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'analyzeOfficeZip' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'analyzePdf' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'getTextContents' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'analyzeMedia' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           test -s android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
           test -s android/app/src/main/java/jp/fap/runtime/ApkInstallResultReceiver.java
