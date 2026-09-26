@@ -10,6 +10,7 @@ from fap_response_series_executor import ResponseSeriesExecutor
 from fap_factual_qa import FactualQAOrgan
 from fap_generic_rule_reasoner import GenericRuleReasoner
 from fap_fmg_image_module import FMGImportedImageModule
+from fap_fmg_video_module import FMGImportedVideoModule
 from fap_reflective_conversation import ReflectiveConversationOrgan
 from fap_semantic_conversation import RuntimeSelfProfile, SemanticConversationRouter
 
@@ -36,6 +37,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         self.factual = FactualQAOrgan()
         self.rule_reasoner = GenericRuleReasoner(self.root)
         self.fmg_image = FMGImportedImageModule(self.root)
+        self.fmg_video = FMGImportedVideoModule(self.root, self.fmg_image)
         self.reflective = ReflectiveConversationOrgan()
         self.semantic_router = SemanticConversationRouter(self.root)
         self.self_profile = RuntimeSelfProfile(self.semantic_router)
@@ -55,6 +57,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "speech-boundary",
             "repository-coding-adapter",
             "fmg-image-generation-import",
+            "fmg-video-generation",
             "adaptive-response-redundancy:128-lanes",
             "response-synthesis-committee:16-max",
             "response-specialists:16-readonly",
@@ -82,6 +85,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             },
             "semantic_memory": self.memory is not None,
             "fmg_image": self.fmg_image.status(),
+            "fmg_video": self.fmg_video.status(),
             "response_intelligence": {
                 "enabled": True,
                 "planning_contract": self.response_redundancy.CONTRACT,
@@ -112,7 +116,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
         )
         if channel != "chat":
             return primary
-        if primary.endpoint_id == "fmg_image_generation":
+        if primary.endpoint_id in {"fmg_image_generation", "fmg_video_generation"}:
             return primary
 
         primary_payload = dict(primary.payload or {})
@@ -190,6 +194,15 @@ class FAP1xStandardRuntime(FAP1xRuntime):
 
     def _register_standard_endpoints(self) -> None:
         self.register_endpoint(
+            "fmg_video_generation",
+            self._fmg_video_handler,
+            probe=self._fmg_video_probe,
+            priority=1.70,
+            capabilities=("video_generation", "fmg_keyframes", "artifact"),
+            task_families=("general", "creative"),
+            task_forms=("generation",),
+        )
+        self.register_endpoint(
             "fmg_image_generation",
             self._fmg_image_handler,
             probe=self._fmg_image_probe,
@@ -233,6 +246,15 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             task_families=("conversation", "general"),
             task_forms=("reading", "multi_step"),
         )
+
+    def _fmg_video_probe(self, request) -> float:
+        return 1.0 if self.fmg_video.matches(request.text) else 0.0
+
+    def _fmg_video_handler(self, request, _budget) -> Mapping[str, Any] | None:
+        result = self.fmg_video.generate(request.text)
+        if "text" not in result and result.get("reply"):
+            result["text"] = str(result["reply"])
+        return result
 
     def _fmg_image_probe(self, request) -> float:
         return 1.0 if self.fmg_image.matches(request.text) else 0.0
