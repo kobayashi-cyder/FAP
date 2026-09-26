@@ -1,17 +1,40 @@
-name: Public Main Smoke Verify
+name: Public Release Contract Verify
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'integration/public-1.0.01-*'
+      - 'side/public-1.0.01-*'
     paths:
       - "README.md"
       - "VERSION"
+      - "CHANGELOG.md"
+      - "FAP_LATEST.md"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "fap_revision_r*.py"
+      - "fap_v1_0_01_*_gateway.py"
+      - "scripts/check_version_consistency.py"
+      - "tests/test_public_release_contract.py"
+      - "tests/test_fap_revision_r001.py"
       - ".github/workflows/public-main-smoke.yml"
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - 'integration/public-1.0.01-*'
     paths:
       - "README.md"
       - "VERSION"
+      - "CHANGELOG.md"
+      - "FAP_LATEST.md"
+      - "RUN_FAP_CHAT_LATEST.sh"
+      - "RUN_FAP_CHAT_LATEST.ps1"
+      - "fap_revision_r*.py"
+      - "fap_v1_0_01_*_gateway.py"
+      - "scripts/check_version_consistency.py"
+      - "tests/test_public_release_contract.py"
+      - "tests/test_fap_revision_r001.py"
       - ".github/workflows/public-main-smoke.yml"
   workflow_dispatch:
 
@@ -19,24 +42,21 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-main-smoke-${{ github.ref }}
+  group: public-release-contract-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify public release metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s VERSION
-          test -s README.md
-          version="$(tr -d '\r\n ' < VERSION)"
-          test -n "$version"
-          grep -Fq "Stable mainline: **V${version}**" README.md
-          echo "Public FAP release metadata is consistent: V${version}"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify public release contract
+        run: python scripts/check_version_consistency.py
+      - name: Contract regression
+        run: python -m unittest -v tests.test_public_release_contract
+      - name: r001 boundary regression
+        run: python -m unittest -v tests.test_fap_revision_r001
