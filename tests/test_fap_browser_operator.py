@@ -130,7 +130,7 @@ class BrowserReasonerTests(unittest.TestCase):
 
         self.assertEqual(result.text, "direct web-ui answer")
         self.assertFalse(result.used_web_search)
-        self.assertEqual(browser.queries, ())
+        self.assertEqual(browser.queries, [])
         reasoner.close()
 
 
