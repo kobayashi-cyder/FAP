@@ -129,6 +129,24 @@ class InteractionFabric:
     def endpoint_ids(self) -> tuple[str, ...]:
         return tuple(sorted(self._endpoints))
 
+    @property
+    def endpoint_descriptors(self) -> tuple[dict[str, Any], ...]:
+        return tuple(
+            {
+                "endpoint_id": endpoint.endpoint_id,
+                "channels": tuple(endpoint.channels),
+                "capabilities": tuple(endpoint.capabilities),
+                "task_families": tuple(endpoint.task_families),
+                "task_forms": tuple(endpoint.task_forms),
+                "priority": float(endpoint.priority),
+                "cost": float(endpoint.cost),
+            }
+            for endpoint in sorted(
+                self._endpoints.values(),
+                key=lambda item: item.endpoint_id,
+            )
+        )
+
     def register(self, endpoint: InteractionEndpoint) -> None:
         self._validate_endpoint(endpoint)
         if endpoint.endpoint_id not in self._endpoints and len(self._endpoints) >= self.max_endpoints:
