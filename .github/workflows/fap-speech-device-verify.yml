@@ -1,0 +1,55 @@
+name: FAP Speech Device Compatibility
+
+on:
+  push:
+    branches:
+      - 'side/public-1.0.01-speech-port-*'
+    paths:
+      - "fap_speech.py"
+      - "fap_speech_fluent.py"
+      - "fap_audio_device.py"
+      - "tests/test_fap_speech.py"
+      - "tests/test_fap_speech_fluent.py"
+      - "tests/test_fap_audio_device.py"
+      - "scripts/check_version_consistency.py"
+      - "tests/test_public_release_contract.py"
+      - ".github/workflows/fap-speech-device-verify.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "fap_speech.py"
+      - "fap_speech_fluent.py"
+      - "fap_audio_device.py"
+      - "tests/test_fap_speech.py"
+      - "tests/test_fap_speech_fluent.py"
+      - "tests/test_fap_audio_device.py"
+      - "scripts/check_version_consistency.py"
+      - "tests/test_public_release_contract.py"
+      - ".github/workflows/fap-speech-device-verify.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile speech modules
+        run: python -m py_compile fap_speech.py fap_speech_fluent.py fap_audio_device.py
+      - name: Core speech tests
+        run: python tests/test_fap_speech.py
+      - name: Fluent conversation tests
+        run: python tests/test_fap_speech_fluent.py
+      - name: Device compatibility tests
+        run: python tests/test_fap_audio_device.py
+      - name: Public release contract remains intact
+        run: |
+          python scripts/check_version_consistency.py
+          python -m unittest -v tests.test_public_release_contract

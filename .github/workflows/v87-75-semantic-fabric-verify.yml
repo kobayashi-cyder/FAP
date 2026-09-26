@@ -1,0 +1,74 @@
+name: FAP V87.75 semantic-fabric verify
+
+on:
+  push:
+    branches:
+      - feature/v87-75-semantic-fabric-bindings
+      - main
+    paths:
+      - "fap_semantic_fabric.py"
+      - "fap_semantic_action_router.py"
+      - "fap_interaction_fabric.py"
+      - "fap_interaction_chain.py"
+      - "fap_repository_interaction.py"
+      - "fap_code_generator.py"
+      - "fap_v87_75_semantic_fabric_gateway.py"
+      - "knowledge/semantic_actions_ja.jsonl"
+      - "tests/test_fap_semantic_fabric.py"
+      - "RUN_FAP_CHAT_LATEST.*"
+      - ".github/workflows/v87-75-semantic-fabric-verify.yml"
+  pull_request:
+    paths:
+      - "fap_semantic_fabric.py"
+      - "fap_semantic_action_router.py"
+      - "fap_interaction_fabric.py"
+      - "fap_interaction_chain.py"
+      - "fap_repository_interaction.py"
+      - "fap_code_generator.py"
+      - "fap_v87_75_semantic_fabric_gateway.py"
+      - "knowledge/semantic_actions_ja.jsonl"
+      - "tests/test_fap_semantic_fabric.py"
+      - "RUN_FAP_CHAT_LATEST.*"
+      - ".github/workflows/v87-75-semantic-fabric-verify.yml"
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Compile semantic fabric
+        run: |
+          python -m compileall -q             fap_semantic_fabric.py             fap_semantic_action_router.py             fap_interaction_fabric.py             fap_interaction_chain.py             fap_repository_interaction.py             fap_code_generator.py             fap_v87_75_semantic_fabric_gateway.py
+      - name: Run semantic and coding regressions
+        run: |
+          python -m unittest tests.test_fap_semantic_fabric -v
+          python -m unittest tests.test_semantic_action_routing -v
+          python -m unittest tests.test_v87_08_code_generator -v
+          python -m unittest tests.test_fap_interaction_fabric -v
+          python -m unittest tests.test_fap_interaction_chain -v
+          python -m unittest tests.test_fap_repository_interaction -v
+      - name: Smoke V87.75
+        run: |
+          python - <<'PY'
+          import fap_v87_75_semantic_fabric_gateway as g
+          status = g.CORE.chat_status()
+          assert status.get("version") == "87.75-unified-chat", status
+          full = g.CORE.status()
+          semantic = full.get("semantic_fabric") or {}
+          assert semantic.get("enabled") is True, semantic
+          assert semantic.get("fca_required") is False, semantic
+          routes = {
+              route
+              for item in semantic.get("bindings", [])
+              for route in item.get("route_ids", [])
+          }
+          assert "artifact_code_generate" in routes, routes
+          assert "repository_inspect" in routes, routes
+          assert "image_generate" in routes, routes
+          PY
