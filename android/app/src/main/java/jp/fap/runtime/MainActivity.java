@@ -6,6 +6,7 @@ import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.media.projection.MediaProjectionManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -32,6 +33,7 @@ import java.util.List;
 public class MainActivity extends Activity {
     private static final int REQ_RECORD_AUDIO = 601;
     private static final int REQ_PICK_FILES = 602;
+    private static final int REQ_SCREEN_CAPTURE = 603;
 
     private static final int BLACK = Color.rgb(15, 20, 25);
     private static final int MUTED = Color.rgb(83, 100, 113);
@@ -52,6 +54,8 @@ public class MainActivity extends Activity {
     private Button sendButton;
     private Button voiceButton;
     private Button agentModeButton;
+    private Button screenShareButton;
+    private Button controlButton;
     private Button gitUpdateButton;
     private Button gitRollbackButton;
     private TextView attachmentStatus;
@@ -132,6 +136,7 @@ public class MainActivity extends Activity {
 
         refreshAgentModeButton();
         refreshVoiceButton();
+        refreshScreenTeachButtons();
         setStatus(
                 voice.capabilitySummary()
                         + " · "
@@ -235,6 +240,14 @@ public class MainActivity extends Activity {
         voiceButton = chip("音声");
         voiceButton.setOnClickListener(v -> toggleVoiceLoop());
         tools.addView(voiceButton);
+
+        screenShareButton = chip("画面共有");
+        screenShareButton.setOnClickListener(v -> toggleScreenShare());
+        tools.addView(screenShareButton);
+
+        controlButton = chip("操作 OFF");
+        controlButton.setOnClickListener(v -> toggleDeviceControl());
+        tools.addView(controlButton);
 
         Button browser = chip("Browser");
         browser.setOnClickListener(v -> {
@@ -399,6 +412,31 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQ_SCREEN_CAPTURE) {
+            if (resultCode == RESULT_OK && data != null) {
+                ScreenTeachController.startCapture(this, resultCode, data);
+                chatLog.appendBack(
+                        "system",
+                        "screen-teach",
+                        "画面共有を開始 · rollingFrames=96 · interval=700ms");
+                setStatus("画面共有を開始しています…");
+                mainHandler.postDelayed(() -> {
+                    refreshScreenTeachButtons();
+                    renderTimeline();
+                    setStatus(ScreenTeachController.summary(this));
+                }, 650L);
+            } else {
+                chatLog.appendBack(
+                        "system",
+                        "screen-teach",
+                        "画面共有は開始されませんでした");
+                refreshScreenTeachButtons();
+                renderTimeline();
+            }
+            return;
+        }
+
         if (requestCode != REQ_PICK_FILES || resultCode != RESULT_OK || data == null) return;
 
         ArrayList<Uri> uris = new ArrayList<>();
@@ -591,6 +629,23 @@ public class MainActivity extends Activity {
         String q = input.getText().toString().trim();
         if ((q.isEmpty() && pendingAttachments.isEmpty()) || !sendButton.isEnabled()) return;
 
+        if (pendingAttachments.isEmpty() && !q.isEmpty()) {
+            DeviceGestureController.CommandResult command =
+                    DeviceGestureController.tryCommand(this, q);
+            if (command.handled) {
+                chatLog.appendFront("user", "device-command", q);
+                chatLog.appendBack(
+                        "system",
+                        "screen-teach",
+                        command.message + " · accepted=" + command.accepted);
+                input.setText("");
+                renderTimeline();
+                refreshScreenTeachButtons();
+                setStatus(command.message);
+                return;
+            }
+        }
+
         ArrayList<AttachmentStore.Attachment> attachments =
                 new ArrayList<>(pendingAttachments);
         pendingAttachments.clear();
@@ -752,6 +807,68 @@ public class MainActivity extends Activity {
         styleChip(voiceButton, voiceLoop ? "音声 ON" : "音声", voiceLoop);
     }
 
+    private void toggleScreenShare() {
+        if (ScreenTeachController.isSharing(this)) {
+            ScreenTeachController.stopCapture(this);
+            chatLog.appendBack("system", "screen-teach", "画面共有を停止");
+            refreshScreenTeachButtons();
+            renderTimeline();
+            setStatus(ScreenTeachController.summary(this));
+            return;
+        }
+
+        MediaProjectionManager manager =
+                (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+        if (manager == null) {
+            setStatus("MediaProjectionを利用できません");
+            return;
+        }
+        startActivityForResult(
+                manager.createScreenCaptureIntent(),
+                REQ_SCREEN_CAPTURE);
+    }
+
+    private void toggleDeviceControl() {
+        boolean enable = !ScreenTeachController.isControlEnabled(this);
+        if (enable && !PixelBrowserController.isAccessibilityEnabled(this)) {
+            chatLog.appendBack(
+                    "system",
+                    "screen-teach",
+                    "クリック/ドラッグにはユーザー補助サービスが必要");
+            renderTimeline();
+            PixelBrowserController.openAccessibilitySettings(this);
+            setStatus("FAP Pixel Browser Control を有効にしてください");
+            return;
+        }
+
+        ScreenTeachController.setControlEnabled(this, enable);
+        chatLog.appendBack(
+                "system",
+                "screen-teach",
+                "端末操作 " + (enable ? "ON" : "OFF")
+                        + " · " + ScreenTeachController.commandHelp());
+        refreshScreenTeachButtons();
+        renderTimeline();
+        setStatus(ScreenTeachController.summary(this));
+    }
+
+    private void refreshScreenTeachButtons() {
+        if (screenShareButton != null) {
+            boolean sharing = ScreenTeachController.isSharing(this);
+            styleChip(
+                    screenShareButton,
+                    sharing ? "画面共有 ON" : "画面共有",
+                    sharing);
+        }
+        if (controlButton != null) {
+            boolean control = ScreenTeachController.isControlEnabled(this);
+            styleChip(
+                    controlButton,
+                    control ? "操作 ON" : "操作 OFF",
+                    control);
+        }
+    }
+
     private void pauseVoiceForGitOperation() {
         resumeVoiceAfterGit = voiceLoop;
         if (voiceLoop && voice != null) {
@@ -797,6 +914,7 @@ public class MainActivity extends Activity {
         refreshBrowserState();
         refreshAgentModeButton();
         refreshVoiceButton();
+        refreshScreenTeachButtons();
         refreshTabs();
         renderTimeline();
         if (voiceLoop && voice != null) {
