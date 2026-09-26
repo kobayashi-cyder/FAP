@@ -3,11 +3,13 @@ name: FAP native C++ verify
 on:
   push:
     branches:
-      - "side/1.0.01-cpp-native-*"
+      - "port/public-1.0.01-cpp-native-clean-*"
     paths:
       - "native_cpp/**"
       - ".github/workflows/native-cpp-verify.yml"
   pull_request:
+    branches:
+      - integration/public-1.0.01-ready-20260926
     paths:
       - "native_cpp/**"
       - ".github/workflows/native-cpp-verify.yml"
@@ -28,6 +30,11 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build/native_cpp --output-on-failure
+
+      - name: Verify public release contract remains intact
+        run: |
+          python3 scripts/check_version_consistency.py
+          python3 -m unittest -v tests.test_public_release_contract tests.test_fap_revision_r001
 
       - name: Smoke CLI
         run: |
