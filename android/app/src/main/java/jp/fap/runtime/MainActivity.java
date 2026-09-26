@@ -374,6 +374,17 @@ public class MainActivity extends Activity {
         attachmentStatus.setTextColor(MUTED);
         attachmentStatus.setPadding(dp(12), dp(7), dp(12), dp(2));
         attachmentStatus.setVisibility(View.VISIBLE);
+        attachmentStatus.setOnClickListener(v -> {
+            synchronized (pendingAttachments) {
+                if (pendingAttachments.isEmpty()) {
+                    openFilePicker();
+                    return;
+                }
+                pendingAttachments.clear();
+            }
+            refreshAttachmentStatus();
+            setStatus("送信前の添付をすべて外しました");
+        });
         wrapper.addView(attachmentStatus, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -626,10 +637,10 @@ public class MainActivity extends Activity {
             count = pendingAttachments.size();
         }
         if (count <= 0) {
-            attachmentStatus.setText("添付なし · 「参照」でファイルを追加");
+            attachmentStatus.setText("添付なし · 「参照」またはここをタップ");
             attachmentStatus.setVisibility(View.VISIBLE);
         } else {
-            attachmentStatus.setText("📎 " + count + "件 添付済み · 送信で一緒に投稿");
+            attachmentStatus.setText("📎 " + count + "件 添付済み · タップで解除");
             attachmentStatus.setVisibility(View.VISIBLE);
         }
     }
