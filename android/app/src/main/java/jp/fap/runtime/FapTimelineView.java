@@ -208,7 +208,7 @@ public final class FapTimelineView extends ScrollView {
             String previewPath = video && !cover.isEmpty() ? cover : path;
             Bitmap bitmap = null;
             if (!previewPath.isEmpty() && new File(previewPath).isFile()) {
-                bitmap = BitmapFactory.decodeFile(previewPath);
+                bitmap = decodePreview(previewPath, 960, 640);
             }
             if (bitmap != null) {
                 ImageView preview = new ImageView(getContext());
@@ -253,6 +253,23 @@ public final class FapTimelineView extends ScrollView {
             card.addView(error);
         }
         return card;
+    }
+
+    private Bitmap decodePreview(String path, int maxWidth, int maxHeight) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(path, bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+
+        int sample = 1;
+        while (bounds.outWidth / (sample * 2) >= maxWidth
+                && bounds.outHeight / (sample * 2) >= maxHeight) {
+            sample *= 2;
+        }
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = Math.max(1, sample);
+        options.inPreferredConfig = Bitmap.Config.RGB_565;
+        return BitmapFactory.decodeFile(path, options);
     }
 
     private void openVideo(String path) {
