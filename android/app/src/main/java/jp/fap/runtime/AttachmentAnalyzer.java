@@ -2,12 +2,24 @@ package jp.fap.runtime;
 
 import android.content.Context;
 import android.content.pm.PackageInfo;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.graphics.pdf.PdfRenderer;
 import android.graphics.pdf.content.PdfPageTextContent;
+
+import com.google.android.gms.tasks.Tasks;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.label.ImageLabel;
+import com.google.mlkit.vision.label.ImageLabeler;
+import com.google.mlkit.vision.label.ImageLabeling;
+import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -17,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -80,46 +93,78 @@ public final class AttachmentAnalyzer {
              PdfRenderer renderer = new PdfRenderer(fd)) {
             int pages = renderer.getPageCount();
             StringBuilder out = new StringBuilder("PDF · pages=").append(pages);
-            if (pages > 0) {
-                try (PdfRenderer.Page page = renderer.openPage(0)) {
-                    out.append(" · firstPage=")
-                            .append(page.getWidth())
-                            .append("x")
-                            .append(page.getHeight());
-                }
-            }
-
-            if (Build.VERSION.SDK_INT < 35) {
-                out.append("\nPDF本文抽出にはAndroid 15以降が必要です。ファイル本体は保持済み。");
-                return out.toString();
-            }
-
             int extractedPages = 0;
+            int ocrPages = 0;
             int extractedSegments = 0;
-            for (int i = 0; i < pages && out.length() < MAX_EXTRACTED_CHARS; i++) {
-                try (PdfRenderer.Page page = renderer.openPage(i)) {
-                    java.util.List<PdfPageTextContent> contents = page.getTextContents();
-                    if (contents == null || contents.isEmpty()) continue;
 
-                    StringBuilder pageText = new StringBuilder();
-                    for (PdfPageTextContent content : contents) {
-                        if (content == null) continue;
-                        String text = content.getText();
-                        if (text == null) continue;
-                        text = text.trim();
-                        if (text.isEmpty()) continue;
-                        if (pageText.length() > 0) pageText.append("\n");
-                        pageText.append(text);
-                        extractedSegments++;
-                        if (out.length() + pageText.length() >= MAX_EXTRACTED_CHARS) break;
+            TextRecognizer ocr = null;
+            try {
+                for (int i = 0; i < pages && out.length() < MAX_EXTRACTED_CHARS; i++) {
+                    String pageText = "";
+                    try (PdfRenderer.Page page = renderer.openPage(i)) {
+                        if (i == 0) {
+                            out.append(" · firstPage=")
+                                    .append(page.getWidth())
+                                    .append("x")
+                                    .append(page.getHeight());
+                        }
+
+                        if (Build.VERSION.SDK_INT >= 35) {
+                            java.util.List<PdfPageTextContent> contents = page.getTextContents();
+                            if (contents != null && !contents.isEmpty()) {
+                                StringBuilder embedded = new StringBuilder();
+                                for (PdfPageTextContent content : contents) {
+                                    if (content == null || content.getText() == null) continue;
+                                    String text = content.getText().trim();
+                                    if (text.isEmpty()) continue;
+                                    if (embedded.length() > 0) embedded.append("\n");
+                                    embedded.append(text);
+                                    extractedSegments++;
+                                    if (out.length() + embedded.length() >= MAX_EXTRACTED_CHARS) {
+                                        break;
+                                    }
+                                }
+                                pageText = embedded.toString().trim();
+                            }
+                        }
+
+                        if (pageText.isEmpty() && i < 12) {
+                            if (ocr == null) {
+                                ocr = TextRecognition.getClient(
+                                        new JapaneseTextRecognizerOptions.Builder().build());
+                            }
+                            Bitmap bitmap = renderPdfPageForOcr(page, 1800);
+                            if (bitmap != null) {
+                                try {
+                                    pageText = recognizeText(ocr, bitmap);
+                                    if (!pageText.isEmpty()) {
+                                        ocrPages++;
+                                    }
+                                } finally {
+                                    bitmap.recycle();
+                                }
+                            }
+                        }
                     }
-                    if (pageText.length() == 0) continue;
 
+                    if (pageText.isEmpty()) continue;
+                    if (out.length() + pageText.length() > MAX_EXTRACTED_CHARS) {
+                        pageText = pageText.substring(
+                                0,
+                                Math.max(0, MAX_EXTRACTED_CHARS - out.length()));
+                    }
                     out.append("\n\n[PDF page ")
                             .append(i + 1)
                             .append("]\n")
                             .append(pageText);
                     extractedPages++;
+                }
+            } finally {
+                if (ocr != null) {
+                    try {
+                        ocr.close();
+                    } catch (Throwable ignored) {
+                    }
                 }
             }
 
@@ -127,26 +172,147 @@ public final class AttachmentAnalyzer {
                 out.setLength(MAX_EXTRACTED_CHARS);
                 out.append("\n[PDF text truncated]");
             }
-            out.append("\n\nPDF本文抽出 · pages=")
+
+            out.append("\n\nPDF解析 · textPages=")
                     .append(extractedPages)
                     .append("/")
                     .append(pages)
-                    .append(" · segments=")
+                    .append(" · ocrPages=")
+                    .append(ocrPages)
+                    .append(" · embeddedSegments=")
                     .append(extractedSegments);
             if (extractedPages == 0 && pages > 0) {
-                out.append(" · 埋め込みテキストなし（スキャンPDFの可能性）");
+                out.append(" · 本文を抽出できませんでした");
+            } else if (pages > 12 && ocrPages > 0) {
+                out.append(" · OCRは先頭12ページまで");
             }
             return out.toString();
         }
     }
 
-    private static String analyzeImage(File file) {
+    private static Bitmap renderPdfPageForOcr(PdfRenderer.Page page, int maxDimension) {
+        if (page == null) return null;
+        int sourceWidth = Math.max(1, page.getWidth());
+        int sourceHeight = Math.max(1, page.getHeight());
+        float scale = Math.min(
+                1.0f,
+                (float) maxDimension / (float) Math.max(sourceWidth, sourceHeight));
+        int width = Math.max(1, Math.round(sourceWidth * scale));
+        int height = Math.max(1, Math.round(sourceHeight * scale));
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        bitmap.eraseColor(0xffffffff);
+        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+        return bitmap;
+    }
+
+    private static String analyzeImage(File file) throws Exception {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+
+        Bitmap bitmap = decodeSampledBitmap(file, 2200);
+        StringBuilder out = new StringBuilder("画像 · ")
+                .append(bounds.outWidth)
+                .append("x")
+                .append(bounds.outHeight)
+                .append(" · mime=")
+                .append(String.valueOf(bounds.outMimeType));
+
+        if (bitmap == null) {
+            return out.append("\n画像デコード失敗").toString();
+        }
+
+        TextRecognizer recognizer = null;
+        ImageLabeler labeler = null;
+        try {
+            InputImage image = InputImage.fromBitmap(bitmap, 0);
+
+            recognizer = TextRecognition.getClient(
+                    new JapaneseTextRecognizerOptions.Builder().build());
+            Text recognized = Tasks.await(
+                    recognizer.process(image),
+                    12,
+                    TimeUnit.SECONDS);
+            String ocrText = recognized == null ? "" : recognized.getText().trim();
+            if (!ocrText.isEmpty()) {
+                if (ocrText.length() > 30_000) {
+                    ocrText = ocrText.substring(0, 30_000) + "\n…[OCR truncated]";
+                }
+                out.append("\n\n[OCR]\n").append(ocrText);
+            } else {
+                out.append("\n\n[OCR] 文字検出なし");
+            }
+
+            ImageLabelerOptions options =
+                    new ImageLabelerOptions.Builder()
+                            .setConfidenceThreshold(0.45f)
+                            .build();
+            labeler = ImageLabeling.getClient(options);
+            java.util.List<ImageLabel> labels = Tasks.await(
+                    labeler.process(image),
+                    12,
+                    TimeUnit.SECONDS);
+            if (labels != null && !labels.isEmpty()) {
+                out.append("\n\n[画像ラベル]");
+                int count = 0;
+                for (ImageLabel label : labels) {
+                    if (label == null || label.getText() == null) continue;
+                    out.append("\n- ")
+                            .append(label.getText())
+                            .append(" · ")
+                            .append(String.format(
+                                    Locale.ROOT,
+                                    "%.2f",
+                                    label.getConfidence()));
+                    if (++count >= 12) break;
+                }
+            } else {
+                out.append("\n\n[画像ラベル] 検出なし");
+            }
+        } finally {
+            if (recognizer != null) {
+                try {
+                    recognizer.close();
+                } catch (Throwable ignored) {
+                }
+            }
+            if (labeler != null) {
+                try {
+                    labeler.close();
+                } catch (Throwable ignored) {
+                }
+            }
+            bitmap.recycle();
+        }
+        return out.toString();
+    }
+
+    private static Bitmap decodeSampledBitmap(File file, int maxDimension) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        int width = Math.max(1, bounds.outWidth);
+        int height = Math.max(1, bounds.outHeight);
+        int sample = 1;
+        while (Math.max(width / sample, height / sample) > maxDimension) {
+            sample *= 2;
+        }
         BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(file.getAbsolutePath(), options);
-        return "画像 · "
-                + options.outWidth + "x" + options.outHeight
-                + " · mime=" + String.valueOf(options.outMimeType);
+        options.inSampleSize = Math.max(1, sample);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        return BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+    }
+
+    private static String recognizeText(TextRecognizer recognizer, Bitmap bitmap)
+            throws Exception {
+        if (recognizer == null || bitmap == null) return "";
+        Text text = Tasks.await(
+                recognizer.process(InputImage.fromBitmap(bitmap, 0)),
+                12,
+                TimeUnit.SECONDS);
+        return text == null || text.getText() == null
+                ? ""
+                : text.getText().trim();
     }
 
     private static String analyzeMedia(File file) {
