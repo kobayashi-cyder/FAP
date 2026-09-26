@@ -631,6 +631,21 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     root = Path(args.repo).expanduser().resolve()
     branch = args.branch.strip() or _current_branch(root)
+    if not branch or branch in {"main", "master"}:
+        print(
+            json.dumps(
+                {
+                    "version": SELF_IMPROVEMENT_VERSION,
+                    "state": "unsafe_branch",
+                    "branch": branch,
+                    "message": "Use a non-main side branch for self-improvement.",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 6
+
     client = _build_reasoner(args)
 
     try:
@@ -723,6 +738,38 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 4
+        if args.backend == "browser":
+            print(
+                json.dumps(
+                    {
+                        "version": SELF_IMPROVEMENT_VERSION,
+                        "state": "browser_error",
+                        "branch": branch,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 5
+        raise
+    except Exception as exc:
+        if args.backend == "browser":
+            print(
+                json.dumps(
+                    {
+                        "version": SELF_IMPROVEMENT_VERSION,
+                        "state": "browser_error",
+                        "branch": branch,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 5
         raise
     finally:
         close = getattr(client, "close", None)
