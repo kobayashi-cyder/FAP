@@ -140,6 +140,24 @@ jobs:
           test -s android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
           test -s android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
           test -s android/app/src/main/java/jp/fap/runtime/GitContextProvider.java
+          test -s android/app/src/main/java/jp/fap/runtime/AttachmentStore.java
+          test -s android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
+          test -s android/app/src/main/java/jp/fap/runtime/ApkInstallResultReceiver.java
+          grep -q 'ACTION_OPEN_DOCUMENT' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'EXTRA_ALLOW_MULTIPLE' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'setType("\*/\*")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'PackageInstaller' android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
+          grep -q 'signerDigest' android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
+          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' android/app/src/main/AndroidManifest.xml
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          apk = json.loads(Path("pixel_update/apk/latest.json").read_text(encoding="utf-8"))
+          assert apk["schema"] == "fap.pixel.apk.manifest.v1"
+          assert apk["package_name"] == "jp.fap.runtime"
+          assert isinstance(apk["available"], bool)
+          print("apk update manifest:", apk)
+          PY
           grep -q 'startContinuous' android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
           grep -q 'barge-in ready' android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
           grep -q 'public void render' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
