@@ -217,7 +217,13 @@ class AdaptiveReasoningGovernor:
             escalation = 0
         elif risk >= 0.56 or needs_teacher or disagreement_count > 0:
             escalation = 2
-        elif risk >= 0.32 or complexity >= 0.48 or verification:
+        elif (
+            risk >= 0.32
+            or complexity >= 0.48
+            or verification
+            or (numeric and not selected_verified)
+            or (freshness and not selected_grounded)
+        ):
             escalation = 1
         else:
             escalation = 0
