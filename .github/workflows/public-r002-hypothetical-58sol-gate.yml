@@ -11,7 +11,7 @@ on:
       - 'fap_*.py'
       - '.github/workflows/public-r002-hypothetical-58sol-gate.yml'
   pull_request:
-    branches: [main]
+    branches: [integration/public-1.0.01-ready-20260926]
     paths:
       - 'tests/test_fap_hypothetical_58sol_gate.py'
       - 'FAP_HYPOTHETICAL_58SOL_GATE.md'
