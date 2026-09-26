@@ -5,6 +5,10 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -521,6 +525,9 @@ public final class AgentOrchestrator {
             long generation) {
         if (!isGenerationActive(generation)) return;
 
+        materializeMediaArtifacts(result, listener);
+        if (!isGenerationActive(generation)) return;
+
         String answer = result.answer == null ? "" : result.answer.trim();
         if (answer.isEmpty()) {
             answer = "このターンでは確定回答を生成できませんでした。";
@@ -604,6 +611,88 @@ public final class AgentOrchestrator {
                         chunkSize,
                         end),
                 28L);
+    }
+
+    private void materializeMediaArtifacts(
+            PythonFapEngine.Result result,
+            Listener listener) {
+        if (result == null || result.payloadJson == null || result.payloadJson.trim().isEmpty()) {
+            return;
+        }
+        try {
+            JSONObject payload = new JSONObject(result.payloadJson);
+            JSONArray artifacts = payload.optJSONArray("artifacts");
+            if (artifacts == null) return;
+
+            for (int i = 0; i < artifacts.length(); i++) {
+                JSONObject artifact = artifacts.optJSONObject(i);
+                if (artifact == null) continue;
+                String type = artifact.optString("type", "");
+
+                if ("image".equals(type)) {
+                    String path = artifact.optString("path", "").trim();
+                    if (path.isEmpty()) continue;
+                    JSONObject media = new JSONObject();
+                    media.put("type", "image");
+                    media.put("path", path);
+                    media.put("name", artifact.optString("name", "generated-image"));
+                    chatLog.appendFront("assistant", "media:image", media.toString());
+                    continue;
+                }
+
+                if ("video_storyboard".equals(type)) {
+                    JSONArray framesJson = artifact.optJSONArray("frames");
+                    if (framesJson == null || framesJson.length() == 0) continue;
+
+                    ArrayList<String> frames = new ArrayList<>();
+                    for (int j = 0; j < framesJson.length(); j++) {
+                        String path = framesJson.optString(j, "").trim();
+                        if (!path.isEmpty()) frames.add(path);
+                    }
+                    if (frames.isEmpty()) continue;
+
+                    int duration = artifact.optInt("duration_seconds", 8);
+                    int fps = artifact.optInt("fps", 12);
+                    int width = artifact.optInt("width", 512);
+                    int height = artifact.optInt("height", 512);
+
+                    status(listener, "動画をH.264 MP4へエンコード中…");
+                    AndroidVideoComposer.Result encoded = AndroidVideoComposer.compose(
+                            app,
+                            frames,
+                            duration,
+                            fps,
+                            width,
+                            height);
+
+                    if (encoded.ok) {
+                        JSONObject media = new JSONObject();
+                        media.put("type", "video");
+                        media.put("path", encoded.path);
+                        media.put("cover", frames.get(0));
+                        media.put("duration_seconds", encoded.durationSeconds);
+                        media.put("fps", encoded.fps);
+                        media.put("width", encoded.width);
+                        media.put("height", encoded.height);
+                        media.put("pipeline", "FMG keyframes + Android MediaCodec H.264");
+                        chatLog.appendFront("assistant", "media:video", media.toString());
+                    } else {
+                        chatLog.appendBack(
+                                "system",
+                                "media-video",
+                                "動画エンコード失敗 · " + encoded.error);
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            chatLog.appendBack(
+                    "system",
+                    "media",
+                    "生成物の取り込み失敗 · "
+                            + t.getClass().getSimpleName()
+                            + ": "
+                            + String.valueOf(t.getMessage()));
+        }
     }
 
     private void appendResultMeta(PythonFapEngine.Result result, String sourceChannel) {
