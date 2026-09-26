@@ -100,9 +100,10 @@ jobs:
           cp "$APK" pixel-apk/FAP-Pixel-1.0.01-debug.apk
           cp android/pixel-runtime-manifest.json pixel-apk/pixel-runtime-manifest.json
           sha256sum pixel-apk/FAP-Pixel-1.0.01-debug.apk | tee pixel-apk/SHA256.txt
-          unzip -p "$APK" 'classes*.dex' | strings | grep -q 'PixelBrowserAccessibilityService'
-          unzip -p "$APK" 'classes*.dex' | strings | grep -q 'PixelBrowserController'
-          unzip -p "$APK" AndroidManifest.xml | strings | grep -q 'PixelBrowserAccessibilityService'
+          unzip -p "$APK" 'classes*.dex' | strings > pixel-apk/dex-strings.txt
+          grep -q 'PixelBrowserAccessibilityService' pixel-apk/dex-strings.txt
+          grep -q 'PixelBrowserController' pixel-apk/dex-strings.txt
+          grep -q 'PixelBrowserAccessibilityService' android/app/src/main/AndroidManifest.xml
 
       - name: Upload Pixel APK
         uses: actions/upload-artifact@v4
