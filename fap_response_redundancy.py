@@ -134,7 +134,7 @@ class ResponseRedundancyPlanner:
 
         active = round(
             6
-            + 106 * pressure
+            + 118 * pressure
             + 2 * retries
             + 2 * max(0, intent_count - 1)
         )
