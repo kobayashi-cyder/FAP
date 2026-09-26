@@ -1,6 +1,9 @@
 package jp.fap.runtime;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -9,10 +12,17 @@ import android.text.method.LinkMovementMethod;
 import android.text.util.Linkify;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.MediaController;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.VideoView;
 
+import org.json.JSONObject;
+
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -128,19 +138,25 @@ public final class FapTimelineView extends ScrollView {
 
         body.addView(meta);
 
-        TextView text = new TextView(getContext());
-        text.setText(entry.text);
-        text.setTextSize(16f);
-        text.setTextColor(Color.rgb(15, 20, 25));
-        text.setLineSpacing(0f, 1.08f);
-        text.setTextIsSelectable(true);
-        text.setAutoLinkMask(Linkify.WEB_URLS);
-        text.setLinksClickable(true);
-        text.setMovementMethod(LinkMovementMethod.getInstance());
-        text.setPadding(0, dp(4), 0, dp(8));
-        body.addView(text, new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                LayoutParams.WRAP_CONTENT));
+        if (entry.channel != null && entry.channel.startsWith("media:")) {
+            body.addView(mediaCard(entry), new LinearLayout.LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    LayoutParams.WRAP_CONTENT));
+        } else {
+            TextView text = new TextView(getContext());
+            text.setText(entry.text);
+            text.setTextSize(16f);
+            text.setTextColor(Color.rgb(15, 20, 25));
+            text.setLineSpacing(0f, 1.08f);
+            text.setTextIsSelectable(true);
+            text.setAutoLinkMask(Linkify.WEB_URLS);
+            text.setLinksClickable(true);
+            text.setMovementMethod(LinkMovementMethod.getInstance());
+            text.setPadding(0, dp(4), 0, dp(8));
+            body.addView(text, new LinearLayout.LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    LayoutParams.WRAP_CONTENT));
+        }
 
         TextView channel = new TextView(getContext());
         channel.setText(channelLabel(entry));
@@ -164,10 +180,116 @@ public final class FapTimelineView extends ScrollView {
         return wrapper;
     }
 
+    private View mediaCard(ChatLogStore.Entry entry) {
+        LinearLayout card = new LinearLayout(getContext());
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(10), dp(10), dp(10), dp(10));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.rgb(250, 251, 252));
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), Color.rgb(224, 230, 234));
+        card.setBackground(bg);
+
+        try {
+            JSONObject media = new JSONObject(entry.text);
+            String type = media.optString("type", "");
+            boolean video = "video".equals(type);
+            String path = media.optString("path", "").trim();
+            String cover = media.optString("cover", "").trim();
+
+            TextView title = new TextView(getContext());
+            title.setText(video ? "動画生成" : "画像生成");
+            title.setTextSize(15f);
+            title.setTypeface(Typeface.DEFAULT_BOLD);
+            title.setTextColor(Color.rgb(15, 20, 25));
+            title.setPadding(0, 0, 0, dp(8));
+            card.addView(title);
+
+            String previewPath = video && !cover.isEmpty() ? cover : path;
+            Bitmap bitmap = null;
+            if (!previewPath.isEmpty() && new File(previewPath).isFile()) {
+                bitmap = BitmapFactory.decodeFile(previewPath);
+            }
+            if (bitmap != null) {
+                ImageView preview = new ImageView(getContext());
+                preview.setImageBitmap(bitmap);
+                preview.setAdjustViewBounds(true);
+                preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                preview.setBackgroundColor(Color.rgb(242, 244, 246));
+                card.addView(preview, new LinearLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        dp(video ? 210 : 260)));
+            }
+
+            TextView info = new TextView(getContext());
+            info.setTextColor(Color.rgb(83, 100, 113));
+            info.setTextSize(12f);
+            if (video) {
+                info.setText(
+                        media.optInt("width", 512) + "×" + media.optInt("height", 512)
+                                + " · " + media.optInt("fps", 12) + "fps"
+                                + " · " + media.optInt("duration_seconds", 0) + "秒");
+            } else {
+                info.setText("生成画像");
+            }
+            info.setPadding(0, dp(8), 0, video ? dp(6) : 0);
+            card.addView(info);
+
+            if (video && !path.isEmpty() && new File(path).isFile()) {
+                Button play = new Button(getContext());
+                play.setText("▶ 再生");
+                play.setAllCaps(false);
+                play.setTextSize(13f);
+                play.setOnClickListener(v -> openVideo(path));
+                card.addView(play, new LinearLayout.LayoutParams(
+                        LayoutParams.WRAP_CONTENT,
+                        dp(44)));
+            }
+        } catch (Throwable t) {
+            TextView error = new TextView(getContext());
+            error.setText("生成物を表示できません · " + t.getClass().getSimpleName());
+            error.setTextSize(13f);
+            error.setTextColor(Color.rgb(180, 50, 50));
+            card.addView(error);
+        }
+        return card;
+    }
+
+    private void openVideo(String path) {
+        if (path == null || path.trim().isEmpty()) return;
+        File file = new File(path);
+        if (!file.isFile()) return;
+
+        VideoView video = new VideoView(getContext());
+        MediaController controls = new MediaController(getContext());
+        controls.setAnchorView(video);
+        video.setMediaController(controls);
+        video.setVideoPath(file.getAbsolutePath());
+
+        AlertDialog dialog = new AlertDialog.Builder(getContext())
+                .setTitle("動画プレビュー")
+                .setView(video)
+                .setNegativeButton("閉じる", (d, which) -> {
+                    try {
+                        video.stopPlayback();
+                    } catch (Throwable ignored) {
+                    }
+                })
+                .create();
+        dialog.setOnShowListener(d -> {
+            try {
+                video.start();
+            } catch (Throwable ignored) {
+            }
+        });
+        dialog.show();
+    }
+
     private String actorName(ChatLogStore.Entry entry) {
         String c = entry.channel == null ? "" : entry.channel;
         if ("user".equals(entry.role)) return "あなた";
         if ("assistant".equals(entry.role)) return "FAP";
+        if (c.startsWith("media:")) return "FAP";
         if (c.startsWith("git")) return "Git";
         if (c.startsWith("browser")) return "Browser";
         if (c.startsWith("voice")) return "Voice";
@@ -217,6 +339,9 @@ public final class FapTimelineView extends ScrollView {
 
     private String channelLabel(ChatLogStore.Entry entry) {
         String c = entry.channel == null ? "unknown" : entry.channel;
+        if (c.startsWith("media:")) {
+            return "世界観 · " + c.substring("media:".length()) + " · #" + entry.id;
+        }
         String surface = ChatLogStore.SURFACE_BACK.equals(entry.surface) ? "裏側" : "会話";
         return surface + " · " + c + " · #" + entry.id;
     }
