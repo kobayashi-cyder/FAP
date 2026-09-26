@@ -23,7 +23,7 @@ struct ResponseLane {
 };
 
 struct ResponseRedundancyPlan {
-    int capacity{64};
+    int capacity{128};
     int active_lanes{6};
     int synthesis_width{2};
     int quorum{2};
@@ -36,8 +36,8 @@ struct ResponseRedundancyPlan {
 
 class ResponseRedundancyPlanner {
 public:
-    static constexpr int kMaxLanes = 64;
-    static constexpr int kMaxSynthesis = 8;
+    static constexpr int kMaxLanes = 128;
+    static constexpr int kMaxSynthesis = 16;
 
     static double structural_pressure(const std::string& text, int intent_count = 0) {
         const auto cp = utf8_codepoints(text);
@@ -83,9 +83,9 @@ public:
         if (!has_route && !text.empty()) pressure = std::min(1.0, pressure + 0.04);
 
         int active = static_cast<int>(std::lround(
-            6.0 + 42.0 * pressure + 2.0 * retries + 2.0 * std::max(0, intent_count - 1)));
+            6.0 + 106.0 * pressure + 2.0 * retries + 2.0 * std::max(0, intent_count - 1)));
         active = std::clamp(active, 6, kMaxLanes);
-        const int synthesis = std::clamp(2 + active / 10, 2, kMaxSynthesis);
+        const int synthesis = std::clamp(2 + active / 8, 2, kMaxSynthesis);
         const int quorum = std::clamp(
             static_cast<int>(std::ceil(static_cast<double>(synthesis) * 2.0 / 3.0)),
             2,
