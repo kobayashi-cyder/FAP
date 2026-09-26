@@ -23,6 +23,7 @@ public final class PixelBrowserController {
     static final String KEY_STARTED_AT = "started_at";
     static final String KEY_CANDIDATE = "candidate";
     static final String KEY_STABLE = "stable";
+    static final String KEY_AUTO_RETURN = "auto_return";
 
     static final String CMD_NONE = "";
     static final String CMD_ASK_CHATGPT = "ask_chatgpt";
@@ -71,6 +72,13 @@ public final class PixelBrowserController {
     }
 
     public static boolean askChatGpt(Context context, String prompt) {
+        return askChatGpt(context, prompt, false);
+    }
+
+    public static boolean askChatGpt(
+            Context context,
+            String prompt,
+            boolean autoReturn) {
         String clean = prompt == null ? "" : prompt.trim();
         if (clean.isEmpty()) return false;
 
@@ -81,6 +89,7 @@ public final class PixelBrowserController {
                 .putString(KEY_RESPONSE, "")
                 .putString(KEY_ERROR, "")
                 .putString(KEY_CANDIDATE, "")
+                .putBoolean(KEY_AUTO_RETURN, autoReturn)
                 .putInt(KEY_STABLE, 0)
                 .putLong(KEY_STARTED_AT, System.currentTimeMillis())
                 .apply();
@@ -138,6 +147,7 @@ public final class PixelBrowserController {
                 .putString(KEY_RESPONSE, "")
                 .putString(KEY_ERROR, "")
                 .putString(KEY_CANDIDATE, "")
+                .putBoolean(KEY_AUTO_RETURN, false)
                 .putInt(KEY_STABLE, 0)
                 .remove(KEY_STARTED_AT)
                 .apply();
