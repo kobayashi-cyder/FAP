@@ -3,7 +3,7 @@ name: FAP Speech Device Compatibility
 on:
   push:
     branches:
-      - 'side/public-1.0.01-speech-port-*'
+      - 'port/public-1.0.01-speech-clean-*'
     paths:
       - "fap_speech.py"
       - "fap_speech_fluent.py"
@@ -15,7 +15,7 @@ on:
       - "tests/test_public_release_contract.py"
       - ".github/workflows/fap-speech-device-verify.yml"
   pull_request:
-    branches: [main]
+    branches: [integration/public-1.0.01-ready-20260926]
     paths:
       - "fap_speech.py"
       - "fap_speech_fluent.py"
