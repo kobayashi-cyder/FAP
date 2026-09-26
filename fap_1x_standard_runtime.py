@@ -66,6 +66,8 @@ class FAP1xStandardRuntime(FAP1xRuntime):
             "adaptive-reasoning-governor",
             "counterexample-escalation",
             "confidence-calibration",
+            "multi-intent-subproblem-reasoning",
+            "partial-answer-takeover-guard",
             "fail-closed-epistemics",
         ]
         if self.memory is not None:
@@ -102,6 +104,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 "side_effecting_specialists_redundantly_executed": False,
                 "native_revision": "1.0.01-cpp-native-r008",
                 "governor_contract": self.reasoning_governor.CONTRACT,
+                "subproblem_contract": self.response_series.subproblem.CONTRACT,
                 "max_escalation_passes": self.reasoning_governor.MAX_ESCALATION_PASSES,
                 "confidence_calibrated": True,
                 "fail_closed": True,
@@ -168,7 +171,7 @@ class FAP1xStandardRuntime(FAP1xRuntime):
                 max(1, 1 + int(primary.budget.reasoning_steps) // 20),
             ),
             retries=min(4, max(0, int(primary.budget.repair_rounds))),
-            intent_count=0,
+            intent_count=self.reasoning_governor.intent_count(str(text)),
             has_route=primary.state == "handled",
         )
         enhanced = self.response_series.run(
