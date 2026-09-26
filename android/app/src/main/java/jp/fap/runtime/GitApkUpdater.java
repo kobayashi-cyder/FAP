@@ -1,15 +1,15 @@
 package jp.fap.runtime;
 
 import android.content.Context;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.content.pm.PackageInstaller;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
-
-import androidx.core.content.FileProvider;
 
 import org.json.JSONObject;
 
@@ -125,17 +125,44 @@ public final class GitApkUpdater {
         context.startActivity(intent);
     }
 
-    public static void launchInstaller(Context context, File apk) {
-        Uri uri = FileProvider.getUriForFile(
+    public static void launchInstaller(Context context, File apk) throws Exception {
+        PackageInstaller installer = context.getPackageManager().getPackageInstaller();
+        PackageInstaller.SessionParams params =
+                new PackageInstaller.SessionParams(
+                        PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+        params.setAppPackageName(context.getPackageName());
+        params.setSize(apk.length());
+
+        int sessionId = installer.createSession(params);
+        PackageInstaller.Session session = installer.openSession(sessionId);
+        try (InputStream input = new java.io.FileInputStream(apk);
+             java.io.OutputStream output = session.openWrite(
+                     "FAP-Pixel.apk",
+                     0,
+                     apk.length())) {
+            byte[] buffer = new byte[32 * 1024];
+            long written = 0L;
+            while (true) {
+                int read = input.read(buffer);
+                if (read < 0) break;
+                output.write(buffer, 0, read);
+                written += read;
+                session.setStagingProgress(
+                        apk.length() <= 0 ? 0f : (float) written / (float) apk.length());
+            }
+            session.fsync(output);
+        }
+
+        Intent callback = new Intent(context, ApkInstallResultReceiver.class);
+        callback.setAction(ApkInstallResultReceiver.ACTION_INSTALL_STATUS);
+        callback.putExtra("session_id", sessionId);
+        PendingIntent pending = PendingIntent.getBroadcast(
                 context,
-                context.getPackageName() + ".files",
-                apk);
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, "application/vnd.android.package-archive");
-        intent.addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        context.startActivity(intent);
+                sessionId,
+                callback,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+        session.commit(pending.getIntentSender());
+        session.close();
     }
 
     private static void validateManifest(JSONObject manifest, Context context) throws Exception {
