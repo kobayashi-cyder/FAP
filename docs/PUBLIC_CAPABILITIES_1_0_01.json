@@ -1,0 +1,51 @@
+{
+  "schema": "fap.public-capabilities.v1",
+  "release_candidate": "1.0.01",
+  "integration_branch": "integration/public-1.0.01-ready-20260926",
+  "capabilities": [
+    {
+      "id": "dynamic_sparse_routing",
+      "status": "integration_ready",
+      "source": "side/1.0.01-dynamic-sparse-routing",
+      "evidence": ["tests/test_fap_dynamic_sparse_routing.py", "fap_v1_0_01_sparse_benchmark.py"]
+    },
+    {
+      "id": "r001_boundary_hardening",
+      "status": "integration_ready",
+      "evidence": ["tests/test_fap_revision_r001.py"]
+    },
+    {
+      "id": "speech",
+      "status": "port_required",
+      "source": "side/public-1.0.01-speech-port-20260926"
+    },
+    {
+      "id": "android_voice",
+      "status": "port_required",
+      "source": "side/public-1.0.01-android-voice-port-20260926"
+    },
+    {
+      "id": "native_cpp",
+      "status": "port_required",
+      "source": "side/1.0.01-cpp-native-20260926"
+    },
+    {
+      "id": "self_improvement_web_openai",
+      "status": "port_required",
+      "source": "side/1.0.01-self-improvement-web-openai-20260926"
+    },
+    {
+      "id": "r002_reasoning_eval",
+      "status": "blocked",
+      "source": "side/public-1.0.01-r002-port-20260926",
+      "blockers": [
+        "random_multistep_quantitative",
+        "random_novel_symbolic_rule_chains",
+        "epistemic_calibration",
+        "counterfactual_rule_revision",
+        "code_execution_reasoning",
+        "paraphrase_permutation_noise_invariance"
+      ]
+    }
+  ]
+}
