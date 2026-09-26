@@ -17,6 +17,12 @@ from fap_response_specialists import (
     ResponseAuditor,
     SafeArithmeticSpecialist,
 )
+from fap_response_specialists_extra import (
+    LinearEquationSpecialist,
+    NumericContradictionSpecialist,
+    PhysicsNumericSpecialist,
+    PythonStaticAnalysisSpecialist,
+)
 
 
 _JA_OR_WORD = re.compile(r"[一-龥ぁ-んァ-ンー]{2,}|[A-Za-z0-9_]{2,}")
@@ -110,6 +116,10 @@ class ResponseSeriesExecutor:
         "causal",
         "rule",
         "code_plan",
+        "linear_equation",
+        "physics_numeric",
+        "python_static",
+        "contradiction",
         "derivation",
     )
 
@@ -122,6 +132,10 @@ class ResponseSeriesExecutor:
         self.arithmetic = SafeArithmeticSpecialist()
         self.causal = CausalFrameSpecialist()
         self.code_plan = CodePlanningSpecialist()
+        self.linear_equation = LinearEquationSpecialist()
+        self.physics_numeric = PhysicsNumericSpecialist()
+        self.python_static = PythonStaticAnalysisSpecialist()
+        self.contradiction = NumericContradictionSpecialist()
         self.auditor = ResponseAuditor()
 
     @staticmethod
@@ -169,8 +183,15 @@ class ResponseSeriesExecutor:
             calls.append(("causal", lambda: self.causal.run(text)))
         if plan.active_lanes >= 12:
             calls.append(("rule", lambda: self.rule.run(text, history)))
+        if plan.active_lanes >= 14:
+            calls.append(("linear_equation", lambda: self.linear_equation.run(text)))
         if plan.active_lanes >= 16:
             calls.append(("code_plan", lambda: self.code_plan.run(text)))
+            calls.append(("physics_numeric", lambda: self.physics_numeric.run(text)))
+        if plan.active_lanes >= 20:
+            calls.append(("python_static", lambda: self.python_static.run(text)))
+        if plan.active_lanes >= 24:
+            calls.append(("contradiction", lambda: self.contradiction.run(text, history)))
         if plan.active_lanes >= 18:
             calls.append(("derivation", lambda: self.derivation.run(text, history)))
 
