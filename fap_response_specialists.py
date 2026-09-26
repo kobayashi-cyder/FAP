@@ -100,9 +100,9 @@ class SafeArithmeticSpecialist:
             return None
 
         for expr in chunks:
-            if not re.search(r"\\d", expr):
+            if not re.search(r"\d", expr):
                 continue
-            if not re.search(r"(?:\\*\\*|[+\\-*/%])", expr):
+            if not re.search(r"(?:\*\*|[+\-*/%])", expr):
                 continue
             try:
                 value = self._eval(ast.parse(expr, mode="eval"))
