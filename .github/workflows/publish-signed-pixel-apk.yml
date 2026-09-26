@@ -1,0 +1,180 @@
+name: Publish signed Pixel APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch/tag/commit containing the Pixel APK source"
+        required: true
+        default: "side/1.0.01-pixel-screen-teach-20260926"
+      version_code:
+        description: "Android versionCode (must increase)"
+        required: true
+        default: "10002"
+      version_name:
+        description: "Version name, e.g. 1.0.02-pixel"
+        required: true
+        default: "1.0.02-pixel"
+      tag:
+        description: "GitHub Release tag"
+        required: true
+        default: "pixel-v1.0.02"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-signed-pixel-apk
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      FAP_SOURCE_REF: ${{ inputs.source_ref }}
+      FAP_VERSION_CODE: ${{ inputs.version_code }}
+      FAP_VERSION_NAME: ${{ inputs.version_name }}
+      FAP_RELEASE_TAG: ${{ inputs.tag }}
+      FAP_KEYSTORE_B64: ${{ secrets.FAP_ANDROID_KEYSTORE_BASE64 }}
+      FAP_SIGNING_STORE_PASSWORD: ${{ secrets.FAP_ANDROID_KEYSTORE_PASSWORD }}
+      FAP_SIGNING_KEY_ALIAS: ${{ secrets.FAP_ANDROID_KEY_ALIAS }}
+      FAP_SIGNING_KEY_PASSWORD: ${{ secrets.FAP_ANDROID_KEY_PASSWORD }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout selected Pixel source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 1
+
+      - name: Record selected source commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="$(git rev-parse HEAD)"
+          test -n "$SOURCE_SHA"
+          echo "FAP_SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "source_ref=$FAP_SOURCE_REF"
+          echo "source_sha=$SOURCE_SHA"
+
+      - name: Validate inputs and signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$FAP_VERSION_CODE" =~ ^[0-9]+$ ]]
+          [[ "$FAP_VERSION_NAME" =~ ^[0-9A-Za-z._-]+$ ]]
+          [[ "$FAP_RELEASE_TAG" =~ ^[0-9A-Za-z._-]+$ ]]
+          test -n "$FAP_KEYSTORE_B64"
+          test -n "$FAP_SIGNING_STORE_PASSWORD"
+          test -n "$FAP_SIGNING_KEY_ALIAS"
+          test -n "$FAP_SIGNING_KEY_PASSWORD"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Gradle 9.4.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.4.1"
+
+      - name: Restore signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYSTORE="$RUNNER_TEMP/fap-release.jks"
+          printf '%s' "$FAP_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          echo "FAP_SIGNING_STORE_FILE=$KEYSTORE" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        working-directory: android
+        run: gradle --no-daemon clean :app:assembleRelease
+
+      - name: Verify APK and create update manifest
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --print-certs "$APK" | tee "$RUNNER_TEMP/apksigner.txt"
+
+          SIGNER="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/apksigner.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test -n "$SIGNER"
+
+          SHA="$(sha256sum "$APK" | awk '{print $1}')"
+          BYTES="$(stat -c '%s' "$APK")"
+          APK_NAME="FAP-Pixel-${FAP_VERSION_NAME}.apk"
+          RELEASE_URL="https://github.com/kobayashi-cyder/FAP/releases/download/${FAP_RELEASE_TAG}/${APK_NAME}"
+
+          export SHA BYTES SIGNER APK_NAME RELEASE_URL APK
+          python - <<'PY'
+          import json, os
+          payload = {
+              "schema": "fap.pixel.apk.manifest.v1",
+              "available": True,
+              "package_name": "jp.fap.runtime",
+              "version_code": int(os.environ["FAP_VERSION_CODE"]),
+              "version_name": os.environ["FAP_VERSION_NAME"],
+              "apk_url": os.environ["RELEASE_URL"],
+              "sha256": os.environ["SHA"],
+              "signer_sha256": os.environ["SIGNER"],
+              "bytes": int(os.environ["BYTES"]),
+              "source_commit": os.environ["FAP_SOURCE_SHA"],
+              "source_ref": os.environ["FAP_SOURCE_REF"],
+              "release_tag": os.environ["FAP_RELEASE_TAG"],
+          }
+          p = os.path.join(os.environ["RUNNER_TEMP"], "latest-apk.json")
+          with open(p, "w", encoding="utf-8") as f:
+              json.dump(payload, f, ensure_ascii=False, indent=2)
+              f.write("\n")
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
+
+          cp "$APK" "$RUNNER_TEMP/$APK_NAME"
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_NAME="${{ steps.meta.outputs.apk_name }}"
+          APK_PATH="$RUNNER_TEMP/$APK_NAME"
+          MANIFEST="$RUNNER_TEMP/latest-apk.json"
+
+          if gh release view "$FAP_RELEASE_TAG" --repo kobayashi-cyder/FAP >/dev/null 2>&1; then
+            gh release upload "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --clobber               --repo kobayashi-cyder/FAP
+            gh release edit "$FAP_RELEASE_TAG" --latest --repo kobayashi-cyder/FAP
+          else
+            gh release create "$FAP_RELEASE_TAG"               "$APK_PATH"               "$MANIFEST#latest-apk.json"               --title "FAP Pixel $FAP_VERSION_NAME"               --notes "Signed Pixel APK built from $FAP_SOURCE_REF at $FAP_SOURCE_SHA."               --latest               --repo kobayashi-cyder/FAP
+          fi
+
+      - name: Verify public update feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5             "https://github.com/kobayashi-cyder/FAP/releases/latest/download/latest-apk.json"             -o "$RUNNER_TEMP/released-latest-apk.json"
+          python - <<'PY'
+          import json, os
+          p = os.path.join(os.environ["RUNNER_TEMP"], "released-latest-apk.json")
+          data = json.load(open(p, encoding="utf-8"))
+          assert data["schema"] == "fap.pixel.apk.manifest.v1"
+          assert data["available"] is True
+          assert data["package_name"] == "jp.fap.runtime"
+          assert data["version_code"] == int(os.environ["FAP_VERSION_CODE"])
+          print(data)
+          PY
