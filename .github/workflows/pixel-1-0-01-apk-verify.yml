@@ -144,6 +144,7 @@ jobs:
           test -s android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'analyzeOfficeZip' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'analyzePdf' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
+          grep -q 'getTextContents' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           grep -q 'analyzeMedia' android/app/src/main/java/jp/fap/runtime/AttachmentAnalyzer.java
           test -s android/app/src/main/java/jp/fap/runtime/GitApkUpdater.java
           test -s android/app/src/main/java/jp/fap/runtime/ApkInstallResultReceiver.java
@@ -166,6 +167,14 @@ jobs:
           grep -q 'barge-in ready' android/app/src/main/java/jp/fap/runtime/AndroidVoiceController.java
           grep -q 'public void render' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
           grep -q 'agentHeartbeat' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
+          grep -q 'submitWebResearch' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'requiresFreshResearch' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'regenerateLastUser' android/app/src/main/java/jp/fap/runtime/AgentOrchestrator.java
+          grep -q 'chip("Web")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("再生成")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("コピー")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'chip("新規")' android/app/src/main/java/jp/fap/runtime/MainActivity.java
+          grep -q 'Linkify.WEB_URLS' android/app/src/main/java/jp/fap/runtime/FapTimelineView.java
           grep -q 'dispatchText' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
           grep -q 'dispatchImeEnter' android/app/src/main/java/jp/fap/runtime/PixelBrowserAccessibilityService.java
           grep -q '"/type "' android/app/src/main/java/jp/fap/runtime/DeviceGestureController.java

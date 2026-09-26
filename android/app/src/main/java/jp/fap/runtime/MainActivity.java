@@ -3,6 +3,7 @@ package jp.fap.runtime;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -255,6 +256,26 @@ public class MainActivity extends Activity {
         voiceButton.setOnClickListener(v -> toggleVoiceLoop());
         tools.addView(voiceButton);
 
+        Button webResearch = chip("Web");
+        webResearch.setContentDescription("現在の入力をウェブ調査へ送る");
+        webResearch.setOnClickListener(v -> startWebResearch());
+        tools.addView(webResearch);
+
+        Button regenerate = chip("再生成");
+        regenerate.setContentDescription("直前のユーザー依頼へ別回答を生成");
+        regenerate.setOnClickListener(v -> regenerateLast());
+        tools.addView(regenerate);
+
+        Button copyAnswer = chip("コピー");
+        copyAnswer.setContentDescription("直前のFAP回答をコピー");
+        copyAnswer.setOnClickListener(v -> copyLastAnswer());
+        tools.addView(copyAnswer);
+
+        Button newChat = chip("新規");
+        newChat.setContentDescription("メモリを残して新しいチャットを開始");
+        newChat.setOnClickListener(v -> startNewChat());
+        tools.addView(newChat);
+
         screenShareButton = chip("画面共有");
         screenShareButton.setOnClickListener(v -> toggleScreenShare());
         tools.addView(screenShareButton);
@@ -318,13 +339,13 @@ public class MainActivity extends Activity {
         verifyNg.setOnClickListener(v -> verify(false));
         tools.addView(verifyNg);
 
-        Button clear = chip("履歴消去");
+        Button clear = chip("全消去");
         clear.setOnClickListener(v -> {
             engine.clear();
             chatLog.clear();
             agent.resetDurableState();
             renderTimeline();
-            setStatus("履歴を消去しました");
+            setStatus("会話履歴とローカル学習メモリを消去しました");
         });
         tools.addView(clear);
 
@@ -353,6 +374,17 @@ public class MainActivity extends Activity {
         attachmentStatus.setTextColor(MUTED);
         attachmentStatus.setPadding(dp(12), dp(7), dp(12), dp(2));
         attachmentStatus.setVisibility(View.VISIBLE);
+        attachmentStatus.setOnClickListener(v -> {
+            synchronized (pendingAttachments) {
+                if (pendingAttachments.isEmpty()) {
+                    openFilePicker();
+                    return;
+                }
+                pendingAttachments.clear();
+            }
+            refreshAttachmentStatus();
+            setStatus("送信前の添付をすべて外しました");
+        });
         wrapper.addView(attachmentStatus, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -413,6 +445,106 @@ public class MainActivity extends Activity {
         wrapper.addView(composer);
         refreshAttachmentStatus();
         return wrapper;
+    }
+
+    private void startWebResearch() {
+        if (!PixelBrowserController.isAccessibilityEnabled(this)) {
+            PixelBrowserController.openAccessibilitySettings(this);
+            setStatus("Web調査にはFAP Pixel Browser Controlが必要です");
+            return;
+        }
+
+        String q = input == null ? "" : input.getText().toString().trim();
+        if (q.isEmpty()) {
+            Toast.makeText(this, "調べたい内容を入力してください", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        input.setText("");
+        sendButton.setEnabled(false);
+        chatLog.appendBack("system", "web", "明示Web調査を開始");
+        renderTimeline();
+
+        agent.submitWebResearch(q, new AgentOrchestrator.Listener() {
+            @Override public void onStatus(String message) {
+                renderTimeline();
+                setStatus("Web · " + message);
+            }
+
+            @Override public void onReply(PythonFapEngine.Result result, String channel) {
+                last = result;
+                sendButton.setEnabled(true);
+                renderTimeline();
+                setStatus("Web統合完了 · " + result.skill
+                        + " · " + String.format("%.2f", result.confidence));
+            }
+        });
+    }
+
+    private void regenerateLast() {
+        if (!sendButton.isEnabled()) {
+            Toast.makeText(this, "現在の処理が終わってから再生成してください", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        sendButton.setEnabled(false);
+        agent.regenerateLastUser(new AgentOrchestrator.Listener() {
+            @Override public void onStatus(String message) {
+                setStatus(message);
+            }
+
+            @Override public void onReply(PythonFapEngine.Result result, String channel) {
+                last = result;
+                sendButton.setEnabled(true);
+                renderTimeline();
+                setStatus("再生成完了 · " + result.skill
+                        + " · " + String.format("%.2f", result.confidence));
+            }
+        });
+    }
+
+    private void copyLastAnswer() {
+        List<ChatLogStore.Entry> rows = chatLog.snapshot("front", 300);
+        ChatLogStore.Entry lastAssistant = null;
+        for (int i = rows.size() - 1; i >= 0; i--) {
+            ChatLogStore.Entry row = rows.get(i);
+            if ("assistant".equals(row.role)) {
+                lastAssistant = row;
+                break;
+            }
+        }
+
+        if (lastAssistant == null || lastAssistant.text == null
+                || lastAssistant.text.trim().isEmpty()) {
+            Toast.makeText(this, "コピーできるFAP回答がありません", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ClipboardManager clipboard =
+                (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            Toast.makeText(this, "クリップボードを利用できません", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        clipboard.setPrimaryClip(
+                ClipData.newPlainText("FAP answer", lastAssistant.text));
+        setStatus("直前のFAP回答をコピーしました");
+    }
+
+    private void startNewChat() {
+        pendingAttachments.clear();
+        chatLog.clear();
+        agent.resetDurableState();
+        refreshAttachmentStatus();
+        chatLog.appendBack(
+                "system",
+                "session",
+                "新規チャットを開始 · semantic memoryは保持");
+        renderTimeline();
+        if (input != null) {
+            input.setText("");
+            input.requestFocus();
+        }
+        setStatus("新規チャット · ローカルメモリは保持されています");
     }
 
     private void openFilePicker() {
@@ -505,10 +637,10 @@ public class MainActivity extends Activity {
             count = pendingAttachments.size();
         }
         if (count <= 0) {
-            attachmentStatus.setText("添付なし · 「参照」でファイルを追加");
+            attachmentStatus.setText("添付なし · 「参照」またはここをタップ");
             attachmentStatus.setVisibility(View.VISIBLE);
         } else {
-            attachmentStatus.setText("📎 " + count + "件 添付済み · 送信で一緒に投稿");
+            attachmentStatus.setText("📎 " + count + "件 添付済み · タップで解除");
             attachmentStatus.setVisibility(View.VISIBLE);
         }
     }

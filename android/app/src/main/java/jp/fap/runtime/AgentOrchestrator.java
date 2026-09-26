@@ -6,6 +6,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -97,6 +98,19 @@ public final class AgentOrchestrator {
             String text,
             java.util.List<AttachmentStore.Attachment> attachments,
             Listener listener) {
+        submitUserTurnInternal(channel, text, attachments, listener, false);
+    }
+
+    public void submitWebResearch(String text, Listener listener) {
+        submitUserTurnInternal("web", text, null, listener, true);
+    }
+
+    private void submitUserTurnInternal(
+            String channel,
+            String text,
+            java.util.List<AttachmentStore.Attachment> attachments,
+            Listener listener,
+            boolean forceBrowser) {
         String clean = text == null ? "" : text.trim();
         String attachmentText = AttachmentStore.describe(attachments);
         if (clean.isEmpty() && attachmentText.isEmpty()) return;
@@ -133,7 +147,41 @@ public final class AgentOrchestrator {
                 .putLong(KEY_INFLIGHT_USER_ID, entry.id)
                 .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
                 .apply();
-        processUserEntryAsync(entry, listener, true);
+        processUserEntryAsync(entry, listener, true, forceBrowser);
+    }
+
+    public void regenerateLastUser(Listener listener) {
+        ChatLogStore.Entry lastUser = null;
+        List<ChatLogStore.Entry> rows = chatLog.snapshot("front", 300);
+        for (int i = rows.size() - 1; i >= 0; i--) {
+            ChatLogStore.Entry row = rows.get(i);
+            if ("user".equals(row.role)) {
+                lastUser = row;
+                break;
+            }
+        }
+        if (lastUser == null) {
+            status(listener, "再生成できるユーザー発言がありません");
+            return;
+        }
+
+        final ChatLogStore.Entry source = lastUser;
+        executor.execute(() -> {
+            status(listener, "直前の依頼を再生成中…");
+            String prompt = "次のユーザー依頼へ、前回回答の単なる言い換えではなく、"
+                    + "必要なら別の推論経路も使って改めて直接答えてください。\n\n"
+                    + source.text;
+            PythonFapEngine.Result result = engine.processAgent(
+                    prompt,
+                    chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
+                    "regenerate");
+            appendAgentReply(result, "regenerate");
+            chatLog.appendBack(
+                    "system",
+                    "agent",
+                    "直前のユーザー依頼を再生成 · source=#" + source.id);
+            reply(listener, result, "regenerate");
+        });
     }
 
     public void reconcileAsync() {
@@ -213,14 +261,17 @@ public final class AgentOrchestrator {
     private void processUserEntryAsync(
             ChatLogStore.Entry entry,
             Listener listener,
-            boolean allowBrowser) {
-        executor.execute(() -> processUserEntryBlocking(entry, listener, allowBrowser));
+            boolean allowBrowser,
+            boolean forceBrowser) {
+        executor.execute(() -> processUserEntryBlocking(
+                entry, listener, allowBrowser, forceBrowser));
     }
 
     private void processUserEntryBlocking(
             ChatLogStore.Entry entry,
             Listener listener,
-            boolean allowBrowser) {
+            boolean allowBrowser,
+            boolean forceBrowser) {
         status(listener, "Chatログ #" + entry.id + " をFAPが処理中…");
 
         PythonFapEngine.Result result = engine.processAgent(
@@ -228,9 +279,10 @@ public final class AgentOrchestrator {
                 chatLog.recentConversationJson(MAX_CONTEXT_LOGS),
                 entry.channel);
 
+        boolean freshResearch = requiresFreshResearch(entry.text);
         if (allowBrowser
                 && isAgentModeEnabled()
-                && result.needsExternalHelp()
+                && (forceBrowser || freshResearch || result.needsExternalHelp())
                 && PixelBrowserController.isAccessibilityEnabled(app)) {
             prefs.edit()
                     .putLong(KEY_PENDING_USER_ID, entry.id)
@@ -246,6 +298,8 @@ public final class AgentOrchestrator {
                     "system",
                     "agent",
                     "Chrome/ChatGPTへ外部調査を1回だけ委譲"
+                            + (forceBrowser ? " · forced=1" : "")
+                            + (freshResearch ? " · fresh=1" : "")
                             + " · user=#" + entry.id
                             + " · localSkill=" + result.skill
                             + " · confidence=" + String.format("%.2f", result.confidence)
@@ -287,7 +341,7 @@ public final class AgentOrchestrator {
                         .remove(KEY_INFLIGHT_STARTED_AT)
                         .apply();
             } else if (prefs.getLong(KEY_PENDING_USER_ID, 0L) <= 0L) {
-                processUserEntryBlocking(inflight, null, true);
+                processUserEntryBlocking(inflight, null, true, false);
             }
         }
 
@@ -306,7 +360,7 @@ public final class AgentOrchestrator {
                     .putLong(KEY_INFLIGHT_USER_ID, entry.id)
                     .putLong(KEY_INFLIGHT_STARTED_AT, System.currentTimeMillis())
                     .apply();
-            processUserEntryBlocking(entry, null, true);
+            processUserEntryBlocking(entry, null, true, false);
 
             // A browser delegation is now pending. Wait for AccessibilityService
             // rather than consuming later user events out of order.
@@ -377,10 +431,24 @@ public final class AgentOrchestrator {
     }
 
     private static String buildBrowserResearchPrompt(String userText) {
-        return "次のユーザー依頼について、必要な事実を確認し、"
+        return "次のユーザー依頼について、必要ならウェブ検索を使って最新情報を確認し、"
                 + "簡潔で直接的な回答を作ってください。"
+                + "確認した外部情報には、可能な範囲で出典名とURLまたは参照先を添えてください。"
                 + "不明な点は推測せず明示してください。\n\n"
                 + userText;
+    }
+
+    private static boolean requiresFreshResearch(String text) {
+        String value = text == null ? "" : text.toLowerCase(Locale.ROOT);
+        String[] hints = {
+                "最新", "今日", "現在", "今の", "ニュース", "天気", "価格",
+                "相場", "発売", "アップデート", "更新情報", "version", "release",
+                "latest", "today", "current", "news", "weather", "price"
+        };
+        for (String hint : hints) {
+            if (value.contains(hint)) return true;
+        }
+        return false;
     }
 
     private static String stripBrowserCore(String text) {

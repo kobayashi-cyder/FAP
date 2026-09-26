@@ -4,8 +4,10 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
+import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.graphics.pdf.PdfRenderer;
+import android.graphics.pdf.content.PdfPageTextContent;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -86,7 +88,54 @@ public final class AttachmentAnalyzer {
                             .append(page.getHeight());
                 }
             }
-            out.append("\nPDF本文抽出は現在メタデータ段階。ファイル本体は保持済み。");
+
+            if (Build.VERSION.SDK_INT < 35) {
+                out.append("\nPDF本文抽出にはAndroid 15以降が必要です。ファイル本体は保持済み。");
+                return out.toString();
+            }
+
+            int extractedPages = 0;
+            int extractedSegments = 0;
+            for (int i = 0; i < pages && out.length() < MAX_EXTRACTED_CHARS; i++) {
+                try (PdfRenderer.Page page = renderer.openPage(i)) {
+                    java.util.List<PdfPageTextContent> contents = page.getTextContents();
+                    if (contents == null || contents.isEmpty()) continue;
+
+                    StringBuilder pageText = new StringBuilder();
+                    for (PdfPageTextContent content : contents) {
+                        if (content == null) continue;
+                        String text = content.getText();
+                        if (text == null) continue;
+                        text = text.trim();
+                        if (text.isEmpty()) continue;
+                        if (pageText.length() > 0) pageText.append("\n");
+                        pageText.append(text);
+                        extractedSegments++;
+                        if (out.length() + pageText.length() >= MAX_EXTRACTED_CHARS) break;
+                    }
+                    if (pageText.length() == 0) continue;
+
+                    out.append("\n\n[PDF page ")
+                            .append(i + 1)
+                            .append("]\n")
+                            .append(pageText);
+                    extractedPages++;
+                }
+            }
+
+            if (out.length() > MAX_EXTRACTED_CHARS) {
+                out.setLength(MAX_EXTRACTED_CHARS);
+                out.append("\n[PDF text truncated]");
+            }
+            out.append("\n\nPDF本文抽出 · pages=")
+                    .append(extractedPages)
+                    .append("/")
+                    .append(pages)
+                    .append(" · segments=")
+                    .append(extractedSegments);
+            if (extractedPages == 0 && pages > 0) {
+                out.append(" · 埋め込みテキストなし（スキャンPDFの可能性）");
+            }
             return out.toString();
         }
     }
