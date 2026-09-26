@@ -19,10 +19,22 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean pumpScheduled = false;
+    private final Runnable agentHeartbeat = new Runnable() {
+        @Override public void run() {
+            try {
+                AgentOrchestrator.get(PixelBrowserAccessibilityService.this).reconcileAsync();
+            } catch (Throwable ignored) {
+            }
+            handler.postDelayed(this, 3000L);
+        }
+    };
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
+        AgentOrchestrator.get(this).reconcileAsync();
+        handler.removeCallbacks(agentHeartbeat);
+        handler.postDelayed(agentHeartbeat, 800L);
         schedulePump(120);
     }
 
@@ -162,6 +174,8 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
             }
 
             if (stable >= 2) {
+                boolean autoReturn = PixelBrowserController.prefs(this)
+                        .getBoolean(PixelBrowserController.KEY_AUTO_RETURN, false);
                 PixelBrowserController.prefs(this).edit()
                         .putString(PixelBrowserController.KEY_RESPONSE, candidate)
                         .putString(PixelBrowserController.KEY_STATE,
@@ -170,8 +184,16 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
                                 PixelBrowserController.CMD_NONE)
                         .putString(PixelBrowserController.KEY_ERROR, "")
                         .putString(PixelBrowserController.KEY_CANDIDATE, "")
+                        .putBoolean(PixelBrowserController.KEY_AUTO_RETURN, false)
                         .putInt(PixelBrowserController.KEY_STABLE, 0)
                         .apply();
+
+                AgentOrchestrator.get(this).onBrowserResult(prompt, candidate);
+                if (autoReturn) {
+                    handler.postDelayed(
+                            () -> performGlobalAction(GLOBAL_ACTION_BACK),
+                            350L);
+                }
                 return;
             }
 
@@ -181,6 +203,12 @@ public final class PixelBrowserAccessibilityService extends AccessibilityService
                     .apply();
             schedulePump(850);
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        handler.removeCallbacks(agentHeartbeat);
+        super.onDestroy();
     }
 
     private void fail(String message) {
