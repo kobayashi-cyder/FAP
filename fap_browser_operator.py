@@ -202,7 +202,6 @@ class PlaywrightBrowser:
         if not self.config.cdp_url:
             raise RuntimeError("reconnect is available only for CDP sessions")
         self.close()
-        self._closed = False if hasattr(self, "_closed") else False
         return self.start()
 
     def snapshot(self) -> BrowserEvidence:
