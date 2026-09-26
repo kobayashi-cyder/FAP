@@ -140,11 +140,12 @@ class FMGImportedVideoModule:
             }
 
         duration = min(_duration_seconds(prompt), profile.max_duration_s)
+        keyframe_count = min(profile.keyframes, self.keyframes)
         frame_paths: list[str] = []
         frame_notes: list[dict[str, Any]] = []
 
         for index, scene_prompt in enumerate(
-                self._scene_prompts(prompt, profile.name, profile.keyframes), 1):
+                self._scene_prompts(prompt, profile.name, keyframe_count), 1):
             result = self.image_module.generate(scene_prompt)
             path = self._artifact_path(result)
             frame_notes.append(
@@ -195,6 +196,7 @@ class FMGImportedVideoModule:
                 "width": profile.width,
                 "height": profile.height,
                 "quality": profile.name,
+                "keyframes": keyframe_count,
                 "codec": "video/avc",
             },
             "frame_attempts": frame_notes,
@@ -209,6 +211,7 @@ class FMGImportedVideoModule:
                     "width": profile.width,
                     "height": profile.height,
                     "quality": profile.name,
+                    "keyframes": keyframe_count,
                 }
             ],
         }
