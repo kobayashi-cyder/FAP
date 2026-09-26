@@ -6,7 +6,10 @@ import json
 from pathlib import Path
 import re
 
-from sync_pixel_runtime import DEFAULT_SEEDS, dependency_closure
+try:
+    from .sync_pixel_runtime import DEFAULT_SEEDS, dependency_closure
+except ImportError:
+    from sync_pixel_runtime import DEFAULT_SEEDS, dependency_closure
 
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
