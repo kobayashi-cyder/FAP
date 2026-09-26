@@ -83,7 +83,7 @@ public:
         if (!has_route && !text.empty()) pressure = std::min(1.0, pressure + 0.04);
 
         int active = static_cast<int>(std::lround(
-            6.0 + 106.0 * pressure + 2.0 * retries + 2.0 * std::max(0, intent_count - 1)));
+            6.0 + 118.0 * pressure + 2.0 * retries + 2.0 * std::max(0, intent_count - 1)));
         active = std::clamp(active, 6, kMaxLanes);
         const int synthesis = std::clamp(2 + active / 8, 2, kMaxSynthesis);
         const int quorum = std::clamp(
