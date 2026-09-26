@@ -1,10 +1,10 @@
 {
   "schema": "fap.pixel.runtime.manifest.v1",
   "runtime_version": "1.0.01",
-  "source_commit": "8fd60506c6f9c892a816c0c623df7b7a67d90a16",
+  "source_commit": "949db08c8fb6a3cfb0417d906f59fe3bff71b112",
   "entrypoint": "fap_1x_standard_runtime.py",
-  "file_count": 32,
-  "total_bytes": 352835,
+  "file_count": 33,
+  "total_bytes": 360020,
   "files": [
     {
       "path": "fap_1x_runtime.py",
@@ -13,13 +13,13 @@
     },
     {
       "path": "fap_1x_standard_runtime.py",
-      "sha256": "d9ff90812b17014d3e295873bb893b33df21d2be681fb731517f3ee88bf10771",
-      "bytes": 15183
+      "sha256": "67ebec7128b7cb852978167ca1d868c737cefc3264007b8a45a743d25d89eb27",
+      "bytes": 15951
     },
     {
       "path": "fap_adaptive_reasoning.py",
-      "sha256": "a2ea0588e775e8bfdb5d0ff5af7fdf81c4c2c96b631519c27d2ed579e7791f1c",
-      "bytes": 13081
+      "sha256": "22c860c9573f8459504071ac49de4ba1d7592ed0327d8728f1f5d89c6d039b0f",
+      "bytes": 13117
     },
     {
       "path": "fap_discourse_context.py",
@@ -65,6 +65,11 @@
       "path": "fap_knowledge_retrieval.py",
       "sha256": "77c345c0ab208f0de503f9afcbdb0fb51f2b5af07ab910703ee559381fa09573",
       "bytes": 7810
+    },
+    {
+      "path": "fap_reasoning_episode.py",
+      "sha256": "0e14d7bba387916fe9dc0ab11b7a9e27a0eaab4a5d0a9dbfb32ad3d1dffbac79",
+      "bytes": 6381
     },
     {
       "path": "fap_reflective_conversation.py",
